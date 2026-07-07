@@ -16,3 +16,6 @@ extension/_metadata/
 
 # Packed store zips (npm run pack)
 build/
+
+# Internal working agreement — not part of the public repo
+CLAUDE.md
