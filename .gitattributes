@@ -1,0 +1,3 @@
+# LF everywhere: the ruleset compiler emits LF and reproducible-build
+# checksums are byte-exact, so line endings must not vary by platform.
+* text=auto eol=lf

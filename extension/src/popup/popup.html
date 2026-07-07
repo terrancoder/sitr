@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Sitr</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; margin: 0; min-width: 260px; }
+    .status { padding: 16px; display: flex; align-items: center; gap: 10px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+    .active .dot { background: #1a7f37; }
+    .inactive .dot { background: #c62828; }
+    .detail { padding: 0 16px 14px; color: #555; font-size: 12px; }
+    footer { border-top: 1px solid #eee; padding: 10px 16px; font-size: 12px; color: #777; }
+  </style>
+</head>
+<body>
+  <div id="status" class="status inactive">
+    <span class="dot"></span>
+    <strong id="status-text">Checking protection…</strong>
+  </div>
+  <div id="detail" class="detail"></div>
+  <footer>All filtering happens on your device. Your browsing history never leaves your browser.</footer>
+  <script type="module" src="../../dist/popup/popup.js"></script>
+</body>
+</html>

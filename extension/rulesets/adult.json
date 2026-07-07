@@ -1,0 +1,23 @@
+[
+  {
+    "id": 10001,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "requestDomains": [
+        "chaturbate.com",
+        "livejasmin.com",
+        "onlyfans.com",
+        "pornhub.com",
+        "redtube.com",
+        "stripchat.com",
+        "xhamster.com",
+        "xnxx.com",
+        "xvideos.com",
+        "youporn.com"
+      ]
+    }
+  }
+]

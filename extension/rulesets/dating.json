@@ -1,0 +1,21 @@
+[
+  {
+    "id": 30001,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "requestDomains": [
+        "badoo.com",
+        "bumble.com",
+        "happn.com",
+        "match.com",
+        "okcupid.com",
+        "plentyoffish.com",
+        "pof.com",
+        "tinder.com"
+      ]
+    }
+  }
+]

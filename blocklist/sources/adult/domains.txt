@@ -1,0 +1,14 @@
+# Sitr blocklist — category: adult
+# One domain per line. Subdomains are covered automatically by DNR
+# requestDomains matching. See ../../policy/inclusion-policy.md.
+# Seed list only — expanded via reviewed pull requests.
+pornhub.com
+xvideos.com
+xnxx.com
+xhamster.com
+redtube.com
+youporn.com
+onlyfans.com
+chaturbate.com
+stripchat.com
+livejasmin.com

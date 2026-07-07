@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Sitr — Halal & Family Content Filter",
+  "version": "0.1.0",
+  "description": "On-device adult-content filtering and SafeSearch enforcement. Your browsing never leaves your browser.",
+  "permissions": ["declarativeNetRequest", "storage"],
+  "host_permissions": [
+    "*://*.google.com/*",
+    "*://www.bing.com/*",
+    "*://duckduckgo.com/*",
+    "*://*.youtube.com/*",
+    "*://youtubei.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "dist/background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "Sitr"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "sitr_adult",
+        "enabled": true,
+        "path": "rulesets/adult.json"
+      },
+      {
+        "id": "sitr_gambling",
+        "enabled": true,
+        "path": "rulesets/gambling.json"
+      },
+      {
+        "id": "sitr_dating",
+        "enabled": true,
+        "path": "rulesets/dating.json"
+      },
+      {
+        "id": "sitr_safesearch",
+        "enabled": true,
+        "path": "rulesets/safesearch.json"
+      }
+    ]
+  }
+}

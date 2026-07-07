@@ -1,0 +1,21 @@
+[
+  {
+    "id": 20001,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "requestDomains": [
+        "888casino.com",
+        "bet365.com",
+        "betway.com",
+        "draftkings.com",
+        "fanduel.com",
+        "pokerstars.com",
+        "stake.com",
+        "williamhill.com"
+      ]
+    }
+  }
+]

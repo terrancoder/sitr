@@ -1,0 +1,10 @@
+# Sitr blocklist — category: dating
+# Seed list only — expanded via reviewed pull requests.
+tinder.com
+badoo.com
+okcupid.com
+match.com
+bumble.com
+happn.com
+plentyoffish.com
+pof.com

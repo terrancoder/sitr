@@ -1,0 +1,23 @@
+{
+  "name": "sitr",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sitr — privacy-clean halal/family content filter (MV3, on-device)",
+  "type": "module",
+  "workspaces": [
+    "extension",
+    "tools/compiler"
+  ],
+  "scripts": {
+    "build": "npm run build:compiler && npm run compile:rulesets && npm run build:extension",
+    "build:compiler": "tsc -p tools/compiler/tsconfig.json",
+    "compile:rulesets": "node tools/compiler/dist/cli.js --blocklist blocklist/sources --out extension/rulesets",
+    "build:extension": "tsc -p extension/tsconfig.json",
+    "test": "npm run build && tsc -p tests/tsconfig.json && node --test \"tests/dist/*.test.js\""
+  },
+  "devDependencies": {
+    "@types/chrome": "0.0.268",
+    "@types/node": "20.14.15",
+    "typescript": "5.5.4"
+  }
+}

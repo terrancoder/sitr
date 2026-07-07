@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+      # Reproducibility check: compile the rulesets a second time into a
+      # separate directory and require byte-identical output.
+      - name: Verify deterministic ruleset compilation
+        run: |
+          node tools/compiler/dist/cli.js --blocklist blocklist/sources --out /tmp/rulesets-recheck
+          diff -r extension/rulesets /tmp/rulesets-recheck
+
+      # Publish the artifact hashes so anyone can verify what shipped.
+      - name: Print ruleset SHA-256 checksums
+        run: cat extension/rulesets/checksums.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruleset-checksums
+          path: extension/rulesets/checksums.json

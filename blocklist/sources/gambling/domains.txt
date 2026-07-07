@@ -1,0 +1,10 @@
+# Sitr blocklist — category: gambling
+# Seed list only — expanded via reviewed pull requests.
+bet365.com
+pokerstars.com
+888casino.com
+betway.com
+stake.com
+draftkings.com
+fanduel.com
+williamhill.com

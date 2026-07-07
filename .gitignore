@@ -1,0 +1,11 @@
+node_modules/
+tools/compiler/dist/
+extension/dist/
+tests/dist/
+
+# Compiled rulesets are build output (recompiled in CI from blocklist/),
+# but they are committed so the shipped artifact is reviewable in the repo.
+# Do not add extension/rulesets/ here.
+
+# Internal working notes - not part of the public repo.
+docs/
