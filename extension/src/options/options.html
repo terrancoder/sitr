@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Sitr — Settings</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; margin: 0 auto; max-width: 640px; padding: 24px; color: #222; }
+    h1 { font-size: 20px; }
+    h2 { font-size: 15px; margin-top: 28px; }
+    p.note { color: #555; font-size: 13px; }
+    form { display: flex; gap: 8px; margin: 8px 0; }
+    input[type="text"] { flex: 1; padding: 6px 8px; }
+    button { padding: 6px 12px; cursor: pointer; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; }
+    .error { color: #c62828; font-weight: 600; min-height: 1.5em; }
+    .empty { color: #888; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Sitr settings</h1>
+  <p class="note">
+    Everything on this page is stored only in your browser. Your allow/deny
+    choices — like everything else about your browsing — never leave your device.
+  </p>
+  <p id="error" class="error" role="alert"></p>
+
+  <h2>Always allow these sites</h2>
+  <p class="note">Overrides the blocklist. Use for false positives — and please also
+    report them through the public blocklist's appeals process so everyone benefits.</p>
+  <form id="allow-form">
+    <input type="text" id="allow-input" placeholder="example.com" />
+    <button type="submit">Allow</button>
+  </form>
+  <ul id="allow-list"></ul>
+
+  <h2>Always block these sites</h2>
+  <p class="note">Blocked in addition to the blocklist.</p>
+  <form id="block-form">
+    <input type="text" id="block-input" placeholder="example.com" />
+    <button type="submit">Block</button>
+  </form>
+  <ul id="block-list"></ul>
+
+  <script type="module" src="../../dist/options/options.js"></script>
+</body>
+</html>
