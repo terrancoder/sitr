@@ -10,12 +10,12 @@ What we defend against, what we deliberately cannot do, and what remains.
 
 ## Threats and mitigations
 
-### T1: Sitr itself spying on users (the competitor failure mode)
+### T1: Sitr itself spying on users (the category's defining failure)
 The primary threat is *us* — a filtering product is perfectly positioned to
 surveil. Mitigations are structural, not promises: DNR cannot read request
 contents; there is no per-user server; the blocklist is identical for all;
 the code is open source with reproducible builds. See
-[why-competitor-failed.md](why-competitor-failed.md).
+[design-lessons.md](design-lessons.md).
 
 ### T2: Malicious or compromised blocklist update
 A poisoned ruleset could block legitimate sites or (worse) redirect traffic.
