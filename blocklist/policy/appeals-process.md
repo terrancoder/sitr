@@ -3,7 +3,7 @@
 Think a domain is wrongly blocked? Every rule is public and contestable.
 
 1. **Open an issue** at
-   [github.com/sitr-filter/sitr/issues](https://github.com/sitr-filter/sitr/issues)
+   [github.com/terrancoder/sitr/issues](https://github.com/terrancoder/sitr/issues)
    titled `unblock request: <domain>`,
    stating what the site actually is and which inclusion criterion it fails.
 2. A maintainer responds **within 14 days** with accept / reject / needs-info,

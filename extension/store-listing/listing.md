@@ -55,13 +55,13 @@ No account. No server that sees your traffic. No history collection. No
 local exception instantly and file a public appeal — every blocking decision
 is documented and contestable.
 
-Source code, blocklist, and appeals: https://github.com/sitr-filter/sitr
+Source code, blocklist, and appeals: https://github.com/terrancoder/sitr
 
 ## Support / homepage URLs for the listing form
 
-- Homepage: https://github.com/sitr-filter/sitr
-- Support: https://github.com/sitr-filter/sitr/issues
-- Privacy policy: https://github.com/sitr-filter/sitr/blob/main/docs/privacy-policy.md
+- Homepage: https://github.com/terrancoder/sitr
+- Support: https://github.com/terrancoder/sitr/issues
+- Privacy policy: https://github.com/terrancoder/sitr/blob/main/docs/privacy-policy.md
 
 ## Category
 
