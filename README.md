@@ -34,6 +34,7 @@ See [CLAUDE.md](CLAUDE.md) for the full trust contract and architecture.
 | `blocklist/` | Public blocklist sources + inclusion policy + appeals process |
 | `tools/compiler/` | Deterministic list → DNR ruleset compiler |
 | `tests/` | Golden compilation, validation, and fail-visible tests |
+| `docs/` | Architecture, [data flow](docs/data-flow.md) (every endpoint — currently zero), [privacy policy](docs/privacy-policy.md), [threat model](docs/threat-model.md), [why competitor failed](docs/why-competitor-failed.md) |
 
 ## Build
 

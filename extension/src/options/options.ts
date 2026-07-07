@@ -6,6 +6,12 @@
  * failure is rendered in the page's error line, never swallowed (§4).
  */
 import {
+  DISABLED_CATEGORIES_KEY,
+  sanitizeDisabled,
+  TOGGLEABLE_CATEGORIES,
+  type ToggleableRulesetId,
+} from "../lib/categories.js";
+import {
   buildUserRule,
   domainsOf,
   normalizeDomainInput,
@@ -100,8 +106,61 @@ function wireForm(kind: UserRuleKind): void {
   });
 }
 
+async function setCategoryDisabled(
+  rulesetId: ToggleableRulesetId,
+  disabled: boolean,
+): Promise<void> {
+  clearError();
+  const stored = await chrome.storage.local.get(DISABLED_CATEGORIES_KEY);
+  const current = new Set(sanitizeDisabled(stored[DISABLED_CATEGORIES_KEY]));
+  if (disabled) current.add(rulesetId);
+  else current.delete(rulesetId);
+
+  // Apply to the DNR engine first; only persist the preference if that
+  // succeeded, so settings never claim a state the engine doesn't have.
+  await chrome.declarativeNetRequest.updateEnabledRulesets(
+    disabled
+      ? { disableRulesetIds: [rulesetId] }
+      : { enableRulesetIds: [rulesetId] },
+  );
+  await chrome.storage.local.set({ [DISABLED_CATEGORIES_KEY]: [...current] });
+}
+
+async function renderCategories(): Promise<void> {
+  const listEl = document.getElementById("category-list") as HTMLElement;
+  const stored = await chrome.storage.local.get(DISABLED_CATEGORIES_KEY);
+  const disabled = new Set(sanitizeDisabled(stored[DISABLED_CATEGORIES_KEY]));
+  listEl.textContent = "";
+  for (const category of TOGGLEABLE_CATEGORIES) {
+    const li = document.createElement("li");
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = !disabled.has(category.rulesetId);
+    checkbox.addEventListener("change", () => {
+      void setCategoryDisabled(category.rulesetId, !checkbox.checked).catch(
+        (e: unknown) => {
+          // Revert the checkbox so the UI never shows an unapplied state.
+          checkbox.checked = !checkbox.checked;
+          showError(
+            `Could not update category: ${e instanceof Error ? e.message : String(e)}`,
+          );
+        },
+      );
+    });
+    label.append(checkbox, ` Block ${category.label.toLowerCase()} sites`);
+    li.append(label);
+    listEl.append(li);
+  }
+}
+
 wireForm("allow");
 wireForm("block");
+void renderCategories().catch((e: unknown) => {
+  showError(
+    `Could not load categories: ${e instanceof Error ? e.message : String(e)}`,
+  );
+});
 void refreshLists().catch((e: unknown) => {
   showError(
     `Could not load rules: ${e instanceof Error ? e.message : String(e)}`,

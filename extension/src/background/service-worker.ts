@@ -9,11 +9,20 @@
  * browser's DNR engine from the bundled static rulesets.
  */
 import { badgeFor, deriveStatus, type ProtectionStatus } from "../lib/status.js";
+import {
+  DISABLED_CATEGORIES_KEY,
+  requiredRulesets,
+  sanitizeDisabled,
+} from "../lib/categories.js";
 
 async function checkProtection(): Promise<ProtectionStatus> {
   try {
+    const stored = await chrome.storage.local.get(DISABLED_CATEGORIES_KEY);
+    const required = requiredRulesets(
+      sanitizeDisabled(stored[DISABLED_CATEGORIES_KEY]),
+    );
     const enabled = await chrome.declarativeNetRequest.getEnabledRulesets();
-    return deriveStatus(enabled);
+    return deriveStatus(enabled, required);
   } catch (e) {
     // Fail visible, fail safe: an error querying rulesets means we cannot
     // prove protection — report unknown, which renders as a red badge.
@@ -44,4 +53,8 @@ async function refresh(): Promise<void> {
 
 chrome.runtime.onInstalled.addListener(() => void refresh());
 chrome.runtime.onStartup.addListener(() => void refresh());
+// Re-check whenever settings change (the options page toggles categories).
+chrome.storage.onChanged.addListener((_changes, area) => {
+  if (area === "local") void refresh();
+});
 void refresh();

@@ -13,6 +13,7 @@
     "build:compiler": "tsc -p tools/compiler/tsconfig.json",
     "compile:rulesets": "node tools/compiler/dist/cli.js --blocklist blocklist/sources --out extension/rulesets",
     "build:extension": "tsc -p extension/tsconfig.json",
+    "build:icons": "node tools/icons/generate.mjs extension/public",
     "test": "npm run build && tsc -p tests/tsconfig.json && node --test \"tests/dist/*.test.js\""
   },
   "devDependencies": {

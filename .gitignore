@@ -8,4 +8,5 @@ tests/dist/
 # Do not add extension/rulesets/ here.
 
 # Internal working notes - not part of the public repo.
-docs/
+# Public docs live in docs/ and ARE committed.
+docspriv/

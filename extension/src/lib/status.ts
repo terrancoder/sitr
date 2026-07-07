@@ -5,23 +5,22 @@
  * we report it inactive. Never optimistic.
  */
 
-/** Ruleset ids that MUST be enabled for protection to count as active. */
-export const REQUIRED_RULESETS = [
-  "sitr_adult",
-  "sitr_gambling",
-  "sitr_dating",
-  "sitr_safesearch",
-] as const;
-
 export type ProtectionStatus =
   | { state: "active" }
   | { state: "inactive"; missingRulesets: string[] }
   | { state: "unknown"; reason: string };
 
-/** Derive status from the list of rulesets the browser reports as enabled. */
-export function deriveStatus(enabledRulesetIds: string[]): ProtectionStatus {
+/**
+ * Derive status from what the browser reports as enabled versus what the
+ * user's settings require (see categories.ts). A category the user turned
+ * off is not "missing" — only required-but-absent rulesets are failures.
+ */
+export function deriveStatus(
+  enabledRulesetIds: string[],
+  requiredRulesetIds: string[],
+): ProtectionStatus {
   const enabled = new Set(enabledRulesetIds);
-  const missing = REQUIRED_RULESETS.filter((id) => !enabled.has(id));
+  const missing = requiredRulesetIds.filter((id) => !enabled.has(id));
   return missing.length === 0
     ? { state: "active" }
     : { state: "inactive", missingRulesets: missing };
