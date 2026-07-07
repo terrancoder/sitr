@@ -13,3 +13,6 @@ docspriv/
 
 # Chrome writes indexed ruleset caches here when loading the unpacked extension
 extension/_metadata/
+
+# Packed store zips (npm run pack)
+build/
