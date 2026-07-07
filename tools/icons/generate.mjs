@@ -39,26 +39,46 @@ function chunk(type, data) {
   return Buffer.concat([len, body, crc]);
 }
 
-/** 4x supersampled coverage of the crescent at pixel (x, y), 0..1. */
+/**
+ * Mark: a rounded-square tile pierced by a diamond lattice — a mashrabiya
+ * screen, the traditional privacy screen (sitr = "covering, screen").
+ * Returns [coverage 0..1, isHole] for pixel (x, y); holes render lighter.
+ */
+function sample(px, py, size) {
+  const m = 0.04 * size; // outer margin
+  const r = 0.22 * size; // corner radius
+  const lo = m;
+  const hi = size - m;
+  // Rounded-rect signed test
+  const qx = Math.max(lo + r - px, px - (hi - r), 0);
+  const qy = Math.max(lo + r - py, py - (hi - r), 0);
+  const inTile =
+    px >= lo && px <= hi && py >= lo && py <= hi && qx * qx + qy * qy <= r * r;
+  if (!inTile) return [false, false];
+  // Diamond lattice: n×n cells across the inner area, diamond hole per cell.
+  const n = size >= 48 ? 3 : 2;
+  const inset = 0.17 * size;
+  const span = size - 2 * inset;
+  if (px >= inset && px < inset + span && py >= inset && py < inset + span) {
+    const cell = span / n;
+    const lx = ((px - inset) % cell) / cell - 0.5;
+    const ly = ((py - inset) % cell) / cell - 0.5;
+    if (Math.abs(lx) + Math.abs(ly) <= 0.44) return [true, true];
+  }
+  return [true, false];
+}
+
 function coverage(x, y, size) {
-  const R = 0.46 * size;
-  const cx = 0.48 * size;
-  const cy = 0.5 * size;
-  // Inner "bite" circle offset toward the top-right makes the crescent.
-  const r = 0.38 * size;
-  const bx = 0.66 * size;
-  const by = 0.38 * size;
-  let hits = 0;
+  let tile = 0;
+  let hole = 0;
   for (const dx of [0.25, 0.75]) {
     for (const dy of [0.25, 0.75]) {
-      const px = x + dx;
-      const py = y + dy;
-      const inOuter = (px - cx) ** 2 + (py - cy) ** 2 <= R * R;
-      const inBite = (px - bx) ** 2 + (py - by) ** 2 <= r * r;
-      if (inOuter && !inBite) hits++;
+      const [inTile, isHole] = sample(x + dx, y + dy, size);
+      if (inTile) tile++;
+      if (isHole) hole++;
     }
   }
-  return hits / 4;
+  return [tile / 4, hole / 4];
 }
 
 function png(size) {
@@ -72,12 +92,14 @@ function png(size) {
     const row = y * (1 + size * 4);
     raw[row] = 0; // filter: none
     for (let x = 0; x < size; x++) {
-      const a = Math.round(coverage(x, y, size) * 255);
+      const [tile, hole] = coverage(x, y, size);
       const o = row + 1 + x * 4;
-      raw[o] = GREEN[0];
-      raw[o + 1] = GREEN[1];
-      raw[o + 2] = GREEN[2];
-      raw[o + 3] = a;
+      // Holes are near-white so the lattice reads at every size.
+      const t = hole;
+      raw[o] = Math.round(GREEN[0] * (1 - t) + 245 * t);
+      raw[o + 1] = Math.round(GREEN[1] * (1 - t) + 250 * t);
+      raw[o + 2] = Math.round(GREEN[2] * (1 - t) + 246 * t);
+      raw[o + 3] = Math.round(tile * 255);
     }
   }
   return Buffer.concat([
