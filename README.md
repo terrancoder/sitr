@@ -23,7 +23,9 @@ Restricted Mode — entirely **on your device**, using the browser's
 - **Failures are visible.** If protection isn't provably active, the extension
   shows a red "Protection INACTIVE" badge — it never pretends.
 
-See [CLAUDE.md](CLAUDE.md) for the full trust contract and architecture.
+See [docs/architecture.md](docs/architecture.md) and
+[docs/threat-model.md](docs/threat-model.md) for the full architecture and
+trust model.
 
 ## Repository layout
 
