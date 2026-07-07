@@ -22,12 +22,33 @@ test("golden: adult category with two domains compiles byte-identically", () => 
       "requestDomains": [
         "a.example",
         "b.example"
+      ],
+      "resourceTypes": [
+        "main_frame",
+        "sub_frame",
+        "stylesheet",
+        "script",
+        "image",
+        "font",
+        "object",
+        "xmlhttprequest",
+        "ping",
+        "csp_report",
+        "media",
+        "websocket",
+        "other"
       ]
     }
   }
 ]
 `;
   assert.equal(serializeRuleset(r.value), expected);
+});
+
+test("block rules cover main_frame (DNR default excludes it)", () => {
+  const r = compileBlockRuleset("adult", ["a.example"]);
+  assert.ok(r.ok);
+  assert.ok(r.value[0]?.condition.resourceTypes?.includes("main_frame"));
 });
 
 test("deterministic: same input twice gives identical output", () => {

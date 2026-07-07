@@ -14,6 +14,7 @@
     "compile:rulesets": "node tools/compiler/dist/cli.js --blocklist blocklist/sources --out extension/rulesets",
     "build:extension": "tsc -p extension/tsconfig.json",
     "build:icons": "node tools/icons/generate.mjs extension/public",
+    "smoke": "npm run build && node tests/smoke/smoke.mjs",
     "test": "npm run build && tsc -p tests/tsconfig.json && node --test \"tests/dist/*.test.js\""
   },
   "devDependencies": {

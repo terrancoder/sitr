@@ -41,7 +41,13 @@ See [CLAUDE.md](CLAUDE.md) for the full trust contract and architecture.
 ```sh
 npm ci
 npm test          # builds compiler + rulesets + extension, then runs tests
+npm run smoke     # real-browser end-to-end test (blocking + SafeSearch)
 ```
+
+The smoke test needs a Chromium-based browser that honors `--load-extension`
+(branded Chrome/Edge stopped supporting it in 137). Download
+[Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/)
+into `~/.cache/chrome-for-testing/` or point `SITR_CHROME` at a binary.
 
 Load `extension/` as an unpacked extension in Chrome (`chrome://extensions`,
 Developer mode → "Load unpacked") after a build.

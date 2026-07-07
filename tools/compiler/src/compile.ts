@@ -21,6 +21,27 @@ export const MAX_RULES_PER_RULESET = 25_000;
 export const DOMAINS_PER_RULE = 1_000;
 
 /**
+ * DNR's default when resourceTypes is omitted matches every type EXCEPT
+ * main_frame — which would block a site's images but not the site itself.
+ * Block rules must list all types explicitly. (Caught by the smoke test.)
+ */
+export const ALL_RESOURCE_TYPES = [
+  "main_frame",
+  "sub_frame",
+  "stylesheet",
+  "script",
+  "image",
+  "font",
+  "object",
+  "xmlhttprequest",
+  "ping",
+  "csp_report",
+  "media",
+  "websocket",
+  "other",
+];
+
+/**
  * Each category gets a fixed, documented id range so rule ids are stable
  * across builds and categories never collide.
  */
@@ -55,6 +76,7 @@ export function compileBlockRuleset(
       action: { type: "block" },
       condition: {
         requestDomains: sortedDomains.slice(i, i + DOMAINS_PER_RULE),
+        resourceTypes: [...ALL_RESOURCE_TYPES],
       },
     });
   }
