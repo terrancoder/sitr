@@ -7,7 +7,7 @@ tests/dist/
 # but they are committed so the shipped artifact is reviewable in the repo.
 # Do not add extension/rulesets/ here.
 
-# Internal working notes - not part of the public repo.
+# Internal working notes — not part of the public repo.
 # Public docs live in docs/ and ARE committed.
 docspriv/
 
