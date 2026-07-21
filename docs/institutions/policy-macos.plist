@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  macOS managed policy for Sitr (Chrome).
+
+  Install as a managed preference for the domain
+  com.google.Chrome.extensions.EXTENSION_ID — e.g. via your MDM's
+  "Custom Settings" payload, or locally for testing:
+
+    sudo defaults write /Library/Managed\ Preferences/com.google.Chrome.extensions.EXTENSION_ID \
+      organizationName "Al-Noor Academy"
+
+  Force-install is separate: set ExtensionInstallForcelist in the
+  com.google.Chrome domain to ["EXTENSION_ID;https://clients2.google.com/service/update2/crx"].
+
+  For Edge use com.microsoft.Edge.extensions.EXTENSION_ID.
+  Verify via chrome://policy and docs/institutions/deployment.md checklist.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>organizationName</key>
+  <string>Al-Noor Academy</string>
+  <key>lockOptions</key>
+  <true/>
+  <key>forcedCategories</key>
+  <array>
+    <string>sitr_gambling</string>
+    <string>sitr_dating</string>
+  </array>
+  <key>managedBlockDomains</key>
+  <array>
+    <string>example-blocked.com</string>
+  </array>
+  <key>managedAllowDomains</key>
+  <array>
+    <string>example-allowed.com</string>
+  </array>
+</dict>
+</plist>

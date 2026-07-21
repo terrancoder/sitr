@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "properties": {
+    "organizationName": {
+      "type": "string",
+      "description": "Shown to users as 'Managed by {organizationName}'."
+    },
+    "forcedCategories": {
+      "type": "array",
+      "description": "Ruleset ids that cannot be disabled on this device. Valid values: sitr_gambling, sitr_dating. (Adult and SafeSearch are always on for every user.)",
+      "items": { "type": "string" }
+    },
+    "managedBlockDomains": {
+      "type": "array",
+      "description": "Domains blocked organization-wide (bare lowercase domains, e.g. example.com).",
+      "items": { "type": "string" }
+    },
+    "managedAllowDomains": {
+      "type": "array",
+      "description": "Domains allowed organization-wide. A managed allow outranks household and device rules but NOT a managed block.",
+      "items": { "type": "string" }
+    },
+    "lockOptions": {
+      "type": "boolean",
+      "description": "When true, the options page is read-only on this device."
+    }
+  }
+}

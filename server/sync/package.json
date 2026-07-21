@@ -1,0 +1,13 @@
+{
+  "name": "sitr-sync-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sitr Family sync server — a blind mailbox for E2E-encrypted household blobs. See docs/sync-protocol.md.",
+  "license": "MPL-2.0",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js"
+  }
+}

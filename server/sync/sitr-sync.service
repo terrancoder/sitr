@@ -1,0 +1,28 @@
+# systemd unit for the Sitr Family sync server.
+# Install: copy to /etc/systemd/system/, then
+#   systemctl enable --now sitr-sync
+[Unit]
+Description=Sitr Family sync server (blind mailbox for E2E-encrypted blobs)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sitr-sync
+DynamicUser=yes
+StateDirectory=sitr-sync
+Environment=SITR_SYNC_PORT=8787
+Environment=SITR_SYNC_DB=/var/lib/sitr-sync/blobs.sqlite
+ExecStart=/usr/bin/node --experimental-sqlite --no-warnings=ExperimentalWarning /opt/sitr/server/sync/dist/server.js
+Restart=on-failure
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

@@ -6,21 +6,23 @@
   "type": "module",
   "workspaces": [
     "extension",
-    "tools/compiler"
+    "tools/compiler",
+    "server/sync"
   ],
   "scripts": {
-    "build": "npm run build:compiler && npm run compile:rulesets && npm run build:extension",
+    "build": "npm run build:compiler && npm run compile:rulesets && npm run build:extension && npm run build:server",
     "build:compiler": "tsc -p tools/compiler/tsconfig.json",
     "compile:rulesets": "node tools/compiler/dist/cli.js --blocklist blocklist/sources --out extension/rulesets",
     "build:extension": "tsc -p extension/tsconfig.json",
+    "build:server": "tsc -p server/sync/tsconfig.json",
     "build:icons": "node tools/icons/generate.mjs extension/public",
     "smoke": "npm run build && node tests/smoke/smoke.mjs",
     "pack": "npm run build && node tools/pack/pack.mjs",
-    "test": "npm run build && tsc -p tests/tsconfig.json && node --test \"tests/dist/*.test.js\""
+    "test": "npm run build && tsc -p tests/tsconfig.json && node --experimental-sqlite --no-warnings=ExperimentalWarning --test \"tests/dist/*.test.js\""
   },
   "devDependencies": {
     "@types/chrome": "0.0.268",
-    "@types/node": "20.14.15",
+    "@types/node": "22.10.2",
     "typescript": "5.5.4"
   }
 }

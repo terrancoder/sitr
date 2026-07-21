@@ -26,9 +26,36 @@ doesn't depend on our good behavior.
 
 ## Rule priority ladder
 
-1. Static blocklist rules — priority **1** (block-only, "safe" rules)
-2. User per-site block — priority **10** (dynamic)
-3. User per-site allow — priority **20** (dynamic; an explicit allow always wins)
+Three dynamic layers sit above the static rulesets. Within a layer an
+explicit allow wins; a higher layer's block beats a lower layer's allow
+(managed > household > device user > static). Implementation:
+`extension/src/lib/ruleLayers.ts`.
+
+| Layer | Kind | Dynamic-rule id base | Cap | Priority |
+|---|---|---|---|---|
+| Static blocklist | block | (compiler ranges) | — | **1** |
+| Device user | block | 1,500,000 | 5,000 | **10** |
+| Device user | allow | 1,000,000 | 5,000 | **20** |
+| Household | block | 2,500,000 | 5,000 | **30** |
+| Household | allow | 2,000,000 | 5,000 | **40** |
+| Managed (institution) | block | 3,500,000 | 5,000 | **50** |
+| Managed (institution) | allow | 3,000,000 | 5,000 | **60** |
+
+The six caps sum to exactly Chrome's 30,000 dynamic-rule ceiling; overflow
+is a surfaced error, never truncation.
+
+## Household state and sync (Sitr Family)
+
+Household settings (shared allow/block lists, category config, guardian
+PIN hash) are one JSON document with a monotonic `rev` counter, merged
+**last-writer-wins** (rev, then timestamp, then device id) — only guardian
+devices write, so conflicts are rare and a lost edit is re-enterable.
+Vector clocks were deliberately rejected as complexity without a customer.
+Sync is optional, E2E-encrypted, and specified in
+[sync-protocol.md](sync-protocol.md); a device with no household makes no
+network requests at all. Managed (enterprise) policy arrives via the
+browser's own `chrome.storage.managed` and is never fetched by us — see
+[institutions/deployment.md](institutions/deployment.md).
 
 ## Determinism and verification
 
