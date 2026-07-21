@@ -43,6 +43,11 @@ export interface SyncInput {
   /** Highest rev this device has ever decrypted from the server. */
   maxSeenRev: number;
   deviceId: string;
+  /**
+   * Signed subscription token (docs/sync-protocol.md §Entitlement). Sent
+   * as a header; the server checks it only at household creation.
+   */
+  entitlement?: string | undefined;
 }
 
 export interface SyncOutcome {
@@ -93,6 +98,7 @@ async function push(
   state: HouseholdState,
   etag: number | undefined,
   deps: SyncDeps,
+  entitlement: string | undefined,
 ): Promise<Result<number, string | "conflict">> {
   const sealed = await sealState(state, keys.encKey);
   if (!sealed.ok) return sealed;
@@ -106,6 +112,9 @@ async function push(
         ...(etag === undefined
           ? { "If-None-Match": "*" }
           : { "If-Match": `"${etag}"` }),
+        ...(entitlement !== undefined && entitlement !== ""
+          ? { "X-Sitr-Entitlement": entitlement }
+          : {}),
       },
       body: sealed.value as unknown as BodyInit,
     });
@@ -165,7 +174,13 @@ export async function syncOnce(
       serverRev !== undefined && serverRev >= merged.rev && remote.value.state !== merged
         ? bumpRev(merged, input.deviceId, deps.now())
         : merged;
-    const pushed = await push(keys.value, toPush, remote.value.etag, deps);
+    const pushed = await push(
+      keys.value,
+      toPush,
+      remote.value.etag,
+      deps,
+      input.entitlement,
+    );
     if (!pushed.ok) {
       return pushed.error === "conflict" ? err("retry") : err(pushed.error);
     }

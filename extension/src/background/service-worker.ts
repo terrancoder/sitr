@@ -29,6 +29,8 @@ import {
   DEVICE_ID_KEY,
   HOUSEHOLD_SECRET_KEY,
   HOUSEHOLD_STATE_KEY,
+  MAX_HOUSEHOLD_DEVICES,
+  bumpRev,
   sanitizeHouseholdState,
 } from "../lib/household.js";
 import { fromB64 } from "../lib/pin.js";
@@ -156,6 +158,7 @@ async function runSync(): Promise<void> {
       HOUSEHOLD_STATE_KEY,
       MAX_SEEN_REV_KEY,
       DEVICE_ID_KEY,
+      "entitlementToken",
     ]);
     if (typeof stored[HOUSEHOLD_SECRET_KEY] !== "string") return; // no household
     const secret = fromB64(stored[HOUSEHOLD_SECRET_KEY] as string);
@@ -185,6 +188,10 @@ async function runSync(): Promise<void> {
           typeof stored[DEVICE_ID_KEY] === "string"
             ? (stored[DEVICE_ID_KEY] as string)
             : "unknown-device",
+        entitlement:
+          typeof stored["entitlementToken"] === "string"
+            ? (stored["entitlementToken"] as string)
+            : undefined,
       },
       { fetch: fetch.bind(globalThis), now: () => Date.now() },
     );
@@ -217,6 +224,36 @@ async function runSync(): Promise<void> {
       [SYNC_STATUS_KEY]: outcome.status,
       [MAX_SEEN_REV_KEY]: outcome.maxSeenRev,
     });
+    // Fair-use soft cap: register this device in the household state after
+    // a successful sync. At the cap, refuse — surfaced in sync status, but
+    // filtering stays fully active (friction, never a protection failure).
+    if (outcome.status.state === "ok") {
+      const deviceId =
+        typeof stored[DEVICE_ID_KEY] === "string"
+          ? (stored[DEVICE_ID_KEY] as string)
+          : "unknown-device";
+      if (!outcome.state.devices.includes(deviceId)) {
+        if (outcome.state.devices.length >= MAX_HOUSEHOLD_DEVICES) {
+          await chrome.storage.local.set({
+            [SYNC_STATUS_KEY]: {
+              state: "error",
+              error: `household already has ${MAX_HOUSEHOLD_DEVICES} devices (fair-use limit) — remove one from a guardian device first`,
+            },
+          });
+          return;
+        }
+        const registered = bumpRev(
+          {
+            ...outcome.state,
+            devices: [...outcome.state.devices, deviceId].sort(),
+          },
+          deviceId,
+          Date.now(),
+        );
+        // Persisting triggers storage.onChanged → the next sync pushes it.
+        await chrome.storage.local.set({ [HOUSEHOLD_STATE_KEY]: registered });
+      }
+    }
   } finally {
     syncInFlight = false;
   }

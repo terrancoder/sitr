@@ -88,12 +88,38 @@ the request time, and the connection's IP address. Retention rules
 timestamps rounded to the day; blobs idle ≥ 18 months are deleted; the
 only IP-derived state is an in-memory create-rate limiter cleared hourly.
 
-## Entitlement hook
+## Entitlement (Sitr Family subscription)
 
-Requests MAY carry `X-Sitr-Entitlement`. In v1 the server ignores its
-value (typed no-op). If billing ships, this becomes a signed token checked
-at PUT-create time — documented here before any change, per data-flow.md
-rules.
+Creating a household on the official server requires a subscription; a
+server with no `SITR_ENTITLEMENT_PUBKEY` configured (the default —
+self-hosters) accepts every request, so the paid check exists only where
+the operator opts in.
+
+- Token format: `sitr-ent-v1.<base64url(payload JSON)>.<base64url(sig)>`,
+  payload `{ v: 1, plan: "family", exp: <epoch ms> }`, Ed25519 signature
+  over the payload bytes.
+- Clients send it as `X-Sitr-Entitlement`. The server verifies the
+  signature **offline** (no billing-provider call in the sync path) and
+  only on `If-None-Match: *` creation — an expiring subscription never
+  cuts off an existing household's sync.
+- The token carries no customer identity and is unlinkable to the
+  household id, auth credential, and encryption key (which are HKDF
+  outputs of a secret the billing flow never sees).
+
+**Acquiring a token.** Checkout happens on the website via a merchant of
+record (Polar). Afterwards the site calls
+`GET /v1/blob`-adjacent endpoint `GET /v1/entitlement/claim/{checkoutId}`
+(CORS-restricted to the site's origin, rate-limited per IP). The server
+asks the billing provider a single question — "is this checkout paid?" —
+and if so returns a freshly minted token. This call is made by the
+website, never by the extension; the extension's endpoint inventory is
+unchanged. What the billing provider knows: that a purchase happened
+(name/email/payment, as any merchant of record). What it can never learn:
+household ids, keys, settings, devices, or browsing — the token is minted
+by us, not them.
+
+Ops: `server/sync/dist/mint.js --keygen` generates the keypair;
+`--plan family --days 366` mints tokens manually for support cases.
 
 ## Test vectors
 

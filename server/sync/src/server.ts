@@ -40,9 +40,15 @@ const server = createServer((req, res) => {
       },
       body: new Uint8Array(Buffer.concat(chunks)),
     };
-    const response = handler.handle(request);
-    res.writeHead(response.status, response.headers);
-    res.end(Buffer.from(response.body));
+    const respond = (response: import("./http.js").SyncResponse): void => {
+      res.writeHead(response.status, response.headers);
+      res.end(Buffer.from(response.body));
+    };
+    if (request.path.startsWith("/v1/entitlement/claim/")) {
+      void handler.handleClaim(request).then(respond);
+    } else {
+      respond(handler.handle(request));
+    }
   });
 });
 
