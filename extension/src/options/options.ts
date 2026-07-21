@@ -340,6 +340,35 @@ async function renderHouseholdLists(): Promise<void> {
       : "";
 }
 
+const ENTITLEMENT_KEY = "entitlementToken";
+
+async function renderEntitlement(): Promise<void> {
+  const stored = await chrome.storage.local.get(ENTITLEMENT_KEY);
+  el("entitlement-status").textContent =
+    typeof stored[ENTITLEMENT_KEY] === "string" && stored[ENTITLEMENT_KEY] !== ""
+      ? "Subscription token saved on this device."
+      : "Sitr Family sync needs a subscription token from sitrshield.com/family (creating a household on the official server requires it).";
+}
+
+function wireEntitlement(): void {
+  el("entitlement-enter").addEventListener("click", () => {
+    clearError();
+    void (async () => {
+      const token = window.prompt(
+        "Paste your Sitr Family subscription token (from the checkout page):",
+      );
+      if (token === null) return;
+      const trimmed = token.trim();
+      if (!trimmed.startsWith("sitr-ent-v1.")) {
+        showError('That does not look like a token (it starts with "sitr-ent-v1.").');
+        return;
+      }
+      await chrome.storage.local.set({ [ENTITLEMENT_KEY]: trimmed });
+      await renderEntitlement();
+    })().catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
+  });
+}
+
 function wireHousehold(): void {
   el("household-create").addEventListener("click", () => {
     clearError();
@@ -446,6 +475,7 @@ function wireHousehold(): void {
 wireForm("allow");
 wireForm("block");
 wireHousehold();
+wireEntitlement();
 void (async () => {
   await loadManagedPolicy();
   hh.managed = managedPolicy;
@@ -454,6 +484,7 @@ void (async () => {
   hh.state = loaded.state;
   renderManaged();
   renderHousehold();
+  await renderEntitlement();
   await renderCategories();
   await refreshLists();
   await renderHouseholdLists();

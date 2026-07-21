@@ -25,7 +25,12 @@ day; blobs idle ~18 months deleted; auth credentials stored only hashed;
 IP-derived state limited to an in-memory rate limiter cleared hourly.
 
 Devices with no household configured make **zero** network requests, same
-as always.
+as always. If a Family subscription token is saved, household-creation
+requests also carry it in the `X-Sitr-Entitlement` header — a signed
+credential minted by us that contains an expiry date and **no customer
+identity** (see [sync-protocol.md](sync-protocol.md) §Entitlement; the
+billing provider never sees household ids or keys, and the server
+verifies tokens offline).
 
 If a blocklist-update endpoint is ever added, it will appear here first,
 carry nothing user-specific, and return an artifact **identical for every
@@ -42,6 +47,7 @@ user**, checksum-verified before applying.
 | Household root secret | `storage.local` | the key material syncing is derived from — never sent anywhere | until the device leaves the household |
 | Guardian PIN | `storage.local` | salted PBKDF2 hash + failed-attempt counter | until changed/removed |
 | Sync status | `storage.local` | last sync result, shown on the options page | overwritten each sync |
+| Subscription token | `storage.local` | signed entitlement (expiry date only, no identity) | until replaced/removed |
 | Managed policy | `storage.managed` (read-only) | the organization's settings, delivered by the browser | controlled by the administrator |
 
 ## Data transmitted about the user

@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   bumpRev,
   emptyHouseholdState,
+  MAX_HOUSEHOLD_DEVICES,
   MAX_HOUSEHOLD_DOMAINS,
   mergeStates,
   sanitizeHouseholdState,
@@ -52,6 +53,23 @@ test("sanitize enforces the household domain cap as an error", () => {
   });
   assert.ok(!r.ok);
   assert.match(r.error, /exceeds/);
+});
+
+test("creator device is enrolled; device list is capped at the fair-use limit", () => {
+  const s = emptyHouseholdState("dev-a", 1);
+  assert.deepEqual(s.devices, ["dev-a"]);
+  const atCap = {
+    ...s,
+    devices: Array.from({ length: MAX_HOUSEHOLD_DEVICES }, (_, i) => `d${i}`),
+  };
+  assert.ok(sanitizeHouseholdState(atCap).ok);
+  const overCap = {
+    ...s,
+    devices: Array.from({ length: MAX_HOUSEHOLD_DEVICES + 1 }, (_, i) => `d${i}`),
+  };
+  const r = sanitizeHouseholdState(overCap);
+  assert.ok(!r.ok);
+  assert.match(r.error, /fair-use/);
 });
 
 test("merge is last-writer-wins with total tie-breaking", () => {

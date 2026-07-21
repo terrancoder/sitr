@@ -23,6 +23,14 @@ export const DEVICE_ID_KEY = "deviceId";
 /** Hard cap keeps the encrypted blob far under the server's 64 KiB limit. */
 export const MAX_HOUSEHOLD_DOMAINS = 2_000;
 
+/**
+ * Fair-use soft cap (threat-model: friction, never surveillance). No real
+ * family hits 20 devices; a shared-with-the-neighborhood pairing code
+ * does. Enforced by honest clients only — the server cannot count devices,
+ * which is the product working as designed.
+ */
+export const MAX_HOUSEHOLD_DEVICES = 20;
+
 export interface HouseholdState {
   v: 1;
   /** Monotonic write counter — the LWW clock. */
@@ -32,6 +40,8 @@ export interface HouseholdState {
   updatedBy: string;
   allowDomains: string[];
   blockDomains: string[];
+  /** Random ids of enrolled devices — meaningful only inside the blob. */
+  devices: string[];
   disabledCategories: ToggleableRulesetId[];
   /** Synced so the guardian PIN is household-wide. */
   pin?: PinRecord;
@@ -46,6 +56,7 @@ export function emptyHouseholdState(deviceId: string, now: number): HouseholdSta
     updatedBy: deviceId,
     allowDomains: [],
     blockDomains: [],
+    devices: [deviceId],
     disabledCategories: [],
     policy: { childLockOptions: true },
   };
@@ -81,6 +92,21 @@ export function sanitizeHouseholdState(raw: unknown): Result<HouseholdState, str
   if (!allow.ok) return allow;
   const block = sanitizeDomains(o["blockDomains"]);
   if (!block.ok) return block;
+  const devices = Array.isArray(o["devices"])
+    ? [
+        ...new Set(
+          o["devices"].filter(
+            (d): d is string =>
+              typeof d === "string" && d.length > 0 && d.length <= 64,
+          ),
+        ),
+      ].sort()
+    : [];
+  if (devices.length > MAX_HOUSEHOLD_DEVICES) {
+    return err(
+      `household has more than ${MAX_HOUSEHOLD_DEVICES} devices — see the fair-use policy`,
+    );
+  }
   const policyRaw =
     typeof o["policy"] === "object" && o["policy"] !== null
       ? (o["policy"] as Record<string, unknown>)
@@ -94,6 +120,7 @@ export function sanitizeHouseholdState(raw: unknown): Result<HouseholdState, str
     updatedBy: typeof o["updatedBy"] === "string" ? o["updatedBy"].slice(0, 64) : "",
     allowDomains: allow.value,
     blockDomains: block.value,
+    devices,
     disabledCategories: sanitizeDisabled(o["disabledCategories"]),
     ...(pin !== undefined ? { pin } : {}),
     policy: { childLockOptions: policyRaw["childLockOptions"] !== false },

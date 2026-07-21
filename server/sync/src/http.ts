@@ -7,7 +7,8 @@ import { createHash } from "node:crypto";
 import type { Config } from "./config.js";
 import { SyncStore } from "./store.js";
 import { WindowCounter, hashIp } from "./ratelimit.js";
-import { checkEntitlement } from "./entitlement.js";
+import { EntitlementChecker } from "./entitlement.js";
+import { mintToken, privateKeyFromB64 } from "./mint.js";
 
 export interface SyncRequest {
   method: string;
@@ -44,17 +45,83 @@ function parseEtag(raw: string | undefined): number | null {
   return Number.parseInt(m[1]!, 10);
 }
 
+const CLAIM_RE = /^\/v1\/entitlement\/claim\/([A-Za-z0-9_-]{1,128})$/;
+
 export class SyncHandler {
   private readonly perId: WindowCounter;
   private readonly creates: WindowCounter;
+  private readonly claims: WindowCounter;
+  private readonly entitlement: EntitlementChecker;
 
   constructor(
     private readonly store: SyncStore,
     private readonly config: Config,
     private readonly now: () => number = Date.now,
+    /** Injected for tests; used ONLY by the claim endpoint (Polar API). */
+    private readonly fetchImpl: typeof fetch = fetch,
   ) {
     this.perId = new WindowCounter(60_000, config.requestsPerIdPerMinute);
     this.creates = new WindowCounter(3_600_000, config.createsPerIpPerHour);
+    this.claims = new WindowCounter(3_600_000, config.createsPerIpPerHour);
+    this.entitlement = new EntitlementChecker(config.entitlementPubKeyB64);
+  }
+
+  /**
+   * One-time claim: exchange a completed Polar checkout for a signed
+   * entitlement token. Called by the WEBSITE after checkout — never by the
+   * extension, so the extension's endpoint inventory is unchanged. The
+   * token carries no customer identity; we ask Polar only "is this
+   * checkout paid?".
+   */
+  async handleClaim(req: SyncRequest): Promise<SyncResponse> {
+    const cors = {
+      "Access-Control-Allow-Origin": this.config.claimAllowedOrigin,
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+    };
+    const m = CLAIM_RE.exec(req.path);
+    if (m === null) return text(404, "not found");
+    if (req.method === "OPTIONS") {
+      return { status: 204, headers: { ...NO_STORE, ...cors }, body: EMPTY };
+    }
+    if (req.method !== "GET") return text(405, "method not allowed");
+    if (
+      this.config.polarAccessToken === undefined ||
+      this.config.entitlementPrivKeyB64 === undefined
+    ) {
+      return text(503, "claims are not enabled on this server");
+    }
+    if (!this.claims.allow(hashIp(req.ip), this.now())) {
+      return text(429, "slow down");
+    }
+    let checkout: { status?: string } | undefined;
+    try {
+      const res = await this.fetchImpl(
+        `${this.config.polarApiBase}/v1/checkouts/${m[1]!}`,
+        { headers: { Authorization: `Bearer ${this.config.polarAccessToken}` } },
+      );
+      if (res.status === 404) return text(404, "unknown checkout");
+      if (!res.ok) return text(502, "billing provider unavailable");
+      checkout = (await res.json()) as { status?: string };
+    } catch {
+      return text(502, "billing provider unavailable");
+    }
+    if (checkout.status !== "succeeded" && checkout.status !== "confirmed") {
+      return text(402, "checkout not completed");
+    }
+    const token = mintToken(
+      privateKeyFromB64(this.config.entitlementPrivKeyB64),
+      "family",
+      this.now() + this.config.entitlementDays * 24 * 60 * 60 * 1000,
+    );
+    return {
+      status: 200,
+      headers: {
+        ...NO_STORE,
+        ...cors,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: new TextEncoder().encode(JSON.stringify({ token })),
+    };
   }
 
   handle(req: SyncRequest): SyncResponse {
@@ -97,13 +164,19 @@ export class SyncHandler {
         if (req.body.length > this.config.maxBlobBytes) {
           return text(413, `blob exceeds ${this.config.maxBlobBytes} bytes`);
         }
-        const entitled = checkEntitlement(req.headers["x-sitr-entitlement"]);
-        if (entitled.kind === "denied") return text(402, "entitlement required");
-
         const ifMatch = parseEtag(req.headers["if-match"]);
         const isCreateIntent = req.headers["if-none-match"]?.trim() === "*";
         if (ifMatch === null && !isCreateIntent) {
           return text(428, 'send If-Match: "<etag>" or If-None-Match: * to create');
+        }
+        // Entitlement is checked at household creation only — an expiring
+        // subscription never cuts off an existing household mid-flight.
+        if (isCreateIntent) {
+          const entitled = this.entitlement.check(
+            req.headers["x-sitr-entitlement"],
+            this.now(),
+          );
+          if (entitled.kind === "denied") return text(402, entitled.reason);
         }
         if (isCreateIntent && !this.creates.allow(hashIp(req.ip), now)) {
           return text(429, "too many new households from this address");
