@@ -70,7 +70,8 @@ us to access, export, correct, or delete beyond what you control directly:
 leaving a household deletes its data from your device, and a household can
 delete its server blob at any time. We do not sell or share personal
 information as defined by the CCPA. For questions:
-maintainer@terrancoders.com.
+support@sitrshield.com (product & support) or privacy@dooplin.com
+(privacy & legal).
 
 ## Changes
 
