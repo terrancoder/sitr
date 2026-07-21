@@ -5,48 +5,34 @@
  * leave the device (§2). The dynamic rules themselves are the single source
  * of truth; nothing is mirrored anywhere else.
  *
- * Priorities: static block rulesets use priority 1. A user block sits above
- * them (10), and a user allow sits above everything (20) so an explicit
- * "always allow this site" always wins.
+ * This is the device-user layer of the rule ladder; the shared id/priority
+ * arithmetic for all dynamic layers (user, household, managed) lives in
+ * ruleLayers.ts. The user layer's ids and priorities are unchanged from
+ * before the ladder existed, so installed users need no migration.
  */
 import { type Result, err, ok } from "./result.js";
+import {
+  ALL_RESOURCE_TYPES,
+  LAYER_BASES,
+  LAYER_PRIORITIES,
+  MAX_RULES_PER_LAYER_KIND,
+  buildLayerRule,
+  layerDomainsOf,
+  layerKindOf,
+  type LayerRule,
+  type RuleKind,
+} from "./ruleLayers.js";
 
-export type UserRuleKind = "allow" | "block";
+export type UserRuleKind = RuleKind;
 
-export const USER_RULE_ID_BASE: Record<UserRuleKind, number> = {
-  allow: 1_000_000,
-  block: 1_500_000,
-};
-export const USER_RULE_PRIORITY: Record<UserRuleKind, number> = {
-  allow: 20,
-  block: 10,
-};
-/** Well under Chrome's 30k dynamic-rule limit, split across both kinds. */
-export const MAX_USER_RULES_PER_KIND = 5_000;
+export const USER_RULE_ID_BASE: Record<UserRuleKind, number> =
+  LAYER_BASES.user;
+export const USER_RULE_PRIORITY: Record<UserRuleKind, number> =
+  LAYER_PRIORITIES.user;
+/** Per layer+kind cap; six ranges sum to Chrome's 30k dynamic-rule limit. */
+export const MAX_USER_RULES_PER_KIND = MAX_RULES_PER_LAYER_KIND;
 
-/** Explicit full list — omitting resourceTypes excludes main_frame in DNR. */
-const ALL_RESOURCE_TYPES = [
-  "main_frame",
-  "sub_frame",
-  "stylesheet",
-  "script",
-  "image",
-  "font",
-  "object",
-  "xmlhttprequest",
-  "ping",
-  "csp_report",
-  "media",
-  "websocket",
-  "other",
-];
-
-export interface UserRule {
-  id: number;
-  priority: number;
-  action: { type: UserRuleKind };
-  condition: { requestDomains: string[]; resourceTypes: string[] };
-}
+export type UserRule = LayerRule;
 
 /** Same conservative check as the blocklist compiler's isValidDomain. */
 export function isValidDomain(domain: string): boolean {
@@ -74,36 +60,18 @@ export function normalizeDomainInput(input: string): Result<string, string> {
   return ok(s);
 }
 
+/** Kind of a DEVICE-USER rule id; household/managed ids return undefined. */
 export function kindOf(rule: { id: number }): UserRuleKind | undefined {
-  if (
-    rule.id >= USER_RULE_ID_BASE.allow &&
-    rule.id < USER_RULE_ID_BASE.allow + MAX_USER_RULES_PER_KIND
-  ) {
-    return "allow";
-  }
-  if (
-    rule.id >= USER_RULE_ID_BASE.block &&
-    rule.id < USER_RULE_ID_BASE.block + MAX_USER_RULES_PER_KIND
-  ) {
-    return "block";
-  }
-  return undefined;
+  const lk = layerKindOf(rule.id);
+  return lk?.layer === "user" ? lk.kind : undefined;
 }
 
-/** Sorted domains of one kind, read straight from the live dynamic rules. */
+/** Sorted device-user domains of one kind, from the live dynamic rules. */
 export function domainsOf(
   rules: Array<{ id: number; condition?: { requestDomains?: string[] } }>,
   kind: UserRuleKind,
 ): Array<{ id: number; domain: string }> {
-  return rules
-    .filter((r) => kindOf(r) === kind)
-    .flatMap((r) =>
-      (r.condition?.requestDomains ?? []).map((domain) => ({
-        id: r.id,
-        domain,
-      })),
-    )
-    .sort((a, b) => (a.domain < b.domain ? -1 : a.domain > b.domain ? 1 : 0));
+  return layerDomainsOf(rules, "user", kind);
 }
 
 /** Smallest free id in the kind's reserved range. Full range = hard error. */
@@ -126,13 +94,7 @@ export function buildUserRule(
   domain: string,
   id: number,
 ): UserRule {
-  return {
-    id,
-    priority: USER_RULE_PRIORITY[kind],
-    action: { type: kind },
-    condition: {
-      requestDomains: [domain],
-      resourceTypes: [...ALL_RESOURCE_TYPES],
-    },
-  };
+  return buildLayerRule("user", kind, domain, id);
 }
+
+export { ALL_RESOURCE_TYPES };

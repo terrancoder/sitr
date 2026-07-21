@@ -18,8 +18,88 @@ import {
   nextRuleId,
   type UserRuleKind,
 } from "../lib/userRules.js";
+import {
+  EMPTY_MANAGED_POLICY,
+  isCategoryLocked,
+  isManaged,
+  sanitizeManagedPolicy,
+  type ManagedPolicy,
+} from "../lib/managed.js";
+import {
+  addHouseholdDomain,
+  createHousehold,
+  hasGuardianPin,
+  joinHousehold,
+  leaveHousehold,
+  loadHousehold,
+  removeHouseholdDomain,
+  setGuardianPin,
+  showPairingCode,
+  withGate,
+  type HouseholdContext,
+} from "./household.js";
+import {
+  SYNC_STATUS_KEY,
+  describeSyncStatus,
+  sanitizeSyncStatus,
+} from "../lib/sync/status.js";
 
 const errorEl = document.getElementById("error") as HTMLElement;
+
+/** Loaded once at startup; managed policy only changes via admin push. */
+let managedPolicy: ManagedPolicy = EMPTY_MANAGED_POLICY;
+
+async function loadManagedPolicy(): Promise<void> {
+  try {
+    managedPolicy = sanitizeManagedPolicy(await chrome.storage.managed.get(null));
+  } catch {
+    managedPolicy = EMPTY_MANAGED_POLICY;
+  }
+}
+
+/** Banner, read-only lock, and the managed rule lists. */
+function renderManaged(): void {
+  const banner = document.getElementById("managed-banner") as HTMLElement;
+  if (isManaged(managedPolicy)) {
+    banner.hidden = false;
+    banner.textContent = managedPolicy.organizationName
+      ? `This browser is managed by ${managedPolicy.organizationName}. Some settings are controlled by your administrator.`
+      : "This browser is managed by your organization. Some settings are controlled by your administrator.";
+  }
+  if (managedPolicy.lockOptions) {
+    for (const id of ["allow-form", "block-form"]) {
+      const form = document.getElementById(id) as HTMLFormElement;
+      for (const el of form.elements) {
+        (el as HTMLInputElement | HTMLButtonElement).disabled = true;
+      }
+    }
+  }
+  const section = document.getElementById("managed-section") as HTMLElement;
+  const lists = [
+    ["block", managedPolicy.managedBlockDomains],
+    ["allow", managedPolicy.managedAllowDomains],
+  ] as const;
+  if (lists.some(([, domains]) => domains.length > 0)) {
+    section.hidden = false;
+    for (const [kind, domains] of lists) {
+      if (domains.length === 0) continue;
+      const heading = document.getElementById(
+        `managed-${kind}-heading`,
+      ) as HTMLElement;
+      heading.hidden = false;
+      const listEl = document.getElementById(
+        `managed-${kind}-list`,
+      ) as HTMLElement;
+      listEl.textContent = "";
+      for (const domain of domains) {
+        const li = document.createElement("li");
+        li.className = "locked";
+        li.textContent = domain;
+        listEl.append(li);
+      }
+    }
+  }
+}
 
 function showError(message: string): void {
   errorEl.textContent = message;
@@ -46,10 +126,13 @@ async function refreshLists(): Promise<void> {
       const li = document.createElement("li");
       const span = document.createElement("span");
       span.textContent = entry.domain;
-      const button = document.createElement("button");
-      button.textContent = "Remove";
-      button.addEventListener("click", () => void removeRule(entry.id));
-      li.append(span, button);
+      li.append(span);
+      if (!managedPolicy.lockOptions) {
+        const button = document.createElement("button");
+        button.textContent = "Remove";
+        button.addEventListener("click", () => void removeRule(entry.id));
+        li.append(button);
+      }
       listEl.append(li);
     }
   }
@@ -57,6 +140,10 @@ async function refreshLists(): Promise<void> {
 
 async function addRule(kind: UserRuleKind, rawInput: string): Promise<void> {
   clearError();
+  if (managedPolicy.lockOptions) {
+    showError("Settings are locked by your organization's administrator.");
+    return;
+  }
   const domain = normalizeDomainInput(rawInput);
   if (!domain.ok) {
     showError(domain.error);
@@ -83,6 +170,10 @@ async function addRule(kind: UserRuleKind, rawInput: string): Promise<void> {
 
 async function removeRule(id: number): Promise<void> {
   clearError();
+  if (managedPolicy.lockOptions) {
+    showError("Settings are locked by your organization's administrator.");
+    return;
+  }
   await chrome.declarativeNetRequest.updateDynamicRules({
     removeRuleIds: [id],
   });
@@ -136,7 +227,18 @@ async function renderCategories(): Promise<void> {
     const label = document.createElement("label");
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
-    checkbox.checked = !disabled.has(category.rulesetId);
+    const forced = managedPolicy.forcedCategories.includes(category.rulesetId);
+    checkbox.checked = forced || !disabled.has(category.rulesetId);
+    if (isCategoryLocked(category.rulesetId, managedPolicy)) {
+      checkbox.disabled = true;
+      const tag = document.createElement("span");
+      tag.className = "locked-tag";
+      tag.textContent = forced ? "(required by your organization)" : "(locked)";
+      label.append(checkbox, ` Block ${category.label.toLowerCase()} sites `, tag);
+      li.append(label);
+      listEl.append(li);
+      continue;
+    }
     checkbox.addEventListener("change", () => {
       void setCategoryDisabled(category.rulesetId, !checkbox.checked).catch(
         (e: unknown) => {
@@ -154,15 +256,209 @@ async function renderCategories(): Promise<void> {
   }
 }
 
+/* ------------------------------ household ------------------------------- */
+
+const hh: HouseholdContext = {
+  role: undefined,
+  state: undefined,
+  managed: EMPTY_MANAGED_POLICY,
+  showError,
+  onChanged: async () => {
+    renderHousehold();
+    await renderHouseholdLists();
+  },
+};
+
+function el<T extends HTMLElement>(id: string): T {
+  return document.getElementById(id) as T;
+}
+
+function renderHousehold(): void {
+  const none = el("household-none");
+  const active = el("household-active");
+  const guardianTools = el("household-guardian-tools");
+  const blockTools = el("household-block-tools");
+  if (hh.state === undefined) {
+    none.hidden = false;
+    active.hidden = true;
+    return;
+  }
+  none.hidden = true;
+  active.hidden = false;
+  const isGuardian = hh.role === "guardian";
+  guardianTools.hidden = !isGuardian;
+  blockTools.hidden = !isGuardian;
+  el("household-role-line").textContent = isGuardian
+    ? "This is a guardian device. You can edit the household lists and show the pairing code."
+    : "This is a child device. Household settings can only be changed from a guardian device.";
+}
+
+async function renderHouseholdLists(): Promise<void> {
+  for (const kind of ["allow", "block"] as const) {
+    const listEl = el(`household-${kind}-list`);
+    listEl.textContent = "";
+    const domains =
+      kind === "allow"
+        ? (hh.state?.allowDomains ?? [])
+        : (hh.state?.blockDomains ?? []);
+    if (hh.state !== undefined && domains.length === 0) {
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent =
+        kind === "allow"
+          ? "No household-allowed sites."
+          : "No household-blocked sites.";
+      listEl.append(li);
+      continue;
+    }
+    for (const domain of domains) {
+      const li = document.createElement("li");
+      const span = document.createElement("span");
+      span.textContent = domain;
+      li.append(span);
+      if (hh.role === "guardian" && !hh.managed.lockOptions) {
+        const button = document.createElement("button");
+        button.textContent = "Remove";
+        button.addEventListener("click", () => {
+          clearError();
+          void withGate("removeHouseholdRule", hh, async () => {
+            await removeHouseholdDomain(hh, kind, domain);
+            await hh.onChanged();
+          }).catch((e: unknown) => {
+            showError(e instanceof Error ? e.message : String(e));
+          });
+        });
+        li.append(button);
+      }
+      listEl.append(li);
+    }
+  }
+  const stored = await chrome.storage.local.get(SYNC_STATUS_KEY);
+  el("sync-status").textContent =
+    hh.state !== undefined
+      ? describeSyncStatus(sanitizeSyncStatus(stored[SYNC_STATUS_KEY]))
+      : "";
+}
+
+function wireHousehold(): void {
+  el("household-create").addEventListener("click", () => {
+    clearError();
+    void createHousehold(hh)
+      .then(async () => {
+        if (!(await hasGuardianPin())) {
+          const pin = window.prompt(
+            "Set a guardian PIN (4–32 characters). It will be required to loosen protection:",
+          );
+          if (pin !== null) await setGuardianPin(hh, pin);
+        }
+        await hh.onChanged();
+      })
+      .catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
+  });
+
+  el<HTMLFormElement>("household-join-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    clearError();
+    const code = el<HTMLInputElement>("household-join-code").value;
+    const role =
+      el<HTMLSelectElement>("household-join-role").value === "guardian"
+        ? ("guardian" as const)
+        : ("child" as const);
+    void joinHousehold(hh, code, role)
+      .then(() => hh.onChanged())
+      .catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
+  });
+
+  el("household-show-code").addEventListener("click", () => {
+    clearError();
+    void withGate("changePin", hh, async () => {
+      const code = await showPairingCode(hh);
+      const codeEl = el("household-code");
+      if (code !== undefined) {
+        codeEl.hidden = false;
+        codeEl.textContent = code;
+      }
+    }).catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
+  });
+
+  el("household-set-pin").addEventListener("click", () => {
+    clearError();
+    void withGate("changePin", hh, async () => {
+      const pin = window.prompt("New guardian PIN (4–32 characters):");
+      if (pin !== null) await setGuardianPin(hh, pin);
+    }).catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
+  });
+
+  el("household-leave").addEventListener("click", () => {
+    clearError();
+    void (async () => {
+      if (hh.role === "child") {
+        // A child device leaves only with proof of guardianship: the code.
+        const code = window.prompt(
+          "Enter the household pairing code (from a guardian device) to remove this device:",
+        );
+        if (code === null) return;
+        const { decodePairingCode } = await import("../lib/sync/crypto.js");
+        const { fromB64 } = await import("../lib/pin.js");
+        const secret = decodePairingCode(code);
+        const stored = await chrome.storage.local.get("householdSecret");
+        const known =
+          typeof stored["householdSecret"] === "string"
+            ? fromB64(stored["householdSecret"])
+            : undefined;
+        const matches =
+          secret.ok &&
+          known?.ok === true &&
+          known.value.length === secret.value.length &&
+          known.value.every((b, i) => b === secret.value[i]);
+        if (!matches) {
+          showError("That pairing code does not match this household.");
+          return;
+        }
+        await leaveHousehold(hh);
+        await hh.onChanged();
+        return;
+      }
+      await withGate("leaveHousehold", hh, async () => {
+        await leaveHousehold(hh);
+        await hh.onChanged();
+      });
+    })().catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
+  });
+
+  for (const kind of ["allow", "block"] as const) {
+    const form = el<HTMLFormElement>(`household-${kind}-form`);
+    const input = el<HTMLInputElement>(`household-${kind}-input`);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      clearError();
+      const gateKind =
+        kind === "allow" ? ("addDeviceAllowRule" as const) : ("addHouseholdRule" as const);
+      void withGate(gateKind, hh, async () => {
+        await addHouseholdDomain(hh, kind, input.value);
+        input.value = "";
+        await hh.onChanged();
+      }).catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
+    });
+  }
+}
+
 wireForm("allow");
 wireForm("block");
-void renderCategories().catch((e: unknown) => {
+wireHousehold();
+void (async () => {
+  await loadManagedPolicy();
+  hh.managed = managedPolicy;
+  const loaded = await loadHousehold();
+  hh.role = loaded.role;
+  hh.state = loaded.state;
+  renderManaged();
+  renderHousehold();
+  await renderCategories();
+  await refreshLists();
+  await renderHouseholdLists();
+})().catch((e: unknown) => {
   showError(
-    `Could not load categories: ${e instanceof Error ? e.message : String(e)}`,
-  );
-});
-void refreshLists().catch((e: unknown) => {
-  showError(
-    `Could not load rules: ${e instanceof Error ? e.message : String(e)}`,
+    `Could not load settings: ${e instanceof Error ? e.message : String(e)}`,
   );
 });

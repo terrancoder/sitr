@@ -35,6 +35,7 @@ trust model.
 | `extension/rulesets/` | **Generated** DNR JSON — never hand-edit |
 | `blocklist/` | Public blocklist sources + inclusion policy + appeals process |
 | `tools/compiler/` | Deterministic list → DNR ruleset compiler |
+| `server/sync/` | Sitr Family sync server — a blind mailbox for E2E-encrypted blobs ([protocol](docs/sync-protocol.md)) |
 | `tests/` | Golden compilation, validation, and fail-visible tests |
 | `docs/` | Architecture, [data flow](docs/data-flow.md) (every endpoint — currently zero), [privacy policy](docs/privacy-policy.md), [threat model](docs/threat-model.md), [design lessons](docs/design-lessons.md) |
 

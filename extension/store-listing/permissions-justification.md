@@ -13,16 +13,28 @@ calls, and uses no content scripts.
 ## `storage`
 
 Stores, locally only (`storage.local`): the current protection status shown
-in the popup, and nothing else. The user's per-site allow/deny choices live
-as DNR dynamic rules inside the browser. No data of any kind is transmitted.
+in the popup, category preferences, and — when the optional Family
+household feature is used — the household's settings and key material. The
+user's per-site allow/deny choices live as DNR dynamic rules inside the
+browser. `storage.managed` is read so organizations can deliver policy via
+the browser's own enterprise mechanism. Browsing data is never stored or
+transmitted in any tier.
+
+## `alarms`
+
+Used only to schedule the optional Family household sync (every 30
+minutes) when the user has created or joined a household. Devices without
+a household schedule nothing.
 
 ## `host_permissions`
 
 DNR requires host permissions **only** for rules that redirect requests or
-modify headers. We use exactly five hosts, all for SafeSearch enforcement:
+modify headers. We use five hosts for SafeSearch enforcement, plus one for
+the optional Family sync endpoint:
 
 | Host pattern | Why |
 |---|---|
+| `https://sync.sitr.app/*` | Optional Family sync: stores one end-to-end-encrypted settings blob the server cannot read (see docs/sync-protocol.md). Contacted only when the user sets up a household. |
 | `*://*.google.com/*` | Append `safe=active` to Google Search result URLs |
 | `*://www.bing.com/*` | Redirect searches to `strict.bing.com` (Bing's SafeSearch-strict host) |
 | `*://duckduckgo.com/*` | Append `kp=1` (DuckDuckGo safe search strict) |
@@ -40,7 +52,9 @@ activity, and the blocklist it ships is identical for every user.
 ## Data collection (data-safety form)
 
 None. No analytics, no telemetry, no ads, no third-party SDKs, no remote
-error reporting. The only network request the extension will ever make is
-fetching the public, identical-for-all blocklist update — and in the current
-version even that is absent (rulesets ship in the package and update by
-republishing the extension). Limited Use certification: affirmed.
+error reporting. With no household configured the extension makes zero
+network requests (rulesets ship in the package and update by republishing
+the extension). With the optional Family household enabled, the only
+request is the E2E-encrypted settings blob described above — it contains
+household settings (never browsing data) and is unreadable by the server.
+Limited Use certification: affirmed.

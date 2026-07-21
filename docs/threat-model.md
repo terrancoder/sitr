@@ -41,6 +41,38 @@ Moral/religious blocking decisions could be abused or opaque. Mitigations:
 public blocklist sources, written inclusion policy, named maintainers,
 public appeals process, and an on-device per-site allow that always wins.
 
+### T6: The sync server operator (Sitr Family only)
+The Family tier adds one server (docs/sync-protocol.md) — so the operator
+re-enters the threat model. Structural limits on what we *can* do: the
+server stores only an E2E-encrypted blob (keys derived on-device from a
+root secret that is never transmitted); the household id and bearer
+credential are HKDF outputs unlinkable to the encryption key; credentials
+are stored only hashed; there are no request logs and timestamps are
+day-rounded. Remaining operator powers — refusing service, deleting blobs,
+serving stale blobs — are freshness attacks only: clients detect stale
+blobs via rev monotonicity and refuse to apply them, and a device that
+never syncs again keeps filtering forever. Devices without a household
+contact no server at all.
+
+### T7: Guardian PIN bypass (Family)
+The guardian PIN is **friction, not security**. It is a salted PBKDF2 hash
+in `storage.local`, which a determined user can inspect or clear via
+devtools or by uninstalling the extension — consistent with the accepted
+limitation below. What it does stop: a child casually loosening the filter
+in the options page. What actually prevents uninstall on a managed device
+is the browser's own force-install policy (docs/institutions/), not us. We
+state this plainly rather than overclaim.
+
+### T8: A malicious or compromised institution admin
+Managed policy can force categories ON, add domain rules, and lock the
+options page — it cannot observe browsing (nothing in the extension
+reports anything, in any tier) and cannot weaken the always-on protections
+for other users. The admin-trust boundary is the browser's enterprise
+contract: an admin who controls the device could install anything anyway.
+Sitr keeps its own promise inside that boundary: applied policy is always
+visible on the options page ("Managed by X", locked rows), and a policy
+that fails to apply turns the badge red.
+
 ## Out of scope / honest limitations
 
 - **A determined user can bypass Sitr** (disable the extension, another

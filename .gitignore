@@ -19,3 +19,6 @@ build/
 
 # Internal working agreement — not part of the public repo
 CLAUDE.md
+
+# Sync server build output
+server/sync/dist/

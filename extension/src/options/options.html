@@ -15,10 +15,15 @@
     li { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; }
     .error { color: #c62828; font-weight: 600; min-height: 1.5em; }
     .empty { color: #888; font-style: italic; }
+    .pairing-code { background: #f4f1e8; border: 1px solid #d8d2bd; padding: 10px 12px; border-radius: 4px; font-size: 13px; word-break: break-all; user-select: all; }
+    .managed-banner { background: #eef4f0; border: 1px solid #b9d2c4; color: #1a4d38; padding: 8px 12px; border-radius: 4px; font-size: 13px; }
+    .locked { color: #888; }
+    .locked-tag { font-size: 12px; color: #1a4d38; margin-left: 6px; }
   </style>
 </head>
 <body>
   <h1>Sitr settings</h1>
+  <p id="managed-banner" class="managed-banner" hidden></p>
   <p class="note">
     Everything on this page is stored only in your browser. Your allow/deny
     choices — like everything else about your browsing — never leave your device.
@@ -47,6 +52,56 @@
     <button type="submit">Block</button>
   </form>
   <ul id="block-list"></ul>
+
+  <h2>Household</h2>
+  <p class="note">Share allow/block lists and settings across your family's
+    devices. Everything stays on your devices — if sync is used, the server
+    only ever stores an encrypted blob it cannot read.</p>
+  <div id="household-none">
+    <button id="household-create" type="button">Create a household (guardian)</button>
+    <form id="household-join-form">
+      <input type="text" id="household-join-code" placeholder="Pairing code from the guardian device" />
+      <select id="household-join-role">
+        <option value="child">This is a child's device</option>
+        <option value="guardian">This is a guardian's device</option>
+      </select>
+      <button type="submit">Join</button>
+    </form>
+  </div>
+  <div id="household-active" hidden>
+    <p id="household-role-line" class="note"></p>
+    <div id="household-guardian-tools" hidden>
+      <button id="household-show-code" type="button">Show pairing code</button>
+      <button id="household-set-pin" type="button">Set / change guardian PIN</button>
+      <pre id="household-code" class="pairing-code" hidden></pre>
+      <h3>Household — always allow</h3>
+      <form id="household-allow-form">
+        <input type="text" id="household-allow-input" placeholder="example.com" />
+        <button type="submit">Allow</button>
+      </form>
+    </div>
+    <ul id="household-allow-list"></ul>
+    <div id="household-block-tools" hidden>
+      <h3>Household — always block</h3>
+      <form id="household-block-form">
+        <input type="text" id="household-block-input" placeholder="example.com" />
+        <button type="submit">Block</button>
+      </form>
+    </div>
+    <ul id="household-block-list"></ul>
+    <p id="sync-status" class="note"></p>
+    <button id="household-leave" type="button">Leave household</button>
+  </div>
+
+  <section id="managed-section" hidden>
+    <h2>Managed by your organization</h2>
+    <p class="note">These rules are set by your organization's administrator and
+      cannot be changed here.</p>
+    <h3 id="managed-block-heading" class="locked" hidden>Blocked organization-wide</h3>
+    <ul id="managed-block-list"></ul>
+    <h3 id="managed-allow-heading" class="locked" hidden>Allowed organization-wide</h3>
+    <ul id="managed-allow-list"></ul>
+  </section>
 
   <script type="module" src="../../dist/options/options.js"></script>
 </body>
