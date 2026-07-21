@@ -28,7 +28,7 @@ stays blocked; "I disagree with the category existing" is not a false positive.
 
 ## Maintainers
 
-- Founding maintainer — maintainer@terrancoders.com
+- Founding maintainer — support@sitrshield.com
 - (additional maintainers listed here as they join)
 
 All additions and removals happen via reviewed pull requests. No rule enters
