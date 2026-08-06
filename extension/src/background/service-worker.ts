@@ -5,8 +5,11 @@
  *  - verify the bundled DNR rulesets are actually enabled
  *  - apply managed (enterprise) policy and re-verify after changes
  *  - surface "Protection inactive" visibly (badge + stored status) when not
+ *  - run the optional Family household sync (lib/sync) when one is configured
  *
- * This worker makes NO network requests. Filtering is done entirely by the
+ * Apart from that sync — one end-to-end-encrypted settings blob exchanged
+ * with sync.sitr.app, and only after the user creates or joins a household —
+ * this worker makes no network requests. Filtering is done entirely by the
  * browser's DNR engine. Managed policy arrives through the browser's own
  * chrome.storage.managed channel (GPO / plist / Google Admin), never over
  * the network from us.

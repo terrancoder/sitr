@@ -51,10 +51,13 @@ activity, and the blocklist it ships is identical for every user.
 
 ## Data collection (data-safety form)
 
-None. No analytics, no telemetry, no ads, no third-party SDKs, no remote
-error reporting. With no household configured the extension makes zero
-network requests (rulesets ship in the package and update by republishing
-the extension). With the optional Family household enabled, the only
-request is the E2E-encrypted settings blob described above — it contains
-household settings (never browsing data) and is unreadable by the server.
+No analytics, no telemetry, no ads, no third-party SDKs, no remote error
+reporting — in any tier. With no household configured the extension makes
+zero network requests (rulesets ship in the package and update by
+republishing the extension), so nothing is collected. With the optional
+Family household enabled, the only request is the E2E-encrypted settings
+blob described above — it contains household settings (never browsing
+data) and is unreadable by the server. Because the blob's plaintext
+includes the guardian PIN as a salted hash, the data-safety form declares
+**Authentication information**; every other category: not collected.
 Limited Use certification: affirmed.
