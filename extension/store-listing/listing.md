@@ -44,16 +44,19 @@ word for it:
   optional categories you can toggle)
 • Forces SafeSearch on Google, Bing, and DuckDuckGo
 • Forces YouTube Restricted Mode
-• Per-site allow and block lists — stored only in your browser
+• Per-site allow and block lists — stored only in your browser (optional
+  Family household lists sync end-to-end encrypted, unreadable to us)
 • Shows an explicit red "Protection INACTIVE" warning if filtering ever
   stops working, instead of silently pretending
 
 **What it doesn't do**
 
 No account. No server that sees your traffic. No history collection. No
-"anonymized" usage data. If a rule wrongly blocks a legitimate site, add a
-local exception instantly and file a public appeal — every blocking decision
-is documented and contestable.
+"anonymized" usage data. The optional Family plan stores exactly one thing
+on our server: an end-to-end-encrypted household-settings blob we cannot
+decrypt — household preferences, never browsing. If a rule wrongly blocks a
+legitimate site, add a local exception instantly and file a public appeal —
+every blocking decision is documented and contestable.
 
 Source code, blocklist, and appeals: https://github.com/terrancoder/sitr
 
@@ -61,12 +64,22 @@ Source code, blocklist, and appeals: https://github.com/terrancoder/sitr
 
 - Homepage: https://github.com/terrancoder/sitr
 - Support: https://github.com/terrancoder/sitr/issues
-- Privacy policy: https://github.com/terrancoder/sitr/blob/main/docs/privacy-policy.md
+- Privacy policy: https://sitrshield.com/privacy
 
 ## Category
 
-Productivity → Workflow & Planning (or: Lifestyle)
+Make Chrome Yours → Privacy & Security (fallback: Lifestyle)
 
 ## Data-safety form answers
 
-Collects no user data of any type. Limited Use certification: affirmed.
+With no household configured: no user data of any type is collected — the
+extension makes zero network requests. The optional Family sync (explicit
+opt-in) transmits one end-to-end-encrypted household-settings blob to
+sync.sitr.app: household preferences, household allow/block domain lists,
+device labels, and the guardian PIN as a salted hash — never browsing
+history or page content, and the server cannot decrypt any of it.
+
+On the form: declare **Authentication information** (the guardian PIN
+record inside the encrypted blob, collected only when Family sync is used);
+every other category: not collected. Certify no sale, no unrelated use, no
+creditworthiness use. Limited Use certification: affirmed.
