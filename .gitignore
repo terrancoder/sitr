@@ -10,6 +10,7 @@ tests/dist/
 # Internal working notes — not part of the public repo.
 # Public docs live in docs/ and ARE committed.
 docspriv/
+Udocs/
 
 # Chrome writes indexed ruleset caches here when loading the unpacked extension
 extension/_metadata/

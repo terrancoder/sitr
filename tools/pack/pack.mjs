@@ -25,6 +25,7 @@ const outDir = resolve(process.argv[2] ?? join(ROOT, "build"));
 // Runtime files only. No sources, no .d.ts, no _metadata, no store-listing.
 const INCLUDE = [
   /^manifest\.json$/,
+  /^managed_schema\.json$/,
   /^dist\/.*\.js$/,
   /^rulesets\/.*\.json$/,
   /^public\/.*\.png$/,
@@ -48,9 +49,11 @@ if (files.length === 0) {
   console.error("pack: no files matched — run npm run build first");
   process.exit(1);
 }
-const missing = ["manifest.json", "dist/background/service-worker.js"].filter(
-  (f) => !files.includes(f),
-);
+const missing = [
+  "manifest.json",
+  "managed_schema.json", // manifest storage.managed_schema — Chrome refuses to load without it
+  "dist/background/service-worker.js",
+].filter((f) => !files.includes(f));
 if (missing.length) {
   console.error(`pack: required files missing: ${missing.join(", ")} — run npm run build`);
   process.exit(1);

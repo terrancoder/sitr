@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sitr — Halal & Family Content Filter",
   "version": "0.1.0",
-  "description": "On-device adult-content filtering and SafeSearch enforcement. Your browsing never leaves your browser.",
+  "description": "On-device adult-content filtering and SafeSearch enforcement. Your browsing history never leaves your browser.",
   "permissions": ["declarativeNetRequest", "storage", "alarms"],
   "storage": {
     "managed_schema": "managed_schema.json"
