@@ -1,52 +1,510 @@
 # Sitr blocklist — category: adult
 # One domain per line. Subdomains are covered automatically by DNR
 # requestDomains matching. See ../../policy/inclusion-policy.md.
-# Seed list only — expanded via reviewed pull requests.
+#
+# INCLUSION RULE (policy §"Criteria for adding a domain"): a domain is listed
+# only when its *primary purpose* is pornographic content, live cams, or an
+# adult content marketplace. Entries are registrable domains only — subdomains
+# are covered automatically, and shared-hosting/platform-wide entries are
+# rejected as over-broad.
+#
+# DELIBERATELY NOT LISTED — these fail the primary-purpose test, and blocking
+# them would be a false positive:
+#   * General platforms carrying user-generated adult content: reddit.com,
+#     x.com/twitter.com, tumblr.com, discord.com, telegram.org, imgur.com,
+#     pixiv.net, deviantart.com, 4chan.org, archive.org, mega.nz, and any
+#     file host or CDN shared with non-adult customers.
+#   * Creator-funding platforms that are not adult-only: patreon.com,
+#     gumroad.com, ko-fi.com, substack.com, twitch.tv.
+#   * Sex education, health and medical resources: plannedparenthood.org,
+#     scarleteen.com, ashasexualhealth.org, bishuk.com, nhs.uk, webmd.com.
+#   * LGBTQ+ support, community and relationship-advice sites that are not
+#     pornographic.
+#   * News, trade press, academic and legal coverage of the adult industry
+#     (avn.com, xbiz.com are journalism, not porn hosts).
+#   * Physical retail (sex toys, lingerie) — commerce, not adult *content*.
+#   * Dating and hookup services — see the `dating` category.
+#   * Mixed SFW/NSFW art communities where adult work is opt-in
+#     (furaffinity.net, inkbunny.net) and all-ages storefronts that also sell
+#     adult titles (dlsite.com, dmm.co.jp, steampowered.com).
+
+# ---------------------------------------------------------------------------
+# Major tube sites and operator-owned mirrors
+# ---------------------------------------------------------------------------
 pornhub.com
+pornhub.org
+pornhub.net
+pornhubpremium.com
 xvideos.com
+xvideos2.com
+xvideos3.com
 xnxx.com
 xhamster.com
+xhamster2.com
+xhamster.desi
+xhamsterlive.com
 redtube.com
+redtube.net
 youporn.com
-onlyfans.com
-chaturbate.com
-stripchat.com
-livejasmin.com
-spankbang.com
-xvideos2.com
-tnaflix.com
-youjizz.com
+youporngay.com
 tube8.com
+spankbang.com
+spankwire.com
 beeg.com
+tnaflix.com
+empflix.com
+youjizz.com
 porntrex.com
 eporner.com
 hqporner.com
 motherless.com
-rule34.xxx
-e621.net
-fapello.com
-erome.com
+drtuber.com
+nuvid.com
+sunporno.com
+slutload.com
+pornerbros.com
+keezmovies.com
+extremetube.com
+gotporn.com
+porn.com
+sex.com
+pornone.com
+txxx.com
+hclips.com
+upornia.com
+hotmovs.com
+vjav.com
+tubepornclassic.com
+voyeurhit.com
+anyporn.com
+anysex.com
+xbabe.com
+bravotube.net
+alphaporno.com
+pornhd.com
+pornhat.com
+porndig.com
+porngo.com
+porn300.com
+perfectgirls.net
+thumbzilla.com
+porndoe.com
+freeones.com
+ixxx.com
+4tube.com
+pornoxo.com
+madthumbs.com
+wetplace.com
+moviefap.com
+hdzog.com
+tubewolf.com
+xcafe.com
+befuck.com
+pornrabbit.com
+sexu.com
+katestube.com
+faphouse.com
+apetube.com
+hellporno.com
+smutty.com
+sxyprn.com
+noodlemagazine.com
+pornolab.net
+fullporner.com
+watchporn.to
+goodporn.to
+porntube.com
+vporn.com
+xtube.com
+fux.com
+worldsex.com
+elephanttube.com
+gaytube.com
+boyfriendtv.com
+justusboys.com
+shemalez.com
+
+# ---------------------------------------------------------------------------
+# Japanese adult video (JAV) streaming and studios
+# ---------------------------------------------------------------------------
+javhd.com
+javfinder.is
+jav.guru
+javmost.com
+javgg.net
+missav.com
+supjav.com
+onejav.com
+r18.com
+caribbeancom.com
+1pondo.tv
+heyzo.com
+tokyo-hot.com
+10musume.com
+pacopacomama.com
+
+# ---------------------------------------------------------------------------
+# Porn-only aggregators, search engines and link directories
+# ---------------------------------------------------------------------------
+tubegalore.com
+pornmd.com
+theporndude.com
+palmtube.com
+nudevista.com
+pornpics.com
+pichunter.com
+imagefap.com
+
+# ---------------------------------------------------------------------------
+# Live-cam platforms
+# ---------------------------------------------------------------------------
+chaturbate.com
+stripchat.com
+strip.chat
+livejasmin.com
 bongacams.com
+bongacams2.com
 cam4.com
 camsoda.com
 myfreecams.com
 flirt4free.com
-adultfriendfinder.com
-ashleymadison.com
+imlive.com
+streamate.com
+cams.com
+camster.com
+xcams.com
+jerkmate.com
+cherry.tv
+camplace.com
+camcontacts.com
+sexier.com
+bimbim.com
+camwhores.tv
+camwhorestv.tv
+recurbate.com
+camcaps.io
+
+# ---------------------------------------------------------------------------
+# Creator-subscription and clip marketplaces (adult-only platforms)
+# ---------------------------------------------------------------------------
+onlyfans.com
 fansly.com
 manyvids.com
 clips4sale.com
-iwara.tv
-hanime.tv
-nhentai.net
-hitomi.la
+fancentro.com
+justfor.fans
+loyalfans.com
+iwantclips.com
+avnstars.com
+modelhub.com
+sextpanther.com
+niteflirt.com
+admireme.vip
+sofiagray.com
+
+# ---------------------------------------------------------------------------
+# Sites dedicated to reposting paywalled adult content
+# ---------------------------------------------------------------------------
+fapello.com
+coomer.su
+coomer.party
+kemono.su
+kemono.party
+thothub.lol
+thotslife.com
+leakedzone.com
+nudostar.com
+influencersgonewild.com
+fapachi.com
+erome.com
+famousinternetgirls.com
+
+# ---------------------------------------------------------------------------
+# Studios and paysites
+# ---------------------------------------------------------------------------
 brazzers.com
 bangbros.com
+bangbros18.com
+bangbus.com
 realitykings.com
 naughtyamerica.com
 digitalplayground.com
 mofos.com
 twistys.com
 wicked.com
+wickedpictures.com
 evilangel.com
 kink.com
+babes.com
+metart.com
+sexart.com
+hegre.com
+x-art.com
+joymii.com
+nubiles.net
+nubilesporn.com
+teamskeet.com
+mylf.com
+blacked.com
+tushy.com
+vixen.com
+deeper.com
+slayed.com
+milfy.com
+adulttime.com
+girlsway.com
+puretaboo.com
+gaywire.com
+men.com
+seancody.com
+corbinfisher.com
+nextdoorstudios.com
+falconstudios.com
+bromo.com
+private.com
+julesjordan.com
+dogfartnetwork.com
+newsensations.com
+elegantangel.com
+zerotolerance.com
+devilsfilm.com
+fakehub.com
+propertysex.com
+exploitedcollegegirls.com
+pornfidelity.com
+tiny4k.com
+passion-hd.com
+povd.com
+holed.com
+darkx.com
+eroticax.com
+hardx.com
+lubed.com
+spizoo.com
+brattysis.com
+sislovesme.com
+familystrokes.com
+momsteachsex.com
+nannyspy.com
+spyfam.com
+badmilfs.com
+dyked.com
+gotmylf.com
+lilhumpers.com
+milfhunter.com
+scoreland.com
+pornmegaload.com
+milehighmedia.com
+sweetheartvideo.com
+sweetsinner.com
+21sextury.com
+ddfnetwork.com
+21naturals.com
+21sextreme.com
+euroteenerotica.com
+onlytease.com
+vipissy.com
+legalporno.com
+analvids.com
+gloryholesecrets.com
+throated.com
+facialabuse.com
+sexuallybroken.com
+hogtied.com
+sexandsubmission.com
+publicdisgrace.com
+divinebitches.com
+whippedass.com
+tspussyhunters.com
+grooby.com
+transangels.com
+trans500.com
+
+# ---------------------------------------------------------------------------
+# Hentai / anime adult video and manga
+# ---------------------------------------------------------------------------
+hanime.tv
+hentaihaven.xxx
+hentaihaven.org
+hentaigasm.com
+hentaistream.com
+hentaimama.io
+muchohentai.com
+hstream.moe
+haho.moe
+hentaila.com
+hentaicity.com
+hentai.tv
+ohentai.org
+nhentai.net
+nhentai.to
+nhentai.xxx
+hitomi.la
+e-hentai.org
+exhentai.org
+hentaifox.com
+hentai2read.com
+hentaihere.com
+simply-hentai.com
+tsumino.com
+doujins.com
+hentairules.net
+hentaiera.com
+8muses.com
+multporn.net
+myreadingmanga.info
+luscious.net
+imhentai.xxx
+manhwa18.com
+hentai-foundry.com
+
+# ---------------------------------------------------------------------------
+# Adult-by-default imageboards, boorus and photo galleries
+# ---------------------------------------------------------------------------
+rule34.xxx
+rule34.us
+rule34video.com
+rule34hentai.net
+paheal.net
+gelbooru.com
+e621.net
+e926.net
+xbooru.com
+tbib.org
+konachan.com
+yande.re
+sankakucomplex.com
+iwara.tv
+u18chan.com
+elitebabes.com
+babesource.com
+cherrynudes.com
+eroticbeauties.com
+femjoyhunter.com
+hqbabes.com
+morazzia.com
+pmatehunter.com
+
+# ---------------------------------------------------------------------------
+# Adult comics and 3D/CG porn art (adult-only sites)
+# ---------------------------------------------------------------------------
+porncomix.info
+porncomixonline.net
+allporncomic.com
+milftoon.com
+jab-comix.com
+tgcomics.com
+smutbase.com
+
+# ---------------------------------------------------------------------------
+# Erotic fiction (sites whose entire library is sexually explicit)
+# ---------------------------------------------------------------------------
+literotica.com
+asstr.org
+storiesonline.net
+bdsmlibrary.com
+nifty.org
+lushstories.com
+sexstories.com
+mcstories.com
+chyoa.com
+
+# ---------------------------------------------------------------------------
+# Adult games and interactive porn
+# ---------------------------------------------------------------------------
+f95zone.to
+nutaku.net
+nutaku.com
+lewdzone.com
+adultgamesworld.com
+gamcore.com
+mysexgames.com
+erogames.com
+lifeselector.com
+sexemulator.com
+
+# ---------------------------------------------------------------------------
+# Escort directories and adult classifieds
+# ---------------------------------------------------------------------------
+eros.com
+slixa.com
+tryst.link
+adultsearch.com
+skipthegames.com
+listcrawler.com
+escortdirectory.com
+tsescorts.com
+massagerepublic.com
+eroticmonkey.ch
+punternet.com
+adultwork.com
+
+# ---------------------------------------------------------------------------
+# Adult torrent sites, forums and porn-industry databases
+# ---------------------------------------------------------------------------
+empornium.is
+pornbay.org
+planetsuzy.org
+phun.org
+intporn.com
+freeporn.to
+adultdvdtalk.com
+data18.com
+iafd.com
+indexxx.com
+theporndb.net
+
+# ---------------------------------------------------------------------------
+# AI porn generators and nudify/deepfake services
+# ---------------------------------------------------------------------------
+candy.ai
+crushon.ai
+spicychat.ai
+janitorai.com
+pornjourney.ai
+pornpen.ai
+soulgen.net
+promptchan.ai
+undress.app
+undressher.app
+deepnude.cc
+clothoff.io
+nudify.online
+mrdeepfakes.com
+seduced.ai
+pornx.ai
+girlfriendgpt.ai
+
+# ---------------------------------------------------------------------------
+# Adult-industry-exclusive advertising and content delivery
+# ---------------------------------------------------------------------------
+# Every host below serves the adult industry only — none is shared with
+# general-purpose customers, so blocking them cannot break a non-adult site.
+exoclick.com
+exosrv.com
+juicyads.com
+trafficjunky.com
+trafficjunky.net
+trafficstars.com
+tsyndicate.com
+plugrush.com
+eroadvertising.com
+crakrevenue.com
+phncdn.com
+rdtcdn.com
+ypncdn.com
+xhcdn.com
+tnaflixcdn.com
+spankcdn.net
+mfcimg.com
+highwebmedia.com
+
+# ---------------------------------------------------------------------------
+# Legacy seed entries retained from the original 48-domain list.
+# NOTE: adultfriendfinder.com and ashleymadison.com are hookup services and
+# arguably belong in `dating`; they stay here so no user who already relies on
+# the adult category silently loses coverage. Recategorise via the appeals
+# process if desired.
+# ---------------------------------------------------------------------------
+adultfriendfinder.com
+ashleymadison.com
