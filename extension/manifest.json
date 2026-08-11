@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Sitr — Halal & Family Content Filter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "On-device adult-content filtering and SafeSearch enforcement. Your browsing history never leaves your browser.",
   "permissions": ["declarativeNetRequest", "storage", "alarms"],
   "storage": {
     "managed_schema": "managed_schema.json"
   },
   "host_permissions": [
-    "https://sync.sitr.app/*",
+    "https://sync.sitrshield.com/*",
     "*://*.google.com/*",
     "*://www.bing.com/*",
     "*://duckduckgo.com/*",
