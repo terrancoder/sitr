@@ -8,7 +8,7 @@
  *  - run the optional Family household sync (lib/sync) when one is configured
  *
  * Apart from that sync — one end-to-end-encrypted settings blob exchanged
- * with sync.sitr.app, and only after the user creates or joins a household —
+ * with sync.sitrshield.com, and only after the user creates or joins a household —
  * this worker makes no network requests. Filtering is done entirely by the
  * browser's DNR engine. Managed policy arrives through the browser's own
  * chrome.storage.managed channel (GPO / plist / Google Admin), never over

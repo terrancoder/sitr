@@ -27,7 +27,7 @@ import {
 } from "./crypto.js";
 import { type SyncStatus } from "./status.js";
 
-export const SYNC_BASE_URL = "https://sync.sitr.app";
+export const SYNC_BASE_URL = "https://sync.sitrshield.com";
 export const MAX_SEEN_REV_KEY = "syncMaxSeenRev";
 
 export interface SyncDeps {

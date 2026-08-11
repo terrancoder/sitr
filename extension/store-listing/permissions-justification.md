@@ -34,7 +34,7 @@ the optional Family sync endpoint:
 
 | Host pattern | Why |
 |---|---|
-| `https://sync.sitr.app/*` | Optional Family sync: stores one end-to-end-encrypted settings blob the server cannot read (see docs/sync-protocol.md). Contacted only when the user sets up a household. |
+| `https://sync.sitrshield.com/*` | Optional Family sync: stores one end-to-end-encrypted settings blob the server cannot read (see docs/sync-protocol.md). Contacted only when the user sets up a household. |
 | `*://*.google.com/*` | Append `safe=active` to Google Search result URLs |
 | `*://www.bing.com/*` | Redirect searches to `strict.bing.com` (Bing's SafeSearch-strict host) |
 | `*://duckduckgo.com/*` | Append `kp=1` (DuckDuckGo safe search strict) |
