@@ -78,20 +78,26 @@ export class SyncHandler {
       "Access-Control-Allow-Origin": this.config.claimAllowedOrigin,
       "Access-Control-Allow-Methods": "GET, OPTIONS",
     };
+    // The site's claim page must be able to READ error statuses too, so
+    // every response from this endpoint carries the CORS headers.
+    const fail = (status: number, message: string): SyncResponse => {
+      const r = text(status, message);
+      return { ...r, headers: { ...r.headers, ...cors } };
+    };
     const m = CLAIM_RE.exec(req.path);
-    if (m === null) return text(404, "not found");
+    if (m === null) return fail(404, "not found");
     if (req.method === "OPTIONS") {
       return { status: 204, headers: { ...NO_STORE, ...cors }, body: EMPTY };
     }
-    if (req.method !== "GET") return text(405, "method not allowed");
+    if (req.method !== "GET") return fail(405, "method not allowed");
     if (
       this.config.polarAccessToken === undefined ||
       this.config.entitlementPrivKeyB64 === undefined
     ) {
-      return text(503, "claims are not enabled on this server");
+      return fail(503, "claims are not enabled on this server");
     }
     if (!this.claims.allow(hashIp(req.ip), this.now())) {
-      return text(429, "slow down");
+      return fail(429, "slow down");
     }
     let checkout: { status?: string } | undefined;
     try {
@@ -99,14 +105,14 @@ export class SyncHandler {
         `${this.config.polarApiBase}/v1/checkouts/${m[1]!}`,
         { headers: { Authorization: `Bearer ${this.config.polarAccessToken}` } },
       );
-      if (res.status === 404) return text(404, "unknown checkout");
-      if (!res.ok) return text(502, "billing provider unavailable");
+      if (res.status === 404) return fail(404, "unknown checkout");
+      if (!res.ok) return fail(502, "billing provider unavailable");
       checkout = (await res.json()) as { status?: string };
     } catch {
-      return text(502, "billing provider unavailable");
+      return fail(502, "billing provider unavailable");
     }
     if (checkout.status !== "succeeded" && checkout.status !== "confirmed") {
-      return text(402, "checkout not completed");
+      return fail(402, "checkout not completed");
     }
     const token = mintToken(
       privateKeyFromB64(this.config.entitlementPrivKeyB64),
