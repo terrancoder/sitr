@@ -75,7 +75,7 @@ Make Chrome Yours → Privacy & Security (fallback: Lifestyle)
 With no household configured: no user data of any type is collected — the
 extension makes zero network requests. The optional Family sync (explicit
 opt-in) transmits one end-to-end-encrypted household-settings blob to
-sync.sitr.app: household preferences, household allow/block domain lists,
+sync.sitrshield.com: household preferences, household allow/block domain lists,
 device labels, and the guardian PIN as a salted hash — never browsing
 history or page content, and the server cannot decrypt any of it.
 

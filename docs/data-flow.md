@@ -15,7 +15,7 @@ source: [`server/sync/`](../server/sync/).
 
 | Endpoint | Method | Request contains | Response | Frequency |
 |---|---|---|---|---|
-| `https://sync.sitr.app/v1/blob/{householdId}` | GET / PUT / DELETE | a random household id, a derived bearer credential, and an **E2E-encrypted blob the server cannot read** — no account, no email, no browsing data, no device identifiers | the same opaque blob (or a version conflict) | on settings change + every 30 minutes while a household is configured |
+| `https://sync.sitrshield.com/v1/blob/{householdId}` | GET / PUT / DELETE | a random household id, a derived bearer credential, and an **E2E-encrypted blob the server cannot read** — no account, no email, no browsing data, no device identifiers | the same opaque blob (or a version conflict) | on settings change + every 30 minutes while a household is configured |
 
 What the operator can learn: that *some* household id synced at some time
 from some IP — nothing about its members, devices, or settings, and nothing

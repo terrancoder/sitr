@@ -5,7 +5,6 @@ FROM node:22-alpine AS build
 WORKDIR /src
 COPY package.json package-lock.json ./
 COPY server/sync/package.json server/sync/
-COPY extension/package.json extension/
 COPY tools/compiler/package.json tools/compiler/
 RUN npm ci --ignore-scripts
 COPY tsconfig.base.json* ./

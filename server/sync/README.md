@@ -18,7 +18,7 @@ SITR_SYNC_PORT=8787 SITR_SYNC_DB=/var/lib/sitr-sync/blobs.sqlite \
 Run behind TLS. Example Caddyfile:
 
 ```
-sync.sitr.app {
+sync.sitrshield.com {
   reverse_proxy 127.0.0.1:8787
 }
 ```

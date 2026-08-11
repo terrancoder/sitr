@@ -57,7 +57,7 @@ membership — treat it like a house key.
 
 ## API
 
-Base URL: `https://sync.sitr.app`. All requests carry
+Base URL: `https://sync.sitrshield.com`. All requests carry
 `Authorization: Bearer <auth credential hex>`. Responses carry
 `Cache-Control: no-store`.
 
