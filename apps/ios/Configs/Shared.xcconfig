@@ -1,0 +1,17 @@
+// Shared build settings for every target — the whole settings surface
+// lives in these xcconfigs so the diff surface stays human-readable
+// (the pbxproj carries structure only, never settings).
+SWIFT_VERSION = 5.0
+IPHONEOS_DEPLOYMENT_TARGET = 16.0
+SDKROOT = iphoneos
+TARGETED_DEVICE_FAMILY = 1,2
+GENERATE_INFOPLIST_FILE = YES
+CURRENT_PROJECT_VERSION = 1
+MARKETING_VERSION = 0.1.0
+CODE_SIGN_STYLE = Automatic
+// Set your team in Xcode's Signing pane or via DEVELOPMENT_TEAM here;
+// left empty so the project file never carries account-specific state.
+DEVELOPMENT_TEAM =
+ENABLE_USER_SCRIPT_SANDBOXING = YES
+SWIFT_EMIT_LOC_STRINGS = YES
+PRODUCT_NAME = $(TARGET_NAME)

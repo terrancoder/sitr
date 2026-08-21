@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Shared container: the blocker reads the generated rules here. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.sitrshield.sitr</string>
+	</array>
+	<!-- Screen Time. Development is self-service; DISTRIBUTION requires
+	     Apple's approval (Udocs/family-controls-entitlement-guide.md).
+	     The feature is runtime-gated, so builds work either way. -->
+	<key>com.apple.developer.family-controls</key>
+	<true/>
+</dict>
+</plist>

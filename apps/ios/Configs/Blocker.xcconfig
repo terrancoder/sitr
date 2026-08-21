@@ -1,0 +1,6 @@
+#include "Shared.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = com.sitrshield.sitr.blocker
+CODE_SIGN_ENTITLEMENTS = SitrBlocker/SitrBlocker.entitlements
+INFOPLIST_FILE = SitrBlocker/Info.plist
+SKIP_INSTALL = YES
