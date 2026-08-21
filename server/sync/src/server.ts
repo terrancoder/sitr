@@ -1,11 +1,17 @@
 /**
  * Entry point: node:http wiring around SyncHandler + hourly GC.
  * Run behind TLS (Caddy or similar); see server/sync/README.md.
+ *
+ * This process serves ONLY the blob API and holds ONLY the entitlement
+ * public key. The claim endpoint — the one place the Ed25519 minting key
+ * lives — runs as its own process (claim-server.ts), so a compromise of
+ * the internet-facing blob parser never yields the minting key.
  */
 import { createServer } from "node:http";
 import { configFromEnv } from "./config.js";
 import { SyncStore } from "./store.js";
 import { SyncHandler, type SyncRequest } from "./http.js";
+import { clientIp } from "./net.js";
 
 const config = configFromEnv(process.env);
 const store = new SyncStore(config.dbPath);
@@ -29,7 +35,11 @@ const server = createServer((req, res) => {
     const request: SyncRequest = {
       method: req.method ?? "GET",
       path: req.url ?? "/",
-      ip: req.socket.remoteAddress ?? "unknown",
+      ip: clientIp(
+        req.socket.remoteAddress,
+        req.headers["x-forwarded-for"],
+        config.trustedProxy,
+      ),
       headers: {
         authorization: req.headers.authorization,
         "if-match": req.headers["if-match"],
@@ -40,15 +50,9 @@ const server = createServer((req, res) => {
       },
       body: new Uint8Array(Buffer.concat(chunks)),
     };
-    const respond = (response: import("./http.js").SyncResponse): void => {
-      res.writeHead(response.status, response.headers);
-      res.end(Buffer.from(response.body));
-    };
-    if (request.path.startsWith("/v1/entitlement/claim/")) {
-      void handler.handleClaim(request).then(respond);
-    } else {
-      respond(handler.handle(request));
-    }
+    const response = handler.handle(request);
+    res.writeHead(response.status, response.headers);
+    res.end(Buffer.from(response.body));
   });
 });
 
