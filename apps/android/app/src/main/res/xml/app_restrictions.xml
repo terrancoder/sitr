@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Managed configuration schema — parity with the extension's
+     managed_schema.json. Invalid entries are dropped, never fatal;
+     applied policy is always visible in the app; Sitr still contacts no
+     servers and reports nothing back to the organization. -->
+<restrictions xmlns:android="http://schemas.android.com/apk/res/android">
+    <restriction
+        android:key="organizationName"
+        android:title="@string/restriction_org_title"
+        android:description="@string/restriction_org_desc"
+        android:restrictionType="string" />
+    <restriction
+        android:key="lockOptions"
+        android:title="@string/restriction_lock_title"
+        android:description="@string/restriction_lock_desc"
+        android:restrictionType="bool"
+        android:defaultValue="false" />
+    <restriction
+        android:key="forcedCategories"
+        android:title="@string/restriction_categories_title"
+        android:description="@string/restriction_categories_desc"
+        android:restrictionType="string" />
+    <restriction
+        android:key="managedBlockDomains"
+        android:title="@string/restriction_block_title"
+        android:description="@string/restriction_block_desc"
+        android:restrictionType="string" />
+    <restriction
+        android:key="managedAllowDomains"
+        android:title="@string/restriction_allow_title"
+        android:description="@string/restriction_allow_desc"
+        android:restrictionType="string" />
+</restrictions>
