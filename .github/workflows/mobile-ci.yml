@@ -1,0 +1,82 @@
+name: Mobile CI
+
+# Path-filtered so the fast Linux-only ci.yml stays the default gate and
+# macOS minutes are spent only when mobile code or its inputs change.
+on:
+  push:
+    paths:
+      - "apps/**"
+      - "blocklist/**"
+      - "tools/**"
+      - ".github/workflows/mobile-ci.yml"
+  pull_request:
+    paths:
+      - "apps/**"
+      - "blocklist/**"
+      - "tools/**"
+      - ".github/workflows/mobile-ci.yml"
+
+jobs:
+  # Full Android build: :core JVM tests (conformance fixture replay,
+  # sync-client scenarios, DNS codecs, decision ladder, artifact
+  # loading), plus :engine and :app assembly + lint. GitHub's ubuntu
+  # runners ship the Android SDK, so settings.gradle includes all modules.
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gradle/actions/wrapper-validation@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: ./gradlew build --console=plain
+        working-directory: apps/android
+
+  # Reproducibility: two clean release builds must be byte-identical
+  # (verified locally at bring-up; this keeps it true). The unsigned
+  # APK's SHA-256 is what release checksums publish.
+  android-repro:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Build twice and compare
+        working-directory: apps/android
+        run: |
+          ./gradlew :app:assembleRelease --console=plain -q
+          cp app/build/outputs/apk/release/app-release-unsigned.apk /tmp/build1.apk
+          ./gradlew clean -q
+          ./gradlew :app:assembleRelease --console=plain -q
+          cmp /tmp/build1.apk app/build/outputs/apk/release/app-release-unsigned.apk
+          shasum -a 256 app/build/outputs/apk/release/app-release-unsigned.apk
+
+  # Swift SitrCore — the same conformance fixtures replayed by the Swift
+  # port, plus sync-client and Safari-rule-ladder suites — then the full
+  # app + Content Blocker extension build (unsigned; signing happens at
+  # release time). macOS runners ship full Xcode.
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./apps/ios/SitrCore/test.sh
+      - name: Build app + blocker extension
+        run: |
+          xcodebuild -project apps/ios/Sitr.xcodeproj -scheme Sitr \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO build
+      # Smoke test on a simulator: onboarding completes without Safari
+      # enforcing (a real bug once), the status reports INACTIVE rather
+      # than claiming protection, and the Family screen stays join-only.
+      - name: Simulator smoke test
+        run: |
+          xcodebuild test -project apps/ios/Sitr.xcodeproj -scheme Sitr \
+            -destination 'platform=iOS Simulator,name=iPhone 17'
+
+  # The :engine/:app Android modules and the Xcode app targets get their
+  # build+test jobs here as they land (see docs/mobile.md and the plan);
+  # release-apps.yml will mirror the extension's checksum-publishing
+  # pattern once there are store artifacts to build.
