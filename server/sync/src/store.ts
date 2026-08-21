@@ -40,6 +40,14 @@ export class SyncStore {
 
   constructor(dbPath: string) {
     this.db = new DatabaseSync(dbPath);
+    // WAL keeps readers unblocked during writes; the busy timeout rides out
+    // the rare write collision instead of surfacing SQLITE_BUSY. Both are
+    // no-ops for ":memory:" test databases. Single-instance remains a
+    // deployment invariant (README) — WAL is not a green light for replicas.
+    this.db.exec(`
+      PRAGMA journal_mode = WAL;
+      PRAGMA busy_timeout = 5000;
+    `);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS blobs (
         id             TEXT    PRIMARY KEY,
