@@ -1,7 +1,7 @@
 # Chrome Web Store listing copy
 
 *Must stay consistent with docs/privacy-policy.md, the data-safety form, the
-in-app UI, and all public statements (five-way consistency rule). No
+in-app UI, and all public statements (six-way consistency rule). No
 absolutist claims ("zero data collection", "we never track you") — only
 specific, substantiated ones.*
 
