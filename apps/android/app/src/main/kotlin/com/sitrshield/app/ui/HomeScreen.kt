@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -159,12 +160,20 @@ private fun ProtectionRow(label: String, enforced: Boolean) {
         Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium)
+        // The label takes the slack and wraps; the status word never
+        // does — "enforced" broken across three lines is unreadable.
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
         Text(
             if (enforced) "enforced" else "off",
             style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
             color = if (enforced) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.secondary,
         )
