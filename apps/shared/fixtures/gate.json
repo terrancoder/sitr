@@ -1,0 +1,1206 @@
+{
+  "version": 1,
+  "note": "generated — edit tools/conformance, run npm run fixtures. Exhaustive: every context x every mutation kind.",
+  "cases": [
+    {
+      "kind": "disableCategory",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeDeviceBlockRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addDeviceAllowRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeHouseholdRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "leaveHousehold",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "enableCategory",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addDeviceBlockRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeDeviceAllowRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addHouseholdRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "changePin",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "disableCategory",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "removeDeviceBlockRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "addDeviceAllowRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "removeHouseholdRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "leaveHousehold",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "enableCategory",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addDeviceBlockRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeDeviceAllowRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addHouseholdRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "changePin",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "disableCategory",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeDeviceBlockRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addDeviceAllowRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeHouseholdRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "leaveHousehold",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "enableCategory",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addDeviceBlockRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeDeviceAllowRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addHouseholdRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "changePin",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "disableCategory",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "removeDeviceBlockRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "addDeviceAllowRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "removeHouseholdRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "leaveHousehold",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "enableCategory",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addDeviceBlockRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeDeviceAllowRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addHouseholdRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "changePin",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "disableCategory",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "removeDeviceBlockRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "addDeviceAllowRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "removeHouseholdRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "leaveHousehold",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "enableCategory",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addDeviceBlockRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeDeviceAllowRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addHouseholdRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "changePin",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "disableCategory",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "removeDeviceBlockRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "addDeviceAllowRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "removeHouseholdRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "leaveHousehold",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "enableCategory",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addDeviceBlockRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeDeviceAllowRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addHouseholdRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "changePin",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "disableCategory",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeDeviceBlockRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addDeviceAllowRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeHouseholdRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "leaveHousehold",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "enableCategory",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addDeviceBlockRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeDeviceAllowRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addHouseholdRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "changePin",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "disableCategory",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeDeviceBlockRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addDeviceAllowRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeHouseholdRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "leaveHousehold",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "enableCategory",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addDeviceBlockRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeDeviceAllowRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addHouseholdRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "changePin",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "disableCategory",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeDeviceBlockRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addDeviceAllowRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeHouseholdRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "leaveHousehold",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "enableCategory",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addDeviceBlockRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeDeviceAllowRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addHouseholdRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "changePin",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "disableCategory",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeDeviceBlockRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addDeviceAllowRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeHouseholdRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "leaveHousehold",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "enableCategory",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addDeviceBlockRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeDeviceAllowRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addHouseholdRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "changePin",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "disableCategory",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeDeviceBlockRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addDeviceAllowRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeHouseholdRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "leaveHousehold",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "enableCategory",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addDeviceBlockRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeDeviceAllowRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addHouseholdRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "changePin",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "disableCategory",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeDeviceBlockRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addDeviceAllowRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeHouseholdRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "leaveHousehold",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "enableCategory",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addDeviceBlockRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeDeviceAllowRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addHouseholdRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "changePin",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    }
+  ]
+}

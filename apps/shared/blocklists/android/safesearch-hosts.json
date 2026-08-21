@@ -1,0 +1,63 @@
+{
+  "v": 1,
+  "rules": [
+    {
+      "match": [
+        "google.*",
+        "www.google.*"
+      ],
+      "target": "forcesafesearch.google.com",
+      "fallback": {
+        "a": [
+          "216.239.38.120"
+        ],
+        "aaaa": [
+          "2001:4860:4802:32::78"
+        ]
+      }
+    },
+    {
+      "match": [
+        "bing.com",
+        "www.bing.com"
+      ],
+      "target": "strict.bing.com",
+      "fallback": {
+        "a": [
+          "204.79.197.220"
+        ],
+        "aaaa": []
+      }
+    },
+    {
+      "match": [
+        "duckduckgo.com",
+        "www.duckduckgo.com",
+        "start.duckduckgo.com"
+      ],
+      "target": "safe.duckduckgo.com",
+      "fallback": {
+        "a": [],
+        "aaaa": []
+      }
+    },
+    {
+      "match": [
+        "www.youtube.com",
+        "m.youtube.com",
+        "youtubei.googleapis.com",
+        "youtube.googleapis.com",
+        "www.youtube-nocookie.com"
+      ],
+      "target": "restrict.youtube.com",
+      "fallback": {
+        "a": [
+          "216.239.38.120"
+        ],
+        "aaaa": [
+          "2001:4860:4802:32::78"
+        ]
+      }
+    }
+  ]
+}
