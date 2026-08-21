@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "note": "generated — edit tools/conformance, run npm run fixtures",
+  "algorithm": "CRC-16/CCITT-FALSE",
+  "cases": [
+    {
+      "name": "standard check value",
+      "inputHex": "313233343536373839",
+      "crcHex": "29b1"
+    },
+    {
+      "name": "empty",
+      "inputHex": "",
+      "crcHex": "ffff"
+    },
+    {
+      "name": "single zero byte",
+      "inputHex": "00",
+      "crcHex": "e1f0"
+    },
+    {
+      "name": "bytes 00..1f",
+      "inputHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "crcHex": "23b3"
+    }
+  ]
+}

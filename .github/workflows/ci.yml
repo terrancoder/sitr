@@ -16,17 +16,35 @@ jobs:
       - run: npm ci
       - run: npm test
 
-      # Reproducibility check: compile the rulesets a second time into a
-      # separate directory and require byte-identical output.
+      # Reproducibility check: compile every emitter a second time into
+      # separate directories and require byte-identical output.
       - name: Verify deterministic ruleset compilation
         run: |
-          node tools/compiler/dist/cli.js --blocklist blocklist/sources --out /tmp/rulesets-recheck
+          node tools/compiler/dist/cli.js --blocklist blocklist/sources \
+            --out /tmp/rulesets-recheck \
+            --safari-out /tmp/safari-recheck \
+            --android-out /tmp/android-recheck
           diff -r extension/rulesets /tmp/rulesets-recheck
+          diff -r apps/shared/blocklists/safari /tmp/safari-recheck
+          diff -r apps/shared/blocklists/android /tmp/android-recheck
+
+      # Conformance fixtures are generated from the reference implementation
+      # and committed; regenerating must be a no-op or the reference drifted.
+      - name: Verify conformance fixtures match the reference
+        run: |
+          npm run fixtures
+          git diff --exit-code apps/shared/fixtures apps/shared/blocklists
 
       # Publish the artifact hashes so anyone can verify what shipped.
       - name: Print ruleset SHA-256 checksums
-        run: cat extension/rulesets/checksums.json
+        run: |
+          cat extension/rulesets/checksums.json
+          cat apps/shared/blocklists/safari/checksums.json
+          cat apps/shared/blocklists/android/checksums.json
       - uses: actions/upload-artifact@v4
         with:
           name: ruleset-checksums
-          path: extension/rulesets/checksums.json
+          path: |
+            extension/rulesets/checksums.json
+            apps/shared/blocklists/safari/checksums.json
+            apps/shared/blocklists/android/checksums.json

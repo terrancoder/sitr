@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "note": "generated — edit tools/conformance, run npm run fixtures. TEST-ONLY keypair; never a production key.",
+  "publicKeyB64": "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
+  "privateSeedHexTestOnly": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "now": 1755500000000,
+  "cases": [
+    {
+      "name": "valid token",
+      "token": "sitr-ent-v1.eyJ2IjoxLCJwbGFuIjoiZmFtaWx5IiwiZXhwIjo0MTAyNDQ0ODAwMDAwfQ.Z5S45J3ELYqU7B-b3pgqoNmjuuiNfRdfvvGQ_FDPUpJetxSN1wbfdHgjsOJ_24-tQ65mHiZN3qdLtmGcqJcmAQ",
+      "outcome": "ok"
+    },
+    {
+      "name": "expired token",
+      "token": "sitr-ent-v1.eyJ2IjoxLCJwbGFuIjoiZmFtaWx5IiwiZXhwIjoxMDAwfQ.5o4MXWiZNcmALKDFlqYgjPEEyusxY62JzD6ci8GAtCw1ITrrnpYEDlruygBHwKUxNkBPhqnAG-7eZoCUPVzABw",
+      "outcome": "denied"
+    },
+    {
+      "name": "signed by a different key",
+      "token": "sitr-ent-v1.eyJ2IjoxLCJwbGFuIjoiZmFtaWx5IiwiZXhwIjo0MTAyNDQ0ODAwMDAwfQ.udI3UMaGPtI-3PPN_1Wu5pf3nGjveGzjNfgZbfa9-7Vyx_xM8GuB6C_FD8dqHKdMi56mnHz5S4af0SGiD1U5BQ",
+      "outcome": "denied"
+    },
+    {
+      "name": "wrong prefix",
+      "token": "sitr-ent-v9.eyJ2IjoxLCJwbGFuIjoiZmFtaWx5IiwiZXhwIjo0MTAyNDQ0ODAwMDAwfQ.Z5S45J3ELYqU7B-b3pgqoNmjuuiNfRdfvvGQ_FDPUpJetxSN1wbfdHgjsOJ_24-tQ65mHiZN3qdLtmGcqJcmAQ",
+      "outcome": "denied"
+    },
+    {
+      "name": "missing signature part",
+      "token": "sitr-ent-v1.eyJ2IjoxLCJwbGFuIjoiZmFtaWx5IiwiZXhwIjo0MTAyNDQ0ODAwMDAwfQ",
+      "outcome": "denied"
+    },
+    {
+      "name": "empty header",
+      "token": "",
+      "outcome": "denied"
+    }
+  ],
+  "openMode": "with no public key configured every token verifies ok"
+}

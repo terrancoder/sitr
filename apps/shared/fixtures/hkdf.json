@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "note": "generated — edit tools/conformance, run npm run fixtures",
+  "hkdf": {
+    "hash": "SHA-256",
+    "salt": "",
+    "infoEncryptionKey": "sitr-sync v1 encryption key",
+    "infoAuthCredential": "sitr-sync v1 auth credential",
+    "infoHouseholdId": "sitr-sync v1 household id"
+  },
+  "cases": [
+    {
+      "name": "vector",
+      "rootSecretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "encKeyHex": "162a55f12c528b4adadc6760e44ce3be2459667b6138ede1d28ef391c9db0d08",
+      "authTokenHex": "2b5196b83b4f4597ecdb240bcb4aa5e4320b744086ca2944b17cf49c9148109b",
+      "householdIdHex": "86521e44620b5be920081abe1847e379"
+    },
+    {
+      "name": "zeros",
+      "rootSecretHex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "encKeyHex": "ee6f7dab517c37a93b8738693cf315bffcb9b4b9a026c401160b68a3a32d9375",
+      "authTokenHex": "6e378a0ff5e1f8eaa3fa1524eb5bcffe43b436ba54dc47fb62e5be43b302a6a0",
+      "householdIdHex": "42f3bdc8900a3d44b76d40bfb5517022"
+    },
+    {
+      "name": "ones",
+      "rootSecretHex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "encKeyHex": "7f345530f6767f0d9a5b73fe802bff35733ebcb3b68defad454324ea06b70ab4",
+      "authTokenHex": "aaf09387084930e11974f38f037c3b9acfca55f262d588868c5a096d6b740926",
+      "householdIdHex": "60764850a8be6f602c9d5681c129f6b6"
+    },
+    {
+      "name": "interop",
+      "rootSecretHex": "8f3a52c6d94e17b0a5c8e21f76d3049b1e6c8a35f20d97b4c1a68e53d7f20c94",
+      "encKeyHex": "1cbac8cf9f539861ae9af05a52156937917487295acb76a2ec93aa9ec2e8b293",
+      "authTokenHex": "09795c5a41fa6982f9703ca58e7112d746b790245327becd1b52a7cfda9aa6e3",
+      "householdIdHex": "1288e76b02388afd7fd1e809d1b3c163"
+    }
+  ],
+  "invalid": [
+    {
+      "name": "wrong-length secret",
+      "rootSecretHex": "00000000000000000000000000000000"
+    }
+  ]
+}
