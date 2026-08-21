@@ -23,7 +23,9 @@ Mitigations: rulesets ship in the store-reviewed package; the compiler
 validates every domain; "unsafe" rules (redirect/header) are hand-reviewed
 and never generated from list sources; checksums published; any future
 remote update must be checksum/signature-verified before applying, all-or-
-nothing (§4 of the working agreement).
+nothing (§4 of the working agreement). The mobile apps inherit this
+unchanged: their blocklists ship inside the store-reviewed app binary and
+update via store releases, exactly like the extension.
 
 ### T3: Silent filter failure
 A filter that silently stops working is worse than none. Mitigation: the
@@ -63,6 +65,15 @@ in the options page. What actually prevents uninstall on a managed device
 is the browser's own force-install policy (docs/institutions/), not us. We
 state this plainly rather than overclaim.
 
+The same honesty applies on mobile. On iOS, Screen Time in `.child` mode
+(via Family Sharing) is real platform enforcement — a parent's approval is
+required to revoke it. `.individual` mode is revocable friction, same as
+the PIN. On Android, an unmanaged device offers no legitimate way to
+prevent uninstall, and we refuse to abuse Device Admin or Accessibility
+APIs to fake one. Real enforcement is a managed device (EMM or Family
+Link) applying managed configurations — mirroring how the extension
+defers to the browser's force-install policy.
+
 ### T8: A malicious or compromised institution admin
 Managed policy can force categories ON, add domain rules, and lock the
 options page — it cannot observe browsing (nothing in the extension
@@ -72,6 +83,32 @@ contract: an admin who controls the device could install anything anyway.
 Sitr keeps its own promise inside that boundary: applied policy is always
 visible on the options page ("Managed by X", locked rows), and a policy
 that fails to apply turns the badge red.
+
+### T9: The Android DNS engine can see query names
+Unlike DNR, which is structurally incapable of observing requests, a
+VpnService DNS filter must read query names to filter them. This is a
+real capability expansion and we say so plainly; we chose it because
+Android offers no DNR equivalent. The mitigations stay structural: the
+tunnel routes **only** the synthetic resolver addresses, so exclusively
+DNS packets enter it — the engine cannot see non-DNS traffic even in
+principle; allowed queries are forwarded only to the network's own
+resolvers, so no network path exists from the engine to anywhere else;
+the one-HTTP-call-site rule and data-flow.md remain the enforcement
+surface; and the code is open source with a byte-reproducible unsigned
+build. The bypass surface is disclosed, never hidden: strict Private DNS
+(a user-set DoT hostname) bypasses the filter — detected and surfaced as
+a red protection status with guidance; a browser's own DoH ("Secure
+DNS") cannot be intercepted; and Android's "block connections without
+VPN" lockdown is unsupported by design, because DNS-only routes would
+break all other traffic.
+
+### T10: iOS platform limits
+The Safari Content Blocker protects Safari only. Screen Time's web
+filter, when the user authorizes it, extends to WebKit browsers
+system-wide — but it is Apple's framework enforcing Apple's algorithmic
+filter plus Sitr's deny list — the evaluation is Apple's, not ours.
+SafeSearch cannot be enforced on iOS at all. We state each of
+these in-app rather than imply full coverage.
 
 ## Out of scope / honest limitations
 
