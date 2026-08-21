@@ -7,6 +7,16 @@ reimplement both sides and audit every claim. Server source:
 [`extension/src/lib/sync/`](../extension/src/lib/sync/) — the sync client
 is the repository's only `fetch(` call site.
 
+## Client platforms
+
+Three clients speak this protocol: the extension, the iOS app
+(`apps/ios/`), and the Android app (`apps/android/`). The protocol is
+identical for all of them. The native apps implement it from this spec and
+are validated against the shared conformance fixtures
+(`apps/shared/fixtures/`, generated from the reference TypeScript
+implementation). Each client codebase keeps the same
+rule: one HTTP call site, the sync client.
+
 ## Design goal
 
 The server is a dumb, blind mailbox. It stores one opaque blob per
@@ -54,6 +64,10 @@ grouped by 4 characters with `-`. Decoding is case-insensitive and maps
 the lookalikes O→0, I/L→1. The CRC catches manual-entry typos; it is not a
 security mechanism. Possession of the pairing code IS household
 membership — treat it like a house key.
+
+The QR codes the mobile apps display (and, on iOS, scan) encode exactly
+this canonical pairing-code string. They are a presentation of the same code,
+not a protocol change.
 
 ## API
 
@@ -106,17 +120,28 @@ the operator opts in.
   household id, auth credential, and encryption key (which are HKDF
   outputs of a secret the billing flow never sees).
 
+Because the check runs only on creation, only clients that create
+households handle tokens. The extension and the Android app accept a
+pasted token for household creation. The iOS app is join-only and never
+handles tokens: joining an existing household needs none.
+
 **Acquiring a token.** Checkout happens on the website via a merchant of
 record (Polar). Afterwards the site calls
 `GET /v1/blob`-adjacent endpoint `GET /v1/entitlement/claim/{checkoutId}`
 (CORS-restricted to the site's origin, rate-limited per IP). The server
 asks the billing provider a single question — "is this checkout paid?" —
 and if so returns a freshly minted token. This call is made by the
-website, never by the extension; the extension's endpoint inventory is
-unchanged. What the billing provider knows: that a purchase happened
+website, never by any client; every client's endpoint inventory is
+unchanged ([data-flow.md](data-flow.md)). What the billing provider knows: that a purchase happened
 (name/email/payment, as any merchant of record). What it can never learn:
 household ids, keys, settings, devices, or browsing — the token is minted
 by us, not them.
+
+**Renewal (future).** Re-claim is designed but not built. The claim
+endpoint would answer a different question — "is the subscription behind
+this checkout still active?" — and mint a fresh token on each call, so
+one claim URL stays usable across a subscription's life. Until then,
+renewal tokens come from the manual mint below.
 
 Ops: `server/sync/dist/mint.js --keygen` generates the keypair;
 `--plan family --days 366` mints tokens manually for support cases.
@@ -131,3 +156,8 @@ Root secret = bytes `00 01 02 … 1f` (0..31).
   server integration tests — run `npm test` to verify your implementation
   against them.
 - CRC-16/CCITT-FALSE of ASCII `123456789` = `0x29B1`.
+
+Exact-value vectors (derived ids, keys, encoded pairing codes) are pinned
+in the conformance fixtures at `apps/shared/fixtures/`, generated from the
+reference TypeScript implementation. Native clients must match them
+byte-for-byte.

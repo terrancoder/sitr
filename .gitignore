@@ -23,3 +23,17 @@ CLAUDE.md
 
 # Sync server build output
 server/sync/dist/
+
+# Conformance fixture generator build output (fixtures themselves are
+# committed under apps/shared/fixtures — same rationale as extension/rulesets)
+tools/conformance/dist/
+
+# Mobile app build state (sources and shared artifacts ARE committed)
+apps/ios/**/xcuserdata/
+apps/ios/**/DerivedData/
+apps/ios/**/.build/
+apps/ios/**/.swiftpm/
+apps/android/.gradle/
+apps/android/**/build/
+apps/android/local.properties
+.DS_Store
