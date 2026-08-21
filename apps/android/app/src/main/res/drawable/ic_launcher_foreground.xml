@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A simple shield — placeholder mark until final branding assets land. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 L76,34 L76,52 C76,66 67,76 54,82 C41,76 32,66 32,52 L32,34 Z" />
+    <path
+        android:fillColor="#1a7f37"
+        android:pathData="M54,32 L71,38 L71,52 C71,63 64,71 54,76 C44,71 37,63 37,52 L37,38 Z" />
+</vector>

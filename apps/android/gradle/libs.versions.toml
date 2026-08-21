@@ -1,0 +1,36 @@
+# Every dependency line carries its justification — the whole third-party
+# surface is meant to be readable in one sitting (threat-model.md T4).
+[versions]
+kotlin = "2.2.0"
+agp = "8.10.1"
+# org.json ships ZERO bytes in the APK: Android provides it in the platform;
+# :core compiles against it and JVM tests provide it themselves.
+orgjson = "20240303"
+# Coroutines: required transitively by Compose/WorkManager; used directly
+# only for StateFlow status plumbing.
+coroutines = "1.10.2"
+# WorkManager: periodic sync under Doze; hand-rolling AlarmManager+constraints
+# would be worse, not smaller.
+work = "2.10.1"
+# Compose UI + activity host — unavoidable for the UI layer.
+composeBom = "2025.05.00"
+activityCompose = "1.10.1"
+coreKtx = "1.16.0"
+
+[libraries]
+orgjson = { module = "org.json:json", version.ref = "orgjson" }
+coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+compose-material3 = { module = "androidx.compose.material3:material3" }
+compose-ui = { module = "androidx.compose.ui:ui" }
+compose-foundation = { module = "androidx.compose.foundation:foundation" }
+activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+android-application = { id = "com.android.application", version.ref = "agp" }
