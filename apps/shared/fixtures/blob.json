@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "note": "generated — edit tools/conformance, run npm run fixtures. Ports must encrypt plaintextUtf8 exactly as given (no re-serialization).",
+  "aad": "sitr-sync v1",
+  "golden": {
+    "rootSecretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "nonceHex": "000102030405060708090a0b",
+    "plaintextUtf8": "{\"v\":1,\"rev\":7,\"updatedAt\":1700000000000,\"updatedBy\":\"device-guardian-1\",\"allowDomains\":[\"allowed.example\",\"ok.example\"],\"blockDomains\":[\"blocked.example\",\"worse.example\"],\"devices\":[\"device-child-1\",\"device-guardian-1\"],\"disabledCategories\":[\"sitr_dating\"],\"pin\":{\"v\":1,\"algo\":\"PBKDF2-SHA256\",\"iterations\":600000,\"saltB64\":\"AAECAwQFBgcICQoLDA0ODw==\",\"hashB64\":\"nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0=\"},\"policy\":{\"childLockOptions\":true}}",
+    "stateJson": {
+      "v": 1,
+      "rev": 7,
+      "updatedAt": 1700000000000,
+      "updatedBy": "device-guardian-1",
+      "allowDomains": [
+        "allowed.example",
+        "ok.example"
+      ],
+      "blockDomains": [
+        "blocked.example",
+        "worse.example"
+      ],
+      "devices": [
+        "device-child-1",
+        "device-guardian-1"
+      ],
+      "disabledCategories": [
+        "sitr_dating"
+      ],
+      "pin": {
+        "v": 1,
+        "algo": "PBKDF2-SHA256",
+        "iterations": 600000,
+        "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+        "hashB64": "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0="
+      },
+      "policy": {
+        "childLockOptions": true
+      }
+    },
+    "blobB64": "AQABAgMEBQYHCAkKC0xbqSVsez2DaFxYJBxO/6sVxUqpa0bp8CwZHlXPHVevG1vqUaEUZ/fKkdOFvC+BKBC3RsOda0sXjTSnhkXQDcma980uzWEUjN1s8XfhXmjNiieQwY27gWeZqc8Qr7Fo9SmKbn7kM1jpJypZMiHPi3EG/AUm6D5jpEFJY8u9nWhR07XBTkGp0yOr7PPe1LC615k0AMFvaG7yZxzP/yMlq5WBABZDu/zW9VfWFKFSbzKaBkoPl8mlURS3oYrqTmD6GmnOqxkZC5FxVH/F5gDfxn7V+qjXMBnO5DQ1xH1EZNVBeOf+SezNA45rgl/DWih6lkKcQiCJZlQScMuVnLnPfPECFOx+wOJtqbARrXuUIm1i8Sc7Oe26zDve3JiujNE79nmDovuoTgLslupf9vC+JNBqBQ+xcZC8SbMESIKB9axdfExubLsTIaqloLhDgn/uEnCbUbuDrTEiI6FKJvwqZtnLwdA5H1I0jUaOmnJKMDpQssYOsNNGWGmWHjbBAN0Th32iS2nuWIIYqWAinYZsad6HJWyN9e3FPeViQ1sbomTEzSXUT8ZRYU06HV1rbNynmQ9n3jsZOY2HCB7vY/VhHJro7I4GtrH00I4l3u4="
+  },
+  "errors": [
+    {
+      "name": "tampered last byte",
+      "blobB64": "AQABAgMEBQYHCAkKC0xbqSVsez2DaFxYJBxO/6sVxUqpa0bp8CwZHlXPHVevG1vqUaEUZ/fKkdOFvC+BKBC3RsOda0sXjTSnhkXQDcma980uzWEUjN1s8XfhXmjNiieQwY27gWeZqc8Qr7Fo9SmKbn7kM1jpJypZMiHPi3EG/AUm6D5jpEFJY8u9nWhR07XBTkGp0yOr7PPe1LC615k0AMFvaG7yZxzP/yMlq5WBABZDu/zW9VfWFKFSbzKaBkoPl8mlURS3oYrqTmD6GmnOqxkZC5FxVH/F5gDfxn7V+qjXMBnO5DQ1xH1EZNVBeOf+SezNA45rgl/DWih6lkKcQiCJZlQScMuVnLnPfPECFOx+wOJtqbARrXuUIm1i8Sc7Oe26zDve3JiujNE79nmDovuoTgLslupf9vC+JNBqBQ+xcZC8SbMESIKB9axdfExubLsTIaqloLhDgn/uEnCbUbuDrTEiI6FKJvwqZtnLwdA5H1I0jUaOmnJKMDpQssYOsNNGWGmWHjbBAN0Th32iS2nuWIIYqWAinYZsad6HJWyN9e3FPeViQ1sbomTEzSXUT8ZRYU06HV1rbNynmQ9n3jsZOY2HCB7vY/VhHJro7I4GtrH00I4l3u8="
+    },
+    {
+      "name": "unknown version byte",
+      "blobB64": "AgABAgMEBQYHCAkKC0xbqSVsez2DaFxYJBxO/6sVxUqpa0bp8CwZHlXPHVevG1vqUaEUZ/fKkdOFvC+BKBC3RsOda0sXjTSnhkXQDcma980uzWEUjN1s8XfhXmjNiieQwY27gWeZqc8Qr7Fo9SmKbn7kM1jpJypZMiHPi3EG/AUm6D5jpEFJY8u9nWhR07XBTkGp0yOr7PPe1LC615k0AMFvaG7yZxzP/yMlq5WBABZDu/zW9VfWFKFSbzKaBkoPl8mlURS3oYrqTmD6GmnOqxkZC5FxVH/F5gDfxn7V+qjXMBnO5DQ1xH1EZNVBeOf+SezNA45rgl/DWih6lkKcQiCJZlQScMuVnLnPfPECFOx+wOJtqbARrXuUIm1i8Sc7Oe26zDve3JiujNE79nmDovuoTgLslupf9vC+JNBqBQ+xcZC8SbMESIKB9axdfExubLsTIaqloLhDgn/uEnCbUbuDrTEiI6FKJvwqZtnLwdA5H1I0jUaOmnJKMDpQssYOsNNGWGmWHjbBAN0Th32iS2nuWIIYqWAinYZsad6HJWyN9e3FPeViQ1sbomTEzSXUT8ZRYU06HV1rbNynmQ9n3jsZOY2HCB7vY/VhHJro7I4GtrH00I4l3u4="
+    },
+    {
+      "name": "too short",
+      "blobB64": "AAAAAA=="
+    },
+    {
+      "name": "wrong key",
+      "blobB64": "AQABAgMEBQYHCAkKC0xbqSVsez2DaFxYJBxO/6sVxUqpa0bp8CwZHlXPHVevG1vqUaEUZ/fKkdOFvC+BKBC3RsOda0sXjTSnhkXQDcma980uzWEUjN1s8XfhXmjNiieQwY27gWeZqc8Qr7Fo9SmKbn7kM1jpJypZMiHPi3EG/AUm6D5jpEFJY8u9nWhR07XBTkGp0yOr7PPe1LC615k0AMFvaG7yZxzP/yMlq5WBABZDu/zW9VfWFKFSbzKaBkoPl8mlURS3oYrqTmD6GmnOqxkZC5FxVH/F5gDfxn7V+qjXMBnO5DQ1xH1EZNVBeOf+SezNA45rgl/DWih6lkKcQiCJZlQScMuVnLnPfPECFOx+wOJtqbARrXuUIm1i8Sc7Oe26zDve3JiujNE79nmDovuoTgLslupf9vC+JNBqBQ+xcZC8SbMESIKB9axdfExubLsTIaqloLhDgn/uEnCbUbuDrTEiI6FKJvwqZtnLwdA5H1I0jUaOmnJKMDpQssYOsNNGWGmWHjbBAN0Th32iS2nuWIIYqWAinYZsad6HJWyN9e3FPeViQ1sbomTEzSXUT8ZRYU06HV1rbNynmQ9n3jsZOY2HCB7vY/VhHJro7I4GtrH00I4l3u4=",
+      "rootSecretHex": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}

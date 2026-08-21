@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "note": "generated — edit tools/conformance, run npm run fixtures",
+  "golden": {
+    "pin": "1234",
+    "saltHex": "000102030405060708090a0b0c0d0e0f",
+    "iterations": 600000,
+    "hashHex": "9f39d9c71c22c4c459bc2cbacc6d74e2184185d671d91f0a34a6834413a0849d",
+    "record": {
+      "v": 1,
+      "algo": "PBKDF2-SHA256",
+      "iterations": 600000,
+      "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+      "hashB64": "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0="
+    },
+    "wrongPin": "4321"
+  },
+  "backoff": [
+    {
+      "priorCount": 0,
+      "now": 1000000,
+      "after": {
+        "count": 1,
+        "lockedUntil": 0
+      }
+    },
+    {
+      "priorCount": 1,
+      "now": 1000000,
+      "after": {
+        "count": 2,
+        "lockedUntil": 0
+      }
+    },
+    {
+      "priorCount": 2,
+      "now": 1000000,
+      "after": {
+        "count": 3,
+        "lockedUntil": 0
+      }
+    },
+    {
+      "priorCount": 3,
+      "now": 1000000,
+      "after": {
+        "count": 4,
+        "lockedUntil": 0
+      }
+    },
+    {
+      "priorCount": 4,
+      "now": 1000000,
+      "after": {
+        "count": 5,
+        "lockedUntil": 1030000
+      }
+    },
+    {
+      "priorCount": 5,
+      "now": 1000000,
+      "after": {
+        "count": 6,
+        "lockedUntil": 1060000
+      }
+    },
+    {
+      "priorCount": 6,
+      "now": 1000000,
+      "after": {
+        "count": 7,
+        "lockedUntil": 1120000
+      }
+    },
+    {
+      "priorCount": 7,
+      "now": 1000000,
+      "after": {
+        "count": 8,
+        "lockedUntil": 1240000
+      }
+    },
+    {
+      "priorCount": 8,
+      "now": 1000000,
+      "after": {
+        "count": 9,
+        "lockedUntil": 1480000
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "note": "generated — edit tools/conformance, run npm run fixtures",
+  "canonical": [
+    {
+      "name": "vector",
+      "rootSecretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "code": "0400-20G3-0G2G-C1R8-1450-P30D-1R7H-048J-2CA1-A5GQ-30CH-M6RW-3MF1-ZV0X"
+    },
+    {
+      "name": "zeros",
+      "rootSecretHex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "code": "0400-0000-0000-0000-0000-0000-0000-0000-0000-0000-0000-0000-0000-0FQ2"
+    },
+    {
+      "name": "ones",
+      "rootSecretHex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "code": "07ZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZEJP"
+    },
+    {
+      "name": "interop",
+      "rootSecretHex": "8f3a52c6d94e17b0a5c8e21f76d3049b1e6c8a35f20d97b4c1a68e53d7f20c94",
+      "code": "067K-MMP6-V571-FC55-S3H1-YXPK-0JDH-WV4A-6QS0-V5XM-R6K8-WMYQ-Y869-8B9W"
+    }
+  ],
+  "decodeOk": [
+    {
+      "name": "lowercase, spaces, O-for-0 lookalikes",
+      "code": "O4OO 2Og3 Og2g c1r8 145O p3Od 1r7h O48j 2ca1 a5gq 3Och m6rw 3mf1 zvOx",
+      "rootSecretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    }
+  ],
+  "decodeError": [
+    {
+      "name": "single-character typo",
+      "code": "0407-20G3-0G2G-C1R8-1450-P30D-1R7H-048J-2CA1-A5GQ-30CH-M6RW-3MF1-ZV0X"
+    },
+    {
+      "name": "truncated",
+      "code": "0400-20G3-0G"
+    },
+    {
+      "name": "future version byte",
+      "code": "0800-20G3-0G2G-C1R8-1450-P30D-1R7H-048J-2CA1-A5GQ-30CH-M6RW-3MF1-YTJR"
+    }
+  ]
+}

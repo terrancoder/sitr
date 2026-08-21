@@ -1,0 +1,336 @@
+{
+  "version": 1,
+  "note": "generated — edit tools/conformance, run npm run fixtures",
+  "cases": [
+    {
+      "name": "higher rev wins (a)",
+      "a": {
+        "v": 1,
+        "rev": 9,
+        "updatedAt": 1700000000000,
+        "updatedBy": "device-guardian-1",
+        "allowDomains": [
+          "allowed.example",
+          "ok.example"
+        ],
+        "blockDomains": [
+          "blocked.example",
+          "worse.example"
+        ],
+        "devices": [
+          "device-child-1",
+          "device-guardian-1"
+        ],
+        "disabledCategories": [
+          "sitr_dating"
+        ],
+        "pin": {
+          "v": 1,
+          "algo": "PBKDF2-SHA256",
+          "iterations": 600000,
+          "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+          "hashB64": "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0="
+        },
+        "policy": {
+          "childLockOptions": true
+        }
+      },
+      "b": {
+        "v": 1,
+        "rev": 8,
+        "updatedAt": 1700000000000,
+        "updatedBy": "device-guardian-1",
+        "allowDomains": [
+          "allowed.example",
+          "ok.example"
+        ],
+        "blockDomains": [
+          "blocked.example",
+          "worse.example"
+        ],
+        "devices": [
+          "device-child-1",
+          "device-guardian-1"
+        ],
+        "disabledCategories": [
+          "sitr_dating"
+        ],
+        "pin": {
+          "v": 1,
+          "algo": "PBKDF2-SHA256",
+          "iterations": 600000,
+          "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+          "hashB64": "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0="
+        },
+        "policy": {
+          "childLockOptions": true
+        }
+      },
+      "winner": "a"
+    },
+    {
+      "name": "higher rev wins (b)",
+      "a": {
+        "v": 1,
+        "rev": 3,
+        "updatedAt": 1700000000000,
+        "updatedBy": "device-guardian-1",
+        "allowDomains": [
+          "allowed.example",
+          "ok.example"
+        ],
+        "blockDomains": [
+          "blocked.example",
+          "worse.example"
+        ],
+        "devices": [
+          "device-child-1",
+          "device-guardian-1"
+        ],
+        "disabledCategories": [
+          "sitr_dating"
+        ],
+        "pin": {
+          "v": 1,
+          "algo": "PBKDF2-SHA256",
+          "iterations": 600000,
+          "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+          "hashB64": "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0="
+        },
+        "policy": {
+          "childLockOptions": true
+        }
+      },
+      "b": {
+        "v": 1,
+        "rev": 12,
+        "updatedAt": 1700000000000,
+        "updatedBy": "device-guardian-1",
+        "allowDomains": [
+          "allowed.example",
+          "ok.example"
+        ],
+        "blockDomains": [
+          "blocked.example",
+          "worse.example"
+        ],
+        "devices": [
+          "device-child-1",
+          "device-guardian-1"
+        ],
+        "disabledCategories": [
+          "sitr_dating"
+        ],
+        "pin": {
+          "v": 1,
+          "algo": "PBKDF2-SHA256",
+          "iterations": 600000,
+          "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+          "hashB64": "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0="
+        },
+        "policy": {
+          "childLockOptions": true
+        }
+      },
+      "winner": "b"
+    },
+    {
+      "name": "rev tie -> later updatedAt wins",
+      "a": {
+        "v": 1,
+        "rev": 5,
+        "updatedAt": 100,
+        "updatedBy": "device-guardian-1",
+        "allowDomains": [
+          "allowed.example",
+          "ok.example"
+        ],
+        "blockDomains": [
+          "blocked.example",
+          "worse.example"
+        ],
+        "devices": [
+          "device-child-1",
+          "device-guardian-1"
+        ],
+        "disabledCategories": [
+          "sitr_dating"
+        ],
+        "pin": {
+          "v": 1,
+          "algo": "PBKDF2-SHA256",
+          "iterations": 600000,
+          "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+          "hashB64": "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0="
+        },
+        "policy": {
+          "childLockOptions": true
+        }
+      },
+      "b": {
+        "v": 1,
+        "rev": 5,
+        "updatedAt": 200,
+        "updatedBy": "device-guardian-1",
+        "allowDomains": [
+          "allowed.example",
+          "ok.example"
+        ],
+        "blockDomains": [
+          "blocked.example",
+          "worse.example"
+        ],
+        "devices": [
+          "device-child-1",
+          "device-guardian-1"
+        ],
+        "disabledCategories": [
+          "sitr_dating"
+        ],
+        "pin": {
+          "v": 1,
+          "algo": "PBKDF2-SHA256",
+          "iterations": 600000,
+          "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+          "hashB64": "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0="
+        },
+        "policy": {
+          "childLockOptions": true
+        }
+      },
+      "winner": "b"
+    },
+    {
+      "name": "rev+time tie -> greater updatedBy wins",
+      "a": {
+        "v": 1,
+        "rev": 5,
+        "updatedAt": 100,
+        "updatedBy": "device-b",
+        "allowDomains": [
+          "allowed.example",
+          "ok.example"
+        ],
+        "blockDomains": [
+          "blocked.example",
+          "worse.example"
+        ],
+        "devices": [
+          "device-child-1",
+          "device-guardian-1"
+        ],
+        "disabledCategories": [
+          "sitr_dating"
+        ],
+        "pin": {
+          "v": 1,
+          "algo": "PBKDF2-SHA256",
+          "iterations": 600000,
+          "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+          "hashB64": "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0="
+        },
+        "policy": {
+          "childLockOptions": true
+        }
+      },
+      "b": {
+        "v": 1,
+        "rev": 5,
+        "updatedAt": 100,
+        "updatedBy": "device-a",
+        "allowDomains": [
+          "allowed.example",
+          "ok.example"
+        ],
+        "blockDomains": [
+          "blocked.example",
+          "worse.example"
+        ],
+        "devices": [
+          "device-child-1",
+          "device-guardian-1"
+        ],
+        "disabledCategories": [
+          "sitr_dating"
+        ],
+        "pin": {
+          "v": 1,
+          "algo": "PBKDF2-SHA256",
+          "iterations": 600000,
+          "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+          "hashB64": "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0="
+        },
+        "policy": {
+          "childLockOptions": true
+        }
+      },
+      "winner": "a"
+    },
+    {
+      "name": "identical states (tie resolves to b)",
+      "a": {
+        "v": 1,
+        "rev": 7,
+        "updatedAt": 1700000000000,
+        "updatedBy": "device-guardian-1",
+        "allowDomains": [
+          "allowed.example",
+          "ok.example"
+        ],
+        "blockDomains": [
+          "blocked.example",
+          "worse.example"
+        ],
+        "devices": [
+          "device-child-1",
+          "device-guardian-1"
+        ],
+        "disabledCategories": [
+          "sitr_dating"
+        ],
+        "pin": {
+          "v": 1,
+          "algo": "PBKDF2-SHA256",
+          "iterations": 600000,
+          "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+          "hashB64": "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0="
+        },
+        "policy": {
+          "childLockOptions": true
+        }
+      },
+      "b": {
+        "v": 1,
+        "rev": 7,
+        "updatedAt": 1700000000000,
+        "updatedBy": "device-guardian-1",
+        "allowDomains": [
+          "allowed.example",
+          "ok.example"
+        ],
+        "blockDomains": [
+          "blocked.example",
+          "worse.example"
+        ],
+        "devices": [
+          "device-child-1",
+          "device-guardian-1"
+        ],
+        "disabledCategories": [
+          "sitr_dating"
+        ],
+        "pin": {
+          "v": 1,
+          "algo": "PBKDF2-SHA256",
+          "iterations": 600000,
+          "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+          "hashB64": "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0="
+        },
+        "policy": {
+          "childLockOptions": true
+        }
+      },
+      "winner": "b"
+    }
+  ]
+}
