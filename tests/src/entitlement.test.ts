@@ -5,6 +5,7 @@ import { EntitlementChecker } from "../../server/sync/dist/entitlement.js";
 import { keygen, mintToken, privateKeyFromB64 } from "../../server/sync/dist/mint.js";
 import { SyncStore } from "../../server/sync/dist/store.js";
 import { SyncHandler, type SyncRequest } from "../../server/sync/dist/http.js";
+import { ClaimHandler } from "../../server/sync/dist/claim.js";
 import { configFromEnv } from "../../server/sync/dist/config.js";
 
 const NOW = 1_800_000_000_000;
@@ -69,18 +70,17 @@ function put(entitlement?: string): SyncRequest {
   };
 }
 
-function enforcingHandler(fetchImpl?: typeof fetch) {
-  const config = {
+function enforcingConfig() {
+  return {
     ...configFromEnv({}),
     entitlementPubKeyB64: kp.publicB64,
     entitlementPrivKeyB64: kp.privateB64,
     polarAccessToken: "polar-test-token",
   };
-  return new SyncHandler(new SyncStore(":memory:"), config, () => NOW, fetchImpl);
 }
 
 test("household creation requires entitlement when enforcing; updates never do", () => {
-  const h = enforcingHandler();
+  const h = new SyncHandler(new SyncStore(":memory:"), enforcingConfig(), () => NOW);
   assert.equal(h.handle(put()).status, 402);
   const created = h.handle(put(validToken));
   assert.equal(created.status, 201);
@@ -103,7 +103,9 @@ test("claim endpoint exchanges a paid Polar checkout for a valid token", async (
     }
     return new Response(null, { status: 404 });
   }) as typeof fetch;
-  const h = enforcingHandler(fetchStub);
+  // The claim endpoint runs in its own process (claim-server.ts) so the
+  // minting key never lives in the blob-parsing sync process.
+  const h = new ClaimHandler(enforcingConfig(), () => NOW, fetchStub);
 
   const claim = (id: string): SyncRequest => ({
     method: "GET",
@@ -124,7 +126,7 @@ test("claim endpoint exchanges a paid Polar checkout for a valid token", async (
 });
 
 test("claim endpoint is 503 when billing is not configured", async () => {
-  const h = new SyncHandler(new SyncStore(":memory:"), configFromEnv({}), () => NOW);
+  const h = new ClaimHandler(configFromEnv({}), () => NOW);
   const res = await h.handleClaim({
     method: "GET",
     path: "/v1/entitlement/claim/x",

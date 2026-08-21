@@ -1,0 +1,32 @@
+# systemd unit for the Sitr entitlement claim service — the ONLY process
+# holding the Ed25519 minting key and the Polar token. Runs separately from
+# sitr-sync so a compromise of the blob-parsing process never yields the key.
+# Install: copy to /etc/systemd/system/, put the secrets in
+# /etc/sitr/claim.env (root:root 0600), then
+#   systemctl enable --now sitr-claim
+[Unit]
+Description=Sitr entitlement claim service (Polar checkout -> signed token)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sitr-claim
+DynamicUser=yes
+Environment=SITR_CLAIM_PORT=8788
+# SITR_ENTITLEMENT_PRIVKEY, SITR_POLAR_TOKEN (and optionally
+# SITR_CLAIM_ORIGIN, SITR_ENTITLEMENT_DAYS, SITR_TRUSTED_PROXY) live here:
+EnvironmentFile=/etc/sitr/claim.env
+ExecStart=/usr/bin/node /opt/sitr/server/sync/dist/claim-server.js
+Restart=on-failure
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

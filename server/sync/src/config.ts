@@ -2,6 +2,15 @@
 
 export interface Config {
   port: number;
+  /** Port for the claim service's own process (claim-server.ts). */
+  claimPort: number;
+  /**
+   * True only when the process sits behind our own reverse proxy: derive
+   * the client IP from the LAST X-Forwarded-For entry (the hop our proxy
+   * appended). False (default) ignores the header entirely — a direct
+   * client must not be able to spoof its way out of a rate limit.
+   */
+  trustedProxy: boolean;
   /** SQLite path; ":memory:" for tests. */
   dbPath: string;
   maxBlobBytes: number;
@@ -35,6 +44,9 @@ export function configFromEnv(env: NodeJS.ProcessEnv): Config {
   };
   return {
     port: int(env["SITR_SYNC_PORT"], 8787),
+    claimPort: int(env["SITR_CLAIM_PORT"], 8788),
+    trustedProxy:
+      env["SITR_TRUSTED_PROXY"] === "1" || env["SITR_TRUSTED_PROXY"] === "true",
     dbPath: env["SITR_SYNC_DB"] ?? "sitr-sync.sqlite",
     maxBlobBytes: 64 * 1024,
     createsPerIpPerHour: int(env["SITR_SYNC_CREATES_PER_IP_HOUR"], 20),
