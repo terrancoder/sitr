@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sitr</string>
+
+    <!-- Managed configuration schema strings. -->
+    <string name="restriction_org_title">Organization name</string>
+    <string name="restriction_org_desc">Shown to the user as the managing organization</string>
+    <string name="restriction_lock_title">Lock settings</string>
+    <string name="restriction_lock_desc">Nothing may be changed on this device</string>
+    <string name="restriction_categories_title">Forced categories</string>
+    <string name="restriction_categories_desc">Comma-separated: sitr_gambling, sitr_dating (adult and SafeSearch are always on)</string>
+    <string name="restriction_block_title">Blocked domains</string>
+    <string name="restriction_block_desc">Comma- or newline-separated registrable domains</string>
+    <string name="restriction_allow_title">Allowed domains</string>
+    <string name="restriction_allow_desc">Comma- or newline-separated registrable domains</string>
+</resources>
