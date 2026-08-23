@@ -120,6 +120,22 @@ much as the blocking:
 | Child mode | Enable Screen Time in child mode on a Family Sharing child device | Revoking requires the parent |
 | SafeSearch | Search on Google | **Not enforced** on iOS. The app says so; confirm it does not claim otherwise |
 
+### Reading the results honestly
+
+Two observations that look like failures and are not:
+
+- **Searching for a blocked site still returns results.** Sitr blocks the
+  domain, not the search listing — follow the link and it fails. See
+  [threat-model.md](threat-model.md) T11.
+- **Gambling terms are unaffected by SafeSearch.** SafeSearch covers
+  explicit sexual content; it was never a gambling filter. Gambling is
+  handled by blocking those domains.
+
+And one that is a real limit: on search engines with no vendor-published
+safe-mode endpoint — **Brave Search** among them — SafeSearch cannot be
+enforced at all, so explicit results and image thumbnails are unfiltered
+there even while the destination domains stay blocked.
+
 ## Recording results
 
 Note the OS version, device, and carrier for anything that fails —

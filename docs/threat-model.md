@@ -110,6 +110,31 @@ filter plus Sitr's deny list — the evaluation is Apple's, not ours.
 SafeSearch cannot be enforced on iOS at all. We state each of
 these in-app rather than imply full coverage.
 
+### T11: search engines without a DNS safe-mode endpoint
+SafeSearch is enforced by answering DNS for a search engine's hostname
+with the address of a "force safe" endpoint the vendor publishes:
+`forcesafesearch.google.com`, `strict.bing.com`, `safe.duckduckgo.com`,
+`restrict.youtube.com`. That technique only exists where the vendor
+provides such an endpoint.
+
+**Brave Search publishes none**, and neither do most smaller engines.
+Their safe-search settings live in cookies or query parameters, which a
+DNS filter cannot reach. So on those engines explicit *results* — most
+visibly image thumbnails, served from the engine's own domains — are not
+filtered. Destination sites in the blocklist remain blocked when
+followed, but the results page itself is not.
+
+We do not "solve" this by blocking the engines: a general-purpose search
+engine fails the inclusion policy's primary-purpose test, and blocking
+one would be exactly the over-broad entry that policy exists to prevent.
+The honest position is that Sitr filters domains, and enforces
+SafeSearch only where a vendor makes it possible.
+
+A related point users meet sooner: Sitr blocks *domains*, so searching
+for a blocked site still returns a result listing. The link fails to
+load; the listing is not removed. Editing page contents would require
+the traffic inspection this product is built not to have.
+
 ## Out of scope / honest limitations
 
 - **A determined user can bypass Sitr** (disable the extension, another
