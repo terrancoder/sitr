@@ -16,6 +16,18 @@
  * last-resort fallback used only when that lookup fails, so SafeSearch
  * never silently drops out; runtime resolution is primary because vendors
  * can renumber.
+ *
+ * strict-search-hosts.txt backs the optional Strict Search setting. Safe
+ * mode can only be forced where a vendor publishes an endpoint for it
+ * (threat-model.md T11); on engines that publish none, the exposure users
+ * actually hit is explicit imagery in results, and those thumbnails are
+ * served from their own hostnames. Blocking just those hosts suppresses
+ * the imagery while text search keeps working — surgical, and it degrades
+ * an engine rather than breaking it.
+ *
+ * These hosts are NOT part of the shared blocklist: a general-purpose
+ * search engine fails the inclusion policy's primary-purpose test. They
+ * ship as a separate artifact behind a user toggle that is off by default.
  */
 
 /**
@@ -87,5 +99,50 @@ export function serializeDomainList(sortedDomains: string[]): string {
 
 /** Stable JSON serialization: 2-space indent, trailing newline, LF only. */
 export function serializeSafesearchHosts(map: SafeSearchHostsMap): string {
+  return JSON.stringify(map, null, 2) + "\n";
+}
+
+/**
+ * Image/thumbnail hosts suppressed by Strict Search, grouped by the engine
+ * they belong to so the app can explain what a toggle actually does.
+ *
+ * Engines WITH a vendor safe-mode endpoint are included too: safe mode
+ * already filters their results, but a user asking for the strict setting
+ * is asking for defence in depth, and these hosts proxy third-party
+ * imagery that safe mode governs only as well as the vendor chooses to.
+ */
+export interface StrictSearchHosts {
+  v: 1;
+  hosts: Array<{ engine: string; host: string; safeModeAvailable: boolean }>;
+}
+
+export function strictSearchHosts(): StrictSearchHosts {
+  return {
+    v: 1,
+    hosts: [
+      // No vendor safe-mode endpoint exists for these engines, so their
+      // thumbnails are the only lever DNS has.
+      { engine: "Brave Search", host: "imgs.search.brave.com", safeModeAvailable: false },
+      { engine: "Brave Search", host: "cdn.search.brave.com", safeModeAvailable: false },
+      { engine: "Startpage", host: "sp-cdn.startpage.com", safeModeAvailable: false },
+      { engine: "Mojeek", host: "www.mojeek.com", safeModeAvailable: false },
+      { engine: "Yandex", host: "avatars.mds.yandex.net", safeModeAvailable: false },
+      // Safe mode already applies here; these add depth for image results.
+      { engine: "Google", host: "encrypted-tbn0.gstatic.com", safeModeAvailable: true },
+      { engine: "Google", host: "encrypted-tbn1.gstatic.com", safeModeAvailable: true },
+      { engine: "Google", host: "encrypted-tbn2.gstatic.com", safeModeAvailable: true },
+      { engine: "Google", host: "encrypted-tbn3.gstatic.com", safeModeAvailable: true },
+      { engine: "Bing", host: "th.bing.com", safeModeAvailable: true },
+      { engine: "Bing", host: "tse1.mm.bing.net", safeModeAvailable: true },
+      { engine: "Bing", host: "tse2.mm.bing.net", safeModeAvailable: true },
+      { engine: "Bing", host: "tse3.mm.bing.net", safeModeAvailable: true },
+      { engine: "Bing", host: "tse4.mm.bing.net", safeModeAvailable: true },
+      { engine: "DuckDuckGo", host: "external-content.duckduckgo.com", safeModeAvailable: true },
+    ],
+  };
+}
+
+/** Stable JSON serialization: 2-space indent, trailing newline, LF only. */
+export function serializeStrictSearchHosts(map: StrictSearchHosts): string {
   return JSON.stringify(map, null, 2) + "\n";
 }

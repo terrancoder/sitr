@@ -91,6 +91,63 @@ fun CategoriesScreen(ctx: UiCtx) {
         }
     }
 
+    Spacer(Modifier.height(20.dp))
+    Text("Search results", style = MaterialTheme.typography.titleMedium)
+    Spacer(Modifier.height(4.dp))
+
+    val strictAvailable = ctx.app.strictSearchHosts.hosts.isNotEmpty()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            "Strict Search",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(
+            checked = ctx.settings.strictSearch && strictAvailable,
+            enabled = strictAvailable,
+            onCheckedChange = { on ->
+                val set = {
+                    ctx.app.applySettings(
+                        ctx.app.repository.current().copy(strictSearch = on)
+                    )
+                }
+                // Turning it ON tightens; turning it OFF loosens.
+                if (on) ctx.attempt(MutationKind.ENABLE_CATEGORY, "") { set() }
+                else ctx.attempt(MutationKind.DISABLE_CATEGORY, "Turn off Strict Search") { set() }
+            },
+        )
+    }
+
+    // The disclosure is part of the feature, not decoration: the setting
+    // must not be read as "hides everything about betting and adult
+    // content from search".
+    Text(
+        "Blocks the image and thumbnail servers search engines use, so " +
+            "explicit pictures do not appear in results — including on " +
+            "engines that offer no SafeSearch setting of their own" +
+            (ctx.app.strictSearchHosts.enginesWithoutSafeMode
+                .takeIf { it.isNotEmpty() }
+                ?.let { " (" + it.joinToString(", ") + ")" } ?: "") +
+            ".",
+        style = MaterialTheme.typography.bodySmall,
+    )
+    Spacer(Modifier.height(6.dp))
+    Text(
+        "What it does not do: text results are left alone. A search for a " +
+            "gambling or adult site still lists it — Sitr blocks the site " +
+            "itself, so the link will not open. Removing result text would " +
+            "mean reading the pages you visit, which Sitr is built never to " +
+            "do. Image search on the affected engines will look broken; " +
+            "that is this setting working.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.secondary,
+    )
+
     Spacer(Modifier.height(16.dp))
     TextButton(onClick = { ctx.navigate(Screen.HOME) }) { Text("Back") }
 }

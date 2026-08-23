@@ -7,6 +7,7 @@ import com.sitrshield.app.data.Settings
 import com.sitrshield.app.managed.ManagedConfig
 import com.sitrshield.app.sync.SyncWorker
 import com.sitrshield.core.dns.SafeSearchMap
+import com.sitrshield.core.dns.StrictSearchHosts
 import com.sitrshield.core.domainset.DomainSet
 import com.sitrshield.core.rules.DecisionSnapshot
 import com.sitrshield.engine.EngineController
@@ -26,6 +27,8 @@ class SitrApp : Application() {
 
     private var categorySets: Map<String, DomainSet> = emptyMap()
     private var safeSearchMap: SafeSearchMap = SafeSearchMap(emptyList())
+    var strictSearchHosts: StrictSearchHosts = StrictSearchHosts.EMPTY
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -57,6 +60,13 @@ class SitrApp : Application() {
             val map = SafeSearchMap.parse(
                 assets.open("safesearch-hosts.json").readBytes().decodeToString()
             ).getOrNull() ?: throw IllegalStateException("safesearch map failed to parse")
+
+            // Strict Search is optional; a missing or bad artifact must
+            // not stop the filter from starting — the toggle just stays
+            // unavailable, which the UI reflects.
+            strictSearchHosts = StrictSearchHosts.parse(
+                assets.open("strict-search-hosts.json").readBytes().decodeToString()
+            ).getOrNull() ?: StrictSearchHosts.EMPTY
 
             categorySets = sets
             safeSearchMap = map
@@ -100,6 +110,9 @@ class SitrApp : Application() {
             for (file in enabledCategoryFiles) {
                 categorySets[file]?.let { addAll(it.domains) }
             }
+            // Strict Search folds into the same static layer, so a user
+            // allow rule can still override it like any other block.
+            if (settings.strictSearch) addAll(strictSearchHosts.hosts)
         }
         EngineController.apply(
             DecisionSnapshot(

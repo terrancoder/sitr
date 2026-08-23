@@ -1,0 +1,80 @@
+{
+  "v": 1,
+  "hosts": [
+    {
+      "engine": "Brave Search",
+      "host": "imgs.search.brave.com",
+      "safeModeAvailable": false
+    },
+    {
+      "engine": "Brave Search",
+      "host": "cdn.search.brave.com",
+      "safeModeAvailable": false
+    },
+    {
+      "engine": "Startpage",
+      "host": "sp-cdn.startpage.com",
+      "safeModeAvailable": false
+    },
+    {
+      "engine": "Mojeek",
+      "host": "www.mojeek.com",
+      "safeModeAvailable": false
+    },
+    {
+      "engine": "Yandex",
+      "host": "avatars.mds.yandex.net",
+      "safeModeAvailable": false
+    },
+    {
+      "engine": "Google",
+      "host": "encrypted-tbn0.gstatic.com",
+      "safeModeAvailable": true
+    },
+    {
+      "engine": "Google",
+      "host": "encrypted-tbn1.gstatic.com",
+      "safeModeAvailable": true
+    },
+    {
+      "engine": "Google",
+      "host": "encrypted-tbn2.gstatic.com",
+      "safeModeAvailable": true
+    },
+    {
+      "engine": "Google",
+      "host": "encrypted-tbn3.gstatic.com",
+      "safeModeAvailable": true
+    },
+    {
+      "engine": "Bing",
+      "host": "th.bing.com",
+      "safeModeAvailable": true
+    },
+    {
+      "engine": "Bing",
+      "host": "tse1.mm.bing.net",
+      "safeModeAvailable": true
+    },
+    {
+      "engine": "Bing",
+      "host": "tse2.mm.bing.net",
+      "safeModeAvailable": true
+    },
+    {
+      "engine": "Bing",
+      "host": "tse3.mm.bing.net",
+      "safeModeAvailable": true
+    },
+    {
+      "engine": "Bing",
+      "host": "tse4.mm.bing.net",
+      "safeModeAvailable": true
+    },
+    {
+      "engine": "DuckDuckGo",
+      "host": "external-content.duckduckgo.com",
+      "safeModeAvailable": true
+    }
+  ]
+}

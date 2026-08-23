@@ -130,6 +130,15 @@ one would be exactly the over-broad entry that policy exists to prevent.
 The honest position is that Sitr filters domains, and enforces
 SafeSearch only where a vendor makes it possible.
 
+**Strict Search** (optional, off by default) narrows the gap without
+crossing that line. Search engines serve result thumbnails from their
+own hostnames, so blocking those hosts suppresses explicit imagery while
+text search keeps working — surgical, and it degrades an engine rather
+than breaking it. Those hosts ship as a separate artifact behind a user
+toggle, never in the shared blocklist. The setting is disclosed in-app
+for what it is: image results on the affected engines will look broken,
+and text listings are untouched.
+
 A related point users meet sooner: Sitr blocks *domains*, so searching
 for a blocked site still returns a result listing. The link fails to
 load; the listing is not removed. Editing page contents would require

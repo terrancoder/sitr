@@ -35,6 +35,8 @@ import {
   safesearchHostsMap,
   serializeDomainList,
   serializeSafesearchHosts,
+  serializeStrictSearchHosts,
+  strictSearchHosts,
 } from "./emitAndroid.js";
 import type { CompileIssue } from "./types.js";
 
@@ -139,6 +141,12 @@ if (androidOutDir !== undefined) {
   androidOutputs.set(
     "safesearch-hosts.json",
     serializeSafesearchHosts(safesearchHostsMap()),
+  );
+  // Optional Strict Search (off by default) — see emitAndroid.ts and
+  // threat-model.md T11 for why these are separate from the blocklist.
+  androidOutputs.set(
+    "strict-search-hosts.json",
+    serializeStrictSearchHosts(strictSearchHosts()),
   );
 }
 

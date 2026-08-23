@@ -28,6 +28,8 @@ data class Settings(
     val deviceId: String = "",
     /** Device-level toggles; the household's list wins when joined. */
     val disabledCategories: List<String> = emptyList(),
+    /** Strict Search — off by default; see StrictSearchHosts. */
+    val strictSearch: Boolean = false,
     val userAllow: List<String> = emptyList(),
     val userBlock: List<String> = emptyList(),
     val role: String? = null,
@@ -71,6 +73,7 @@ class Repository(context: Context) {
         return Settings(
             onboarded = prefs.getBoolean("onboarded", false),
             filterEnabled = prefs.getBoolean("filterEnabled", false),
+            strictSearch = prefs.getBoolean("strictSearch", false),
             deviceId = deviceId,
             disabledCategories = prefs.getStringSet("disabledCategories", emptySet())!!.toList(),
             userAllow = prefs.getStringSet("userAllow", emptySet())!!.sorted(),
@@ -88,6 +91,7 @@ class Repository(context: Context) {
         prefs.edit()
             .putBoolean("onboarded", next.onboarded)
             .putBoolean("filterEnabled", next.filterEnabled)
+            .putBoolean("strictSearch", next.strictSearch)
             .putStringSet("disabledCategories", next.disabledCategories.toSet())
             .putStringSet("userAllow", next.userAllow.toSet())
             .putStringSet("userBlock", next.userBlock.toSet())

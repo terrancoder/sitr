@@ -1,6 +1,8 @@
 package com.sitrshield.core
 
 import com.sitrshield.core.dns.SafeSearchMap
+import com.sitrshield.core.dns.StrictSearchHosts
+import com.sitrshield.core.domains.DomainInput
 import com.sitrshield.core.domainset.DomainSet
 import org.json.JSONObject
 import java.io.File
@@ -96,5 +98,46 @@ class ArtifactsTest {
         assertTrue(!SafeSearchMap.matches("google.*", "notgoogle.de"))
         assertTrue(SafeSearchMap.matches("bing.com", "bing.com"))
         assertTrue(!SafeSearchMap.matches("bing.com", "www.bing.com"))
+    }
+
+    @Test
+    fun strictSearchHostsLoadAndAreNotInTheBlocklist() {
+        val map = StrictSearchHosts.parse(
+            File(dir, "strict-search-hosts.json").readText()
+        ).getOrNull() ?: error("strict-search-hosts.json must parse")
+
+        assertTrue(map.hosts.isNotEmpty())
+        // Every entry is a real hostname the engine can match on.
+        for (entry in map.entries) {
+            assertTrue(DomainInput.isValidDomain(entry.host), entry.host)
+            assertTrue(entry.engine.isNotBlank())
+        }
+        // The engines with no vendor safe mode are the reason this exists.
+        assertTrue(map.enginesWithoutSafeMode.contains("Brave Search"))
+
+        // These must NOT be in the shared blocklist: a general-purpose
+        // search engine fails the inclusion policy's primary-purpose test.
+        val sums = checksums()
+        for (category in listOf("adult", "dating", "gambling")) {
+            val name = "$category.domains"
+            val set = DomainSet.load(File(dir, name).readBytes(), sums.getString(name))
+                .getOrNull() ?: error("$name must load")
+            for (host in map.hosts) {
+                assertTrue(
+                    host !in set.domains,
+                    "$host must not ship in the $category blocklist"
+                )
+            }
+        }
+    }
+
+    @Test
+    fun strictSearchRejectsMalformedArtifacts() {
+        assertTrue(StrictSearchHosts.parse("not json") is SitrResult.Err)
+        assertTrue(StrictSearchHosts.parse("""{"v":2,"hosts":[]}""") is SitrResult.Err)
+        assertTrue(StrictSearchHosts.parse("""{"v":1}""") is SitrResult.Err)
+        assertTrue(
+            StrictSearchHosts.parse("""{"v":1,"hosts":[{"engine":"X"}]}""") is SitrResult.Err
+        )
     }
 }
