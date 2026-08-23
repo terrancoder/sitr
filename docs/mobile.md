@@ -144,6 +144,24 @@ Tamper story: [threat-model.md](threat-model.md) T7; platform limits: T10.
 
 Bypass analysis: [threat-model.md](threat-model.md) T9.
 
+## A note on Android permissions
+
+The app declares six permissions. The **merged** manifest ships two
+more, contributed by libraries: `WAKE_LOCK` from androidx.work, and
+androidx.core's signature-level, self-scoped
+`DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. Neither grants access to
+anything about the user, but any public claim about permissions — the
+Play listing, the data-safety form, this documentation — has to
+describe what a build actually requests, which is the merged list:
+
+```sh
+adb shell dumpsys package com.sitrshield.sitr \
+  | sed -n '/requested permissions/,/install permissions/p'
+```
+
+Absent by design, and to stay that way: QUERY_ALL_PACKAGES,
+Accessibility, Device Admin, camera, location, storage.
+
 ## Testing on a device
 
 Fixtures and unit tests pin the shared logic; the engines still have

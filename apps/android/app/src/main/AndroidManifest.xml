@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The complete permission surface — nothing else, ever:
-     no QUERY_ALL_PACKAGES, no Accessibility, no Device Admin, no camera.
-     (Play data-safety and docs/privacy-policy.md mirror this list.) -->
+<!-- The permissions we declare. Deliberately absent, and to stay that
+     way: QUERY_ALL_PACKAGES, Accessibility, Device Admin, camera,
+     location, storage.
+
+     Note the MERGED manifest is larger than this list: androidx.work
+     adds WAKE_LOCK (it holds a wakelock while a worker runs) and
+     androidx.core adds the signature-level, self-scoped
+     <pkg>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION. Verify what a build
+     actually ships with:
+       adb shell dumpsys package com.sitrshield.sitr | sed -n '/requested permissions/,/install permissions/p'
+     Any claim about permissions must describe THAT list, not this one. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
