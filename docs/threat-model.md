@@ -139,6 +139,11 @@ toggle, never in the shared blocklist. The setting is disclosed in-app
 for what it is: image results on the affected engines will look broken,
 and text listings are untouched.
 
+It covers only engines with no vendor safe mode. Google, Bing and
+DuckDuckGo already have SafeSearch forced, so blocking their thumbnail
+hosts filtered nothing extra and merely broke the image search people
+use most — tried, and reverted on that evidence.
+
 A related point users meet sooner: Sitr blocks *domains*, so searching
 for a blocked site still returns a result listing. The link fails to
 load; the listing is not removed. Editing page contents would require

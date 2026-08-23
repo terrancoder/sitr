@@ -127,23 +127,24 @@ fun CategoriesScreen(ctx: UiCtx) {
     // must not be read as "hides everything about betting and adult
     // content from search".
     Text(
-        "Blocks the image and thumbnail servers search engines use, so " +
-            "explicit pictures do not appear in results — including on " +
-            "engines that offer no SafeSearch setting of their own" +
+        "Some search engines offer no SafeSearch setting" +
             (ctx.app.strictSearchHosts.enginesWithoutSafeMode
                 .takeIf { it.isNotEmpty() }
                 ?.let { " (" + it.joinToString(", ") + ")" } ?: "") +
-            ".",
+            ". This blocks the servers they load result images from, so " +
+            "explicit pictures do not appear. Image results on those " +
+            "engines will look broken — that is this setting working.",
         style = MaterialTheme.typography.bodySmall,
     )
     Spacer(Modifier.height(6.dp))
     Text(
-        "What it does not do: text results are left alone. A search for a " +
-            "gambling or adult site still lists it — Sitr blocks the site " +
-            "itself, so the link will not open. Removing result text would " +
-            "mean reading the pages you visit, which Sitr is built never to " +
-            "do. Image search on the affected engines will look broken; " +
-            "that is this setting working.",
+        "Google, Bing and DuckDuckGo are left alone: SafeSearch is already " +
+            "forced on them, so breaking their image search would filter " +
+            "nothing extra.\n\nText results are untouched everywhere. A " +
+            "search for a gambling or adult site still lists it — Sitr " +
+            "blocks the site itself, so the link will not open. Removing " +
+            "result text would mean reading the pages you visit, which " +
+            "Sitr is built never to do.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.secondary,
     )

@@ -106,10 +106,14 @@ export function serializeSafesearchHosts(map: SafeSearchHostsMap): string {
  * Image/thumbnail hosts suppressed by Strict Search, grouped by the engine
  * they belong to so the app can explain what a toggle actually does.
  *
- * Engines WITH a vendor safe-mode endpoint are included too: safe mode
- * already filters their results, but a user asking for the strict setting
- * is asking for defence in depth, and these hosts proxy third-party
- * imagery that safe mode governs only as well as the vendor chooses to.
+ * ONLY engines with no vendor safe-mode endpoint are listed. Google, Bing
+ * and DuckDuckGo already have SafeSearch forced (safesearchHostsMap
+ * above), so blocking their thumbnail hosts adds no filtering — it just
+ * breaks image search on the engines people use most. That was the first
+ * version of this list and it was visibly too blunt in real use.
+ *
+ * The trade is deliberate: this setting closes the gap where no other
+ * lever exists, and stays out of the way where one already does.
  */
 export interface StrictSearchHosts {
   v: 1;
@@ -127,17 +131,6 @@ export function strictSearchHosts(): StrictSearchHosts {
       { engine: "Startpage", host: "sp-cdn.startpage.com", safeModeAvailable: false },
       { engine: "Mojeek", host: "www.mojeek.com", safeModeAvailable: false },
       { engine: "Yandex", host: "avatars.mds.yandex.net", safeModeAvailable: false },
-      // Safe mode already applies here; these add depth for image results.
-      { engine: "Google", host: "encrypted-tbn0.gstatic.com", safeModeAvailable: true },
-      { engine: "Google", host: "encrypted-tbn1.gstatic.com", safeModeAvailable: true },
-      { engine: "Google", host: "encrypted-tbn2.gstatic.com", safeModeAvailable: true },
-      { engine: "Google", host: "encrypted-tbn3.gstatic.com", safeModeAvailable: true },
-      { engine: "Bing", host: "th.bing.com", safeModeAvailable: true },
-      { engine: "Bing", host: "tse1.mm.bing.net", safeModeAvailable: true },
-      { engine: "Bing", host: "tse2.mm.bing.net", safeModeAvailable: true },
-      { engine: "Bing", host: "tse3.mm.bing.net", safeModeAvailable: true },
-      { engine: "Bing", host: "tse4.mm.bing.net", safeModeAvailable: true },
-      { engine: "DuckDuckGo", host: "external-content.duckduckgo.com", safeModeAvailable: true },
     ],
   };
 }

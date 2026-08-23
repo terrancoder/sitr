@@ -48,6 +48,13 @@ Note that the system resolver caches: after changing a category or a
 list, a name queried in the last few minutes may keep its old answer.
 Test settings changes with a domain you have not queried yet.
 
+Two behaviours that look like faults and are not: a query issued in the
+first moment after the tunnel comes up can fail outright ("unknown
+host") because the engine has not yet been handed the network's
+resolvers — clients retry and it settles; and a blocked name renders as
+`127.0.0.1` in `ping` output, which is how it prints the `0.0.0.0` the
+engine actually answers.
+
 ### What only a real device shows
 
 | Scenario | How to trigger | Expected |
