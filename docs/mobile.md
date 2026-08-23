@@ -144,6 +144,13 @@ Tamper story: [threat-model.md](threat-model.md) T7; platform limits: T10.
 
 Bypass analysis: [threat-model.md](threat-model.md) T9.
 
+## Testing on a device
+
+Fixtures and unit tests pin the shared logic; the engines still have
+to be exercised on real hardware, where carrier DNS, captive portals
+and other VPNs behave in ways no emulator reproduces. The runbook and
+the scenario matrix live in [device-testing.md](device-testing.md).
+
 ## Conformance fixtures
 
 `apps/shared/fixtures/` holds test vectors generated from the TypeScript
