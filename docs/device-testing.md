@@ -143,6 +143,55 @@ safe-mode endpoint — **Brave Search** among them — SafeSearch cannot be
 enforced at all, so explicit results and image thumbnails are unfiltered
 there even while the destination domains stay blocked.
 
+## Safari Web Extension (macOS)
+
+Build and enable per [safari.md](safari.md), then verify **on a real
+Safari 26+** — these are the platform behaviors nothing in CI can prove
+(Safari has no `testMatchOutcome`, and its DNR→content-blocker
+translation has known quirks):
+
+- **V1 — SafeSearch redirect transforms.** Search on google.com — the
+  result page must land with `safe=active` in the URL; bing.com/search
+  must gain `adlt=strict`; duckduckgo.com must gain `kp=1`;
+  youtube.com must show Restricted Mode. This is THE go/no-go: Safari's
+  support for DNR redirect URLTransforms is undocumented, and if it
+  fails, SafeSearch must be disclosed as unavailable on Safari (T10
+  pattern), never approximated.
+- **V7 — media greylist gating.** With greylist mode on, images on
+  reddit.com look broken while the site loads and images elsewhere are
+  untouched (`initiatorDomains` needs Safari 26).
+- **Ladder checks.** A user "always allow" entry re-opens a blocklisted
+  test domain; in allowlist-only mode an image-allowlist entry restores
+  a site's images but a hotlinked blocklisted-domain image stays broken.
+- **Grants are part of the proof.** Revoke the extension's access to
+  google.com in Safari settings — the status must go red with the
+  grants message, not stay green.
+- **V8 — update behavior.** After bumping the extension version and
+  rebuilding: user-disabled categories stay disabled and a chosen media
+  mode stays on (the wake-time re-assert covers whichever reset
+  behavior Safari actually has — undocumented, so observe and note it).
+- **Badge.** Text `!`/`?` appears; colors don't (expected — the popup
+  and host app carry red/green).
+
+Hard-won gotchas for the Safari dev loop (all cost real hours once):
+
+- **Reloading a temporary extension resets its website access** (and
+  Safari's per-site records survive independently of the global "other
+  websites" dropdown). After every Reload: re-grant, or nothing blocks
+  and no error says why.
+- **"Allow unsigned extensions" resets when Safari quits.**
+- **Safari serves temporary-extension resources live from disk** — HTML
+  and JS edits apply on next page open without a Reload (and without
+  the permission reset). Ruleset/manifest changes DO need a Reload.
+- **Never include `object` or `csp_report` in `resourceTypes`** — see
+  threat-model T13; Safari drops such rules with zero diagnostics.
+- **Safari's enabled-ruleset state ignores manifest `enabled: true` for
+  rulesets it hasn't seen before** — the worker's wake-time re-assert
+  exists precisely for this; don't bypass it.
+- Verify with never-visited domains: previously-visited sites confound
+  probes with caches, site service workers, and per-site permission
+  records.
+
 ## Recording results
 
 Note the OS version, device, and carrier for anything that fails —

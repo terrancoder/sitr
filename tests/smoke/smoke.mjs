@@ -16,6 +16,7 @@
  */
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -29,6 +30,16 @@ const CHROME_PATHS = [
   process.env.SITR_CHROME,
   join(home, ".cache/chrome-for-testing/chrome-win64/chrome.exe"),
   join(home, ".cache/chrome-for-testing/chrome-linux64/chrome"),
+  join(
+    home,
+    ".cache/chrome-for-testing/chrome-mac-arm64/" +
+      "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  ),
+  join(
+    home,
+    ".cache/chrome-for-testing/chrome-mac-x64/" +
+      "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  ),
   "/usr/bin/chromium",
   "/usr/bin/chromium-browser",
 ].filter(Boolean);
@@ -183,15 +194,25 @@ async function evalInWorker(expression) {
   );
 }
 
-// 3. Unlisted domain is not blocked by us (over-blocking check).
+// 3. Unlisted origin is not blocked by us (over-blocking check). A local
+// loopback server keeps this deterministic: no external network, no VPN or
+// captive-portal interference — the check is about OUR rules, not the
+// internet.
+const localServer = createServer((_req, res) => {
+  res.writeHead(200, { "content-type": "text/html" });
+  res.end("<title>sitr-smoke</title>ok");
+});
+await new Promise((r) => localServer.listen(0, "127.0.0.1", r));
 {
-  const { errorText } = await navigate("https://example.com/");
+  const { port } = localServer.address();
+  const { errorText } = await navigate(`http://127.0.0.1:${port}/`);
   report(
-    "unlisted domain is not blocked",
+    "unlisted origin is not blocked",
     !errorText.includes("ERR_BLOCKED_BY_CLIENT"),
     errorText,
   );
 }
+localServer.close();
 
 // 4. All rulesets enabled, straight from the DNR engine.
 if (swSessionId) {
@@ -221,6 +242,140 @@ if (swSessionId) {
     );
     report(name, Boolean(hit), JSON.stringify(outcome));
   }
+}
+
+// 6. Media filter (T12). Mode changes go through storage.local so this
+// exercises the REAL path: storage change → worker refresh → preference
+// re-assert → engine. Then the engine's own matcher checks the semantics.
+if (swSessionId) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const enabledEventually = async (id, wantEnabled) => {
+    for (let i = 0; i < 20; i++) {
+      const enabled = await evalInWorker(
+        "chrome.declarativeNetRequest.getEnabledRulesets()",
+      );
+      if (enabled.includes(id) === wantEnabled) return true;
+      await sleep(150);
+    }
+    return false;
+  };
+  const matchOutcome = (request) =>
+    evalInWorker(
+      `chrome.declarativeNetRequest.testMatchOutcome(${JSON.stringify(request)})`,
+    );
+
+  // Greylist mode: storage write alone must flip the engine.
+  await evalInWorker(
+    'chrome.storage.local.set({ mediaMode: "greylist" })',
+  );
+  report(
+    "greylist mode: storage change enables the ruleset via re-assert",
+    await enabledEventually("sitr_media_greylist", true),
+    "sitr_media_greylist not enabled after mediaMode=greylist",
+  );
+  {
+    const blocked = await matchOutcome({
+      url: "https://i.redd.it/x.jpg",
+      initiator: "https://www.reddit.com",
+      type: "image",
+    });
+    report(
+      "greylist blocks an image initiated from a greylisted site",
+      blocked.matchedRules?.some(
+        (m) => m.rulesetId === "sitr_media_greylist",
+      ) ?? false,
+      JSON.stringify(blocked),
+    );
+    const elsewhere = await matchOutcome({
+      url: "https://example.com/x.jpg",
+      initiator: "https://example.com",
+      type: "image",
+    });
+    report(
+      "greylist leaves images on other sites alone",
+      !(elsewhere.matchedRules?.some(
+        (m) => m.rulesetId === "sitr_media_greylist",
+      ) ?? false),
+      JSON.stringify(elsewhere),
+    );
+    const site = await matchOutcome({
+      url: "https://www.reddit.com/",
+      type: "main_frame",
+    });
+    report(
+      "greylist never blocks the site itself",
+      !(site.matchedRules?.some(
+        (m) => m.rulesetId === "sitr_media_greylist",
+      ) ?? false),
+      JSON.stringify(site),
+    );
+  }
+
+  // Allowlist-only mode: blanket block, image-allow band, category ceiling.
+  await evalInWorker(
+    'chrome.storage.local.set({ mediaMode: "allowlist" })',
+  );
+  report(
+    "allowlist mode: re-assert swaps the enabled media ruleset",
+    (await enabledEventually("sitr_media_all", true)) &&
+      (await enabledEventually("sitr_media_greylist", false)),
+    "expected sitr_media_all on and sitr_media_greylist off",
+  );
+  {
+    const blocked = await matchOutcome({
+      url: "https://example.com/x.jpg",
+      initiator: "https://example.com",
+      type: "image",
+    });
+    report(
+      "allowlist mode blocks images everywhere by default",
+      blocked.matchedRules?.some((m) => m.rulesetId === "sitr_media_all") ??
+        false,
+      JSON.stringify(blocked),
+    );
+    // Add an image-allow rule (the options page's band) and re-test.
+    await evalInWorker(
+      `chrome.declarativeNetRequest.updateDynamicRules({ addRules: [{
+        id: 4000000, priority: 2, action: { type: "allow" },
+        condition: { initiatorDomains: ["example.com"],
+                     resourceTypes: ["image", "media"] } }] })`,
+    );
+    const allowed = await matchOutcome({
+      url: "https://cdn.example.net/x.jpg",
+      initiator: "https://example.com",
+      type: "image",
+    });
+    report(
+      "image-allowlist entry restores images on that site",
+      !(allowed.matchedRules?.some(
+        (m) => m.rulesetId === "sitr_media_all",
+      ) ?? false),
+      JSON.stringify(allowed),
+    );
+    const category = await matchOutcome({
+      url: "https://pornhub.com/x.jpg",
+      initiator: "https://example.com",
+      type: "image",
+    });
+    report(
+      "category block still beats the image allowlist (priority ladder)",
+      category.matchedRules?.some((m) => m.rulesetId === "sitr_adult") ??
+        false,
+      JSON.stringify(category),
+    );
+    await evalInWorker(
+      "chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [4000000] })",
+    );
+  }
+
+  // Back to off: both media rulesets must drop out.
+  await evalInWorker('chrome.storage.local.remove("mediaMode")');
+  report(
+    "media off: re-assert disables both media rulesets",
+    (await enabledEventually("sitr_media_all", false)) &&
+      (await enabledEventually("sitr_media_greylist", false)),
+    "media rulesets still enabled after mediaMode removed",
+  );
 }
 
 ws.close();

@@ -8,12 +8,14 @@ on:
       - "apps/**"
       - "blocklist/**"
       - "tools/**"
+      - "extension/**"
       - ".github/workflows/mobile-ci.yml"
   pull_request:
     paths:
       - "apps/**"
       - "blocklist/**"
       - "tools/**"
+      - "extension/**"
       - ".github/workflows/mobile-ci.yml"
 
 jobs:
@@ -75,6 +77,31 @@ jobs:
         run: |
           xcodebuild test -project apps/ios/Sitr.xcodeproj -scheme Sitr \
             -destination 'platform=iOS Simulator,name=iPhone 17'
+
+  # Safari (macOS): stage the web-extension bundle deterministically
+  # (twice, diffed — same gate the rulesets get), then build the host app
+  # + appex unsigned. Behavioral rule checks need a Safari session and
+  # live in the device-testing runbook (docs/safari.md), not CI, until a
+  # safaridriver lane proves stable on hosted runners.
+  safari:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Stage web-extension bundle (determinism gate)
+        run: |
+          npm ci
+          npm run build
+          node tools/pack/stage-safari.mjs build/safari-extension
+          node tools/pack/stage-safari.mjs /tmp/safari-recheck
+          diff -r build/safari-extension /tmp/safari-recheck
+          cat build/safari-extension/checksums.json
+      - name: Build host app + web extension (unsigned)
+        run: |
+          xcodebuild -project apps/ios/Sitr.xcodeproj -scheme SitrMac \
+            CODE_SIGNING_ALLOWED=NO build
 
   # The :engine/:app Android modules and the Xcode app targets get their
   # build+test jobs here as they land (see docs/mobile.md and the plan);
