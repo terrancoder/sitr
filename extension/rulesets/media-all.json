@@ -1,0 +1,15 @@
+[
+  {
+    "id": 50001,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "resourceTypes": [
+        "image",
+        "media"
+      ]
+    }
+  }
+]

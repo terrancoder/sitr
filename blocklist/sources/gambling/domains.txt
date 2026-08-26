@@ -1,5 +1,38 @@
 # Sitr blocklist — category: gambling
 # Seed list only — expanded via reviewed pull requests.
+#
+# Country mirrors of already-listed brands (same operator, separate
+# registrable domain — requestDomains matching cannot infer these).
+# Evidence: each served HTTPS on 2026-08-26 with a certificate issued for
+# that exact domain by the brand's operator; non-responding candidates
+# (bet365.mx/.be, bwin.es/.de/.it, netbet.es, pokerstars.eu) were NOT added.
+bet365.com.au
+bet365.de
+bet365.dk
+bet365.es
+bet365.gr
+bet365.it
+bet365.nl
+stake.us
+pokerstars.de
+pokerstars.es
+pokerstars.fr
+pokerstars.it
+pokerstars.net
+pokerstars.pt
+bwin.fr
+unibet.co.uk
+unibet.fr
+unibet.it
+unibet.nl
+betway.es
+williamhill.es
+betfair.es
+betfair.it
+netbet.fr
+netbet.it
+leovegas.se
+888casino.es
 bet365.com
 pokerstars.com
 888casino.com

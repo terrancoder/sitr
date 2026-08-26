@@ -1,7 +1,7 @@
 [
   {
     "id": 1001,
-    "priority": 1,
+    "priority": 5,
     "action": {
       "type": "redirect",
       "redirect": {
@@ -26,12 +26,19 @@
   },
   {
     "id": 1002,
-    "priority": 1,
+    "priority": 5,
     "action": {
       "type": "redirect",
       "redirect": {
         "transform": {
-          "host": "strict.bing.com"
+          "queryTransform": {
+            "addOrReplaceParams": [
+              {
+                "key": "adlt",
+                "value": "strict"
+              }
+            ]
+          }
         }
       }
     },
@@ -44,7 +51,7 @@
   },
   {
     "id": 1003,
-    "priority": 1,
+    "priority": 5,
     "action": {
       "type": "redirect",
       "redirect": {
@@ -69,7 +76,7 @@
   },
   {
     "id": 1004,
-    "priority": 1,
+    "priority": 5,
     "action": {
       "type": "modifyHeaders",
       "requestHeaders": [

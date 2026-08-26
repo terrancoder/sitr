@@ -1,0 +1,22 @@
+[
+  {
+    "id": 40001,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "initiatorDomains": [
+        "imgur.com",
+        "pinterest.com",
+        "reddit.com",
+        "tumblr.com",
+        "x.com"
+      ],
+      "resourceTypes": [
+        "image",
+        "media"
+      ]
+    }
+  }
+]

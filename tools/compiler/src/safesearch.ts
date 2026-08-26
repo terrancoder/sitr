@@ -1,4 +1,5 @@
 import type { DnrRule } from "./types.js";
+import { STATIC_CATEGORY_PRIORITY } from "./compile.js";
 
 /**
  * SafeSearch / YouTube Restricted Mode enforcement ruleset.
@@ -20,7 +21,7 @@ export function safesearchRules(): DnrRule[] {
     // Google: force safe=active on search result pages.
     {
       id: SAFESEARCH_ID_BASE + 1,
-      priority: 1,
+      priority: STATIC_CATEGORY_PRIORITY,
       action: {
         type: "redirect",
         redirect: {
@@ -36,13 +37,23 @@ export function safesearchRules(): DnrRule[] {
         resourceTypes: MAIN_FRAME_ONLY,
       },
     },
-    // Bing: strict.bing.com enforces SafeSearch strict server-side.
+    // Bing: force adlt=strict on search result pages. The former host
+    // rewrite to strict.bing.com broke when Bing started bouncing direct
+    // HTTPS requests to that host back to its homepage (observed
+    // 2026-08-26; the DNS-level strict.bing.com VIP that Android uses is
+    // unaffected — it keeps the www.bing.com Host header).
     {
       id: SAFESEARCH_ID_BASE + 2,
-      priority: 1,
+      priority: STATIC_CATEGORY_PRIORITY,
       action: {
         type: "redirect",
-        redirect: { transform: { host: "strict.bing.com" } },
+        redirect: {
+          transform: {
+            queryTransform: {
+              addOrReplaceParams: [{ key: "adlt", value: "strict" }],
+            },
+          },
+        },
       },
       condition: {
         urlFilter: "||www.bing.com/search?",
@@ -52,7 +63,7 @@ export function safesearchRules(): DnrRule[] {
     // DuckDuckGo: kp=1 = safe search strict.
     {
       id: SAFESEARCH_ID_BASE + 3,
-      priority: 1,
+      priority: STATIC_CATEGORY_PRIORITY,
       action: {
         type: "redirect",
         redirect: {
@@ -71,7 +82,7 @@ export function safesearchRules(): DnrRule[] {
     // YouTube: Restricted Mode via the documented YouTube-Restrict header.
     {
       id: SAFESEARCH_ID_BASE + 4,
-      priority: 1,
+      priority: STATIC_CATEGORY_PRIORITY,
       action: {
         type: "modifyHeaders",
         requestHeaders: [

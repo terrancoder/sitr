@@ -1,7 +1,7 @@
 [
   {
     "id": 10001,
-    "priority": 1,
+    "priority": 5,
     "action": {
       "type": "block"
     },
@@ -422,10 +422,8 @@
         "script",
         "image",
         "font",
-        "object",
         "xmlhttprequest",
         "ping",
-        "csp_report",
         "media",
         "websocket",
         "other"
