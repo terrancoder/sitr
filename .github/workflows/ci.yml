@@ -23,7 +23,8 @@ jobs:
           node tools/compiler/dist/cli.js --blocklist blocklist/sources \
             --out /tmp/rulesets-recheck \
             --safari-out /tmp/safari-recheck \
-            --android-out /tmp/android-recheck
+            --android-out /tmp/android-recheck \
+            --greylist blocklist/greylist/hosts.txt
           diff -r extension/rulesets /tmp/rulesets-recheck
           diff -r apps/shared/blocklists/safari /tmp/safari-recheck
           diff -r apps/shared/blocklists/android /tmp/android-recheck
