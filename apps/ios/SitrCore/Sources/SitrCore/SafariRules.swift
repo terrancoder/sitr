@@ -96,6 +96,15 @@ public enum SafariRules {
         return Data(text.utf8)
     }
 
+    /// Trigger/action keys this parser actually understands. A fragment
+    /// using any OTHER key (e.g. a future "resource-type") must be
+    /// rejected, not skimmed: silently dropping an unknown trigger key
+    /// widens the rule — a resource-type-scoped block would degrade into a
+    /// block-everything rule for those hosts. Fail visible instead.
+    private static let knownTriggerKeys: Set<String> = ["url-filter", "if-domain"]
+    private static let knownActionKeys: Set<String> = ["type"]
+    private static let knownRuleKeys: Set<String> = ["trigger", "action"]
+
     /// Parse compiler-emitted fragment JSON (apps/shared/blocklists/safari).
     public static func parseFragment(_ data: Data) -> Result<[SafariRule], SitrError> {
         guard let parsed = try? JSONSerialization.jsonObject(with: data),
@@ -113,6 +122,15 @@ public enum SafariRules {
                 let action = SafariRule.Action(rawValue: actionType)
             else {
                 return .failure(SitrError("ruleset fragment has an unknown rule shape"))
+            }
+            let unknown = Set(item.keys).subtracting(knownRuleKeys)
+                .union(Set(trigger.keys).subtracting(knownTriggerKeys))
+                .union(Set(actionObject.keys).subtracting(knownActionKeys))
+            if let key = unknown.sorted().first {
+                return .failure(
+                    SitrError(
+                        "ruleset fragment uses \"\(key)\", which this app version does not understand — refusing to load a rule it would misapply"
+                    ))
             }
             rules.append(
                 SafariRule(

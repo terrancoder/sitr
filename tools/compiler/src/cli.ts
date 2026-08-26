@@ -25,6 +25,7 @@ import { join } from "node:path";
 import { parseDomainList } from "./parse.js";
 import { compileBlockRuleset, serializeRuleset } from "./compile.js";
 import { safesearchRules } from "./safesearch.js";
+import { compileGreylistRuleset, mediaAllRules } from "./greylist.js";
 import {
   buildDefaultBlockerList,
   compileSafariRuleset,
@@ -68,6 +69,9 @@ const sourcesDir = arg("blocklist");
 const outDir = arg("out");
 const safariOutDir = optionalArg("safari-out");
 const androidOutDir = optionalArg("android-out");
+// The media greylist (T12) is wired explicitly — never discovered under
+// sources/ — so it cannot leak into the Safari/Android emitters.
+const greylistFile = optionalArg("greylist");
 
 // Sorted directory listing keeps category processing order deterministic.
 const categories = readdirSync(sourcesDir, { withFileTypes: true })
@@ -129,6 +133,26 @@ for (const category of categories) {
 }
 
 outputs.set("safesearch.json", serializeRuleset(safesearchRules()));
+outputs.set("media-all.json", serializeRuleset(mediaAllRules()));
+
+if (greylistFile !== undefined) {
+  let greylistContent: string;
+  try {
+    greylistContent = readFileSync(greylistFile, "utf8");
+  } catch (e) {
+    fail([
+      {
+        kind: "io-error",
+        message: `cannot read ${greylistFile}: ${e instanceof Error ? e.message : String(e)}`,
+      },
+    ]);
+  }
+  const greylistParsed = parseDomainList(greylistContent, greylistFile);
+  if (!greylistParsed.ok) fail(greylistParsed.error);
+  const greylist = compileGreylistRuleset(greylistParsed.value);
+  if (!greylist.ok) fail([greylist.error]);
+  outputs.set("greylist.json", serializeRuleset(greylist.value));
+}
 
 if (safariOutDir !== undefined) {
   safariOutputs.set(

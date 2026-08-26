@@ -18,12 +18,16 @@ export type MutationKind =
   | "addDeviceAllowRule"
   | "removeHouseholdRule"
   | "leaveHousehold"
+  | "loosenMediaMode"
+  | "addImageAllowRule"
   /** Tightening or neutral actions — never PIN-gated. */
   | "enableCategory"
   | "addDeviceBlockRule"
   | "removeDeviceAllowRule"
   | "addHouseholdRule"
-  | "changePin";
+  | "changePin"
+  | "tightenMediaMode"
+  | "removeImageAllowRule";
 
 export interface GateContext {
   managed: ManagedPolicy;
@@ -48,6 +52,10 @@ const LOOSENING: ReadonlySet<MutationKind> = new Set([
   "addDeviceAllowRule",
   "removeHouseholdRule",
   "leaveHousehold",
+  // Media filter (T12): stepping the mode down and re-admitting a site's
+  // images both show more than before — same ceremony as disableCategory.
+  "loosenMediaMode",
+  "addImageAllowRule",
 ]);
 
 export function gateMutation(

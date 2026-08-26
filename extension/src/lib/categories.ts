@@ -41,3 +41,53 @@ export function requiredRulesets(disabled: ToggleableRulesetId[]): string[] {
     ),
   ];
 }
+
+/* --------------------- media filtering (threat-model T12) --------------------- */
+
+/**
+ * The media-filter mode is a tri-state, not a category toggle: `greylist`
+ * blocks images+media on the public greylist's hosts; `allowlist` blocks
+ * them everywhere except the user's image allowlist (the dynamic band in
+ * ruleLayers.ts). Off by default — discipline infrastructure, opt-in.
+ */
+export type MediaMode = "off" | "greylist" | "allowlist";
+
+/** storage.local key holding the media-filter mode. */
+export const MEDIA_MODE_KEY = "mediaMode";
+
+export const GREYLIST_RULESET = "sitr_media_greylist";
+export const MEDIA_ALL_RULESET = "sitr_media_all";
+
+/** Both media rulesets ship `enabled: false`; the mode decides which is on. */
+export const MEDIA_RULESETS = [GREYLIST_RULESET, MEDIA_ALL_RULESET] as const;
+
+/** Total sanitizer: anything unknown degrades to "off" (the default). */
+export function sanitizeMediaMode(stored: unknown): MediaMode {
+  return stored === "greylist" || stored === "allowlist" ? stored : "off";
+}
+
+/** Which media ruleset(s) the mode requires enabled. */
+export function mediaRulesets(mode: MediaMode): string[] {
+  switch (mode) {
+    case "off":
+      return [];
+    case "greylist":
+      return [GREYLIST_RULESET];
+    case "allowlist":
+      return [MEDIA_ALL_RULESET];
+  }
+}
+
+/**
+ * Ordered strictly by how much the mode filters. Moving DOWN this ladder is
+ * loosening (PIN-gated, see gate.ts); moving up is tightening.
+ */
+const MODE_STRICTNESS: Record<MediaMode, number> = {
+  off: 0,
+  greylist: 1,
+  allowlist: 2,
+};
+
+export function isMediaModeLoosening(from: MediaMode, to: MediaMode): boolean {
+  return MODE_STRICTNESS[to] < MODE_STRICTNESS[from];
+}

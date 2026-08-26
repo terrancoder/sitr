@@ -31,9 +31,11 @@ test("rejects input that is not a domain", () => {
   }
 });
 
-test("allow rules outrank block rules outrank static (priority 1)", () => {
+test("allow rules outrank block rules outrank the static rulesets", () => {
   assert.ok(USER_RULE_PRIORITY.allow > USER_RULE_PRIORITY.block);
-  assert.ok(USER_RULE_PRIORITY.block > 1);
+  // Static category blocks sit at priority 5 (see compiler
+  // STATIC_CATEGORY_PRIORITY); user rules must beat them — the T5 contract.
+  assert.ok(USER_RULE_PRIORITY.block > 5);
 });
 
 test("built rules include main_frame so top-level navigation is covered", () => {

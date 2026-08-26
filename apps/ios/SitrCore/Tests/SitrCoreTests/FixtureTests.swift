@@ -188,7 +188,12 @@ func expectJSONEqual(
     @Test func gateTableExhaustively() throws {
         let fx = try fixture("gate.json")
         let cases = try #require(fx["cases"] as? [[String: Any]])
-        #expect(cases.count == 120)
+        // Exhaustive: every context (2 lock × 3 role × 2 pin) × every kind —
+        // derived from the enum so adding a MutationKind extends the pin.
+        #expect(cases.count == 2 * 3 * 2 * MutationKind.allCases.count)
+        // And every kind the fixture exercises must exist in this port.
+        let fixtureKinds = Set(cases.compactMap { $0["kind"] as? String })
+        #expect(fixtureKinds == Set(MutationKind.allCases.map(\.rawValue)))
         for c in cases {
             let kindRaw = try #require(c["kind"] as? String)
             let kind = try #require(MutationKind(rawValue: kindRaw))

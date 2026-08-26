@@ -39,7 +39,10 @@ the extension, the iOS app, and the Android app talk to the **same single
 sync endpoint**, and it is the only endpoint any of them has. Each client
 codebase has exactly one HTTP call site — extension:
 `extension/src/lib/sync/client.ts`; iOS: the `SyncClient` in SitrCore;
-Android: `SyncHttp.kt`. A device with no household configured makes zero
+Android: `SyncHttp.kt`. The Safari build for macOS runs the extension
+codebase inside Safari — same file, same single call site, a new runtime
+host rather than a new call site (the macOS host app itself has no
+network code at all). A device with no household configured makes zero
 network requests of its own on every platform (the Android engine relays
 the device's own DNS lookups to the network's resolvers — next section —
 but originates nothing).
@@ -68,7 +71,9 @@ update only through store releases.
 |---|---|---|---|
 | Protection status | `storage.local` | `active` / `inactive` + missing ruleset ids | overwritten on every check |
 | Category preferences | `storage.local` | which optional categories are disabled | until changed by the user |
+| Media filtering mode | `storage.local` | `off` / `greylist` / `allowlist` — the T12 image+media layer | until changed by the user |
 | Per-site allow/deny | DNR dynamic rules | domains the user chose | until removed by the user |
+| Image allowlist | DNR dynamic rules | sites whose images stay visible in allowlist-only mode | until removed by the user |
 | Household state | `storage.local` + DNR dynamic rules | shared allow/block lists, category config, guardian PIN hash | until the device leaves the household |
 | Household root secret | `storage.local` | the key material syncing is derived from — never sent anywhere | until the device leaves the household |
 | Guardian PIN | `storage.local` | salted PBKDF2 hash + failed-attempt counter | until changed/removed |

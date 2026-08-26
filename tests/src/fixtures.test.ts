@@ -154,7 +154,9 @@ test("merge fixture: LWW winners", () => {
 
 test("gate fixture: exhaustive authority table", () => {
   const fx = fixture("gate.json");
-  assert.equal(fx.cases.length, 120);
+  // 2 lock × 3 role × 2 pin × 14 mutation kinds. The Swift and Kotlin
+  // replays derive the same count from their enums.
+  assert.equal(fx.cases.length, 168);
   for (const c of fx.cases) {
     const verdict = gateMutation(c.kind as MutationKind, {
       managed: { ...EMPTY_MANAGED_POLICY, lockOptions: c.managedLockOptions },

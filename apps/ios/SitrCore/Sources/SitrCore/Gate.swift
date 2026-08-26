@@ -20,12 +20,16 @@ public enum MutationKind: String, CaseIterable {
     case addDeviceAllowRule
     case removeHouseholdRule
     case leaveHousehold
+    case loosenMediaMode
+    case addImageAllowRule
     // Tightening or neutral actions — never PIN-gated.
     case enableCategory
     case addDeviceBlockRule
     case removeDeviceAllowRule
     case addHouseholdRule
     case changePin
+    case tightenMediaMode
+    case removeImageAllowRule
 }
 
 public struct GateContext {
@@ -64,6 +68,10 @@ public enum Gate {
         .addDeviceAllowRule,
         .removeHouseholdRule,
         .leaveHousehold,
+        // Media filter (T12) — browser-extension feature today; the kinds
+        // exist here so the exhaustive gate fixture stays cross-platform.
+        .loosenMediaMode,
+        .addImageAllowRule,
     ]
 
     public static func gateMutation(_ kind: MutationKind, ctx: GateContext) -> MutationVerdict {

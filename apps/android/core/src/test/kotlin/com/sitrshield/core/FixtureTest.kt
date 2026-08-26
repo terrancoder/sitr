@@ -167,7 +167,13 @@ class FixtureTest {
     fun gateTableExhaustively() {
         val fx = fixture("gate.json")
         val cases = objects(fx, "cases")
-        assertEquals(120, cases.size)
+        // Exhaustive: every context (2 lock × 3 role × 2 pin) × every kind —
+        // derived from the enum so adding a MutationKind extends the pin.
+        assertEquals(2 * 3 * 2 * MutationKind.entries.size, cases.size)
+        assertEquals(
+            MutationKind.entries.map { it.wire }.toSet(),
+            cases.map { it.getString("kind") }.toSet(),
+        )
         for (c in cases) {
             val kind = assertNotNull(MutationKind.fromWire(c.getString("kind")))
             val role =

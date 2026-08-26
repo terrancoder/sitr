@@ -100,4 +100,37 @@ import Testing
         #expect(rules.allSatisfy { $0.action == .block })
         #expect(rules.allSatisfy { $0.ifDomain?.allSatisfy { $0.hasPrefix("*") } ?? false })
     }
+
+    @Test func rejectsUnknownTriggerKeys() {
+        // A trigger key this version doesn't understand must be a surfaced
+        // error, never skimmed: silently dropping "resource-type" would turn
+        // a media-only rule into a block-everything rule for those hosts.
+        let fragment = """
+            [{"trigger":{"url-filter":".*","if-domain":["*x.com"],
+              "resource-type":["image","media"]},
+              "action":{"type":"block"}}]
+            """
+        guard case .failure(let error) = SafariRules.parseFragment(Data(fragment.utf8)) else {
+            Issue.record("unknown trigger key must be rejected")
+            return
+        }
+        #expect(error.message.contains("resource-type"))
+
+        let unknownAction = """
+            [{"trigger":{"url-filter":".*"},
+              "action":{"type":"block","selector":"img"}}]
+            """
+        guard case .failure = SafariRules.parseFragment(Data(unknownAction.utf8)) else {
+            Issue.record("unknown action key must be rejected")
+            return
+        }
+
+        let unknownTop = """
+            [{"trigger":{"url-filter":".*"},"action":{"type":"block"},"extra":1}]
+            """
+        guard case .failure = SafariRules.parseFragment(Data(unknownTop.utf8)) else {
+            Issue.record("unknown top-level rule key must be rejected")
+            return
+        }
+    }
 }

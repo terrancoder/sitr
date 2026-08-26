@@ -24,6 +24,14 @@ export const DOMAINS_PER_RULE = 1_000;
  * DNR's default when resourceTypes is omitted matches every type EXCEPT
  * main_frame — which would block a site's images but not the site itself.
  * Block rules must list all types explicitly. (Caught by the smoke test.)
+ *
+ * "object" and "csp_report" are DELIBERATELY absent: Safari silently drops
+ * any DNR rule whose resourceTypes include either of them alongside a
+ * realistic type list (established empirically on Safari 26.6, 2026-08-26,
+ * by bisection — each is fine alone, fatal in company; the whole ruleset's
+ * blocking then fails with no error anywhere). Chrome loses blocking of
+ * plugin-element loads (dead tech) and CSP violation reports to blocked
+ * endpoints — negligible against cross-engine correctness.
  */
 export const ALL_RESOURCE_TYPES = [
   "main_frame",
@@ -32,14 +40,21 @@ export const ALL_RESOURCE_TYPES = [
   "script",
   "image",
   "font",
-  "object",
   "xmlhttprequest",
   "ping",
-  "csp_report",
   "media",
   "websocket",
   "other",
 ];
+
+/**
+ * Static category blocks (and SafeSearch) sit at priority 5 — above the
+ * media-filter layer's allow band (priority 2, see architecture.md's ladder)
+ * so an image-allowlist entry can never re-admit a request to a blocklisted
+ * domain, and below every dynamic layer (10–60) so a device-user allow
+ * still wins (T5).
+ */
+export const STATIC_CATEGORY_PRIORITY = 5;
 
 /**
  * Each category gets a fixed, documented id range so rule ids are stable
@@ -72,7 +87,7 @@ export function compileBlockRuleset(
   for (let i = 0; i < sortedDomains.length; i += DOMAINS_PER_RULE) {
     rules.push({
       id: idBase + rules.length + 1,
-      priority: 1,
+      priority: STATIC_CATEGORY_PRIORITY,
       action: { type: "block" },
       condition: {
         requestDomains: sortedDomains.slice(i, i + DOMAINS_PER_RULE),

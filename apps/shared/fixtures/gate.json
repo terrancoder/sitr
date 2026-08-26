@@ -53,6 +53,26 @@
       }
     },
     {
+      "kind": "loosenMediaMode",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addImageAllowRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
       "kind": "enableCategory",
       "managedLockOptions": false,
       "role": null,
@@ -94,6 +114,26 @@
     },
     {
       "kind": "changePin",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "tightenMediaMode",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeImageAllowRule",
       "managedLockOptions": false,
       "role": null,
       "hasPin": false,
@@ -153,6 +193,26 @@
       }
     },
     {
+      "kind": "loosenMediaMode",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "addImageAllowRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
       "kind": "enableCategory",
       "managedLockOptions": false,
       "role": null,
@@ -203,6 +263,26 @@
       }
     },
     {
+      "kind": "tightenMediaMode",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeImageAllowRule",
+      "managedLockOptions": false,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
       "kind": "disableCategory",
       "managedLockOptions": false,
       "role": "guardian",
@@ -253,6 +333,26 @@
       }
     },
     {
+      "kind": "loosenMediaMode",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "addImageAllowRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
       "kind": "enableCategory",
       "managedLockOptions": false,
       "role": "guardian",
@@ -294,6 +394,26 @@
     },
     {
       "kind": "changePin",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "tightenMediaMode",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeImageAllowRule",
       "managedLockOptions": false,
       "role": "guardian",
       "hasPin": false,
@@ -353,6 +473,26 @@
       }
     },
     {
+      "kind": "loosenMediaMode",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
+      "kind": "addImageAllowRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": true
+      }
+    },
+    {
       "kind": "enableCategory",
       "managedLockOptions": false,
       "role": "guardian",
@@ -403,6 +543,26 @@
       }
     },
     {
+      "kind": "tightenMediaMode",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeImageAllowRule",
+      "managedLockOptions": false,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
       "kind": "disableCategory",
       "managedLockOptions": false,
       "role": "child",
@@ -444,6 +604,26 @@
     },
     {
       "kind": "leaveHousehold",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "loosenMediaMode",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "addImageAllowRule",
       "managedLockOptions": false,
       "role": "child",
       "hasPin": false,
@@ -503,6 +683,26 @@
       }
     },
     {
+      "kind": "tightenMediaMode",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeImageAllowRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
       "kind": "disableCategory",
       "managedLockOptions": false,
       "role": "child",
@@ -544,6 +744,26 @@
     },
     {
       "kind": "leaveHousehold",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "loosenMediaMode",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "child-device"
+      }
+    },
+    {
+      "kind": "addImageAllowRule",
       "managedLockOptions": false,
       "role": "child",
       "hasPin": true,
@@ -603,6 +823,26 @@
       }
     },
     {
+      "kind": "tightenMediaMode",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
+      "kind": "removeImageAllowRule",
+      "managedLockOptions": false,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": true,
+        "requiresPin": false
+      }
+    },
+    {
       "kind": "disableCategory",
       "managedLockOptions": true,
       "role": null,
@@ -644,6 +884,26 @@
     },
     {
       "kind": "leaveHousehold",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "loosenMediaMode",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addImageAllowRule",
       "managedLockOptions": true,
       "role": null,
       "hasPin": false,
@@ -703,6 +963,26 @@
       }
     },
     {
+      "kind": "tightenMediaMode",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeImageAllowRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
       "kind": "disableCategory",
       "managedLockOptions": true,
       "role": null,
@@ -744,6 +1024,26 @@
     },
     {
       "kind": "leaveHousehold",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "loosenMediaMode",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addImageAllowRule",
       "managedLockOptions": true,
       "role": null,
       "hasPin": true,
@@ -803,6 +1103,26 @@
       }
     },
     {
+      "kind": "tightenMediaMode",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeImageAllowRule",
+      "managedLockOptions": true,
+      "role": null,
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
       "kind": "disableCategory",
       "managedLockOptions": true,
       "role": "guardian",
@@ -844,6 +1164,26 @@
     },
     {
       "kind": "leaveHousehold",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "loosenMediaMode",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addImageAllowRule",
       "managedLockOptions": true,
       "role": "guardian",
       "hasPin": false,
@@ -903,6 +1243,26 @@
       }
     },
     {
+      "kind": "tightenMediaMode",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeImageAllowRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
       "kind": "disableCategory",
       "managedLockOptions": true,
       "role": "guardian",
@@ -944,6 +1304,26 @@
     },
     {
       "kind": "leaveHousehold",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "loosenMediaMode",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addImageAllowRule",
       "managedLockOptions": true,
       "role": "guardian",
       "hasPin": true,
@@ -1003,6 +1383,26 @@
       }
     },
     {
+      "kind": "tightenMediaMode",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeImageAllowRule",
+      "managedLockOptions": true,
+      "role": "guardian",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
       "kind": "disableCategory",
       "managedLockOptions": true,
       "role": "child",
@@ -1044,6 +1444,26 @@
     },
     {
       "kind": "leaveHousehold",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "loosenMediaMode",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addImageAllowRule",
       "managedLockOptions": true,
       "role": "child",
       "hasPin": false,
@@ -1103,6 +1523,26 @@
       }
     },
     {
+      "kind": "tightenMediaMode",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeImageAllowRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": false,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
       "kind": "disableCategory",
       "managedLockOptions": true,
       "role": "child",
@@ -1153,6 +1593,26 @@
       }
     },
     {
+      "kind": "loosenMediaMode",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "addImageAllowRule",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
       "kind": "enableCategory",
       "managedLockOptions": true,
       "role": "child",
@@ -1194,6 +1654,26 @@
     },
     {
       "kind": "changePin",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "tightenMediaMode",
+      "managedLockOptions": true,
+      "role": "child",
+      "hasPin": true,
+      "verdict": {
+        "allowed": false,
+        "reason": "managed-locked"
+      }
+    },
+    {
+      "kind": "removeImageAllowRule",
       "managedLockOptions": true,
       "role": "child",
       "hasPin": true,

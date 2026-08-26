@@ -60,6 +60,16 @@
         "id": "sitr_safesearch",
         "enabled": true,
         "path": "rulesets/safesearch.json"
+      },
+      {
+        "id": "sitr_media_greylist",
+        "enabled": false,
+        "path": "rulesets/greylist.json"
+      },
+      {
+        "id": "sitr_media_all",
+        "enabled": false,
+        "path": "rulesets/media-all.json"
       }
     ]
   }

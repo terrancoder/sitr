@@ -5,7 +5,9 @@
 import type { ProtectionStatus } from "../lib/status.js";
 import {
   DISABLED_CATEGORIES_KEY,
+  MEDIA_MODE_KEY,
   sanitizeDisabled,
+  sanitizeMediaMode,
   TOGGLEABLE_CATEGORIES,
 } from "../lib/categories.js";
 
@@ -20,10 +22,11 @@ const breakdownEl = document.getElementById("breakdown");
  * working"). Only rendered when protection is proven active — in any other
  * state the red INACTIVE banner is the whole message.
  */
-function renderBreakdown(disabledStored: unknown): void {
+function renderBreakdown(disabledStored: unknown, mediaStored: unknown): void {
   if (!breakdownEl) return;
   breakdownEl.textContent = "";
   const disabled = new Set<string>(sanitizeDisabled(disabledStored));
+  const mediaMode = sanitizeMediaMode(mediaStored);
   const rows: Array<[string, boolean]> = [
     ["Adult content blocking", true],
     ...TOGGLEABLE_CATEGORIES.map(
@@ -34,6 +37,12 @@ function renderBreakdown(disabledStored: unknown): void {
     ),
     ["SafeSearch (Google, Bing, DuckDuckGo)", true],
     ["YouTube Restricted Mode", true],
+    [
+      mediaMode === "allowlist"
+        ? "Images & media (allowlist-only)"
+        : "Images & media (greylist)",
+      mediaMode !== "off",
+    ],
   ];
   for (const [label, on] of rows) {
     const li = document.createElement("li");
@@ -66,12 +75,12 @@ function render(status: ProtectionStatus | undefined): void {
 }
 
 chrome.storage.local
-  .get(["protectionStatus", DISABLED_CATEGORIES_KEY])
+  .get(["protectionStatus", DISABLED_CATEGORIES_KEY, MEDIA_MODE_KEY])
   .then((v) => {
     const status = v["protectionStatus"] as ProtectionStatus | undefined;
     render(status);
     if (status?.state === "active") {
-      renderBreakdown(v[DISABLED_CATEGORIES_KEY]);
+      renderBreakdown(v[DISABLED_CATEGORIES_KEY], v[MEDIA_MODE_KEY]);
     }
   })
   .catch((e: unknown) => {

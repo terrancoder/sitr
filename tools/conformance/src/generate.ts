@@ -428,11 +428,15 @@ function genGate(): object {
     "addDeviceAllowRule",
     "removeHouseholdRule",
     "leaveHousehold",
+    "loosenMediaMode",
+    "addImageAllowRule",
     "enableCategory",
     "addDeviceBlockRule",
     "removeDeviceAllowRule",
     "addHouseholdRule",
     "changePin",
+    "tightenMediaMode",
+    "removeImageAllowRule",
   ];
   const cases = [];
   for (const lockOptions of [false, true]) {

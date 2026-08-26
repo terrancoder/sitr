@@ -38,6 +38,8 @@ import {
   withGate,
   type HouseholdContext,
 } from "./household.js";
+import { promptDialog } from "./dialogs.js";
+import { wireMedia } from "./media.js";
 import {
   SYNC_STATUS_KEY,
   describeSyncStatus,
@@ -354,7 +356,7 @@ function wireEntitlement(): void {
   el("entitlement-enter").addEventListener("click", () => {
     clearError();
     void (async () => {
-      const token = window.prompt(
+      const token = await promptDialog(
         "Paste your Sitr Family subscription token (from the checkout page):",
       );
       if (token === null) return;
@@ -375,8 +377,9 @@ function wireHousehold(): void {
     void createHousehold(hh)
       .then(async () => {
         if (!(await hasGuardianPin())) {
-          const pin = window.prompt(
+          const pin = await promptDialog(
             "Set a guardian PIN (4–32 characters). It will be required to loosen protection:",
+            { password: true },
           );
           if (pin !== null) await setGuardianPin(hh, pin);
         }
@@ -413,7 +416,9 @@ function wireHousehold(): void {
   el("household-set-pin").addEventListener("click", () => {
     clearError();
     void withGate("changePin", hh, async () => {
-      const pin = window.prompt("New guardian PIN (4–32 characters):");
+      const pin = await promptDialog("New guardian PIN (4–32 characters):", {
+        password: true,
+      });
       if (pin !== null) await setGuardianPin(hh, pin);
     }).catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
   });
@@ -423,7 +428,7 @@ function wireHousehold(): void {
     void (async () => {
       if (hh.role === "child") {
         // A child device leaves only with proof of guardianship: the code.
-        const code = window.prompt(
+        const code = await promptDialog(
           "Enter the household pairing code (from a guardian device) to remove this device:",
         );
         if (code === null) return;
@@ -486,6 +491,7 @@ void (async () => {
   renderHousehold();
   await renderEntitlement();
   await renderCategories();
+  await wireMedia(hh);
   await refreshLists();
   await renderHouseholdLists();
 })().catch((e: unknown) => {

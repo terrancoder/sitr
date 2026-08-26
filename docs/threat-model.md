@@ -149,6 +149,89 @@ for a blocked site still returns a result listing. The link fails to
 load; the listing is not removed. Editing page contents would require
 the traffic inspection this product is built not to have.
 
+### T12: explicit imagery on mixed-content platforms
+Domain blocking cannot touch adult content on general-purpose platforms
+(Reddit, X, Tumblr, imgur, Pinterest): blocking the domain breaks all
+legitimate use, and a general-purpose platform fails the inclusion
+policy's primary-purpose test the same way a search engine does (T11).
+
+**Media filtering** (optional, off by default) narrows the gap without
+weakening the structural guarantee: it blocks requests by *resource
+type* (`image`, `media`) in DNR — no content scripts, no new
+permissions, and the bytes never reach the device. Two modes: a
+**greylist** blocks images and media on a public list of mixed-content
+hosts (a separate artifact behind a user toggle, never in the shared
+blocklist — the T11/Strict Search template, with its own inclusion
+policy under `blocklist/policy/`); **allowlist-only images** blocks
+images and media everywhere except sites the user explicitly allows.
+
+The layer has no idea whether it blocked a nude or a bar chart, and the
+UI says so: "images and media off on these sites", never "explicit
+content detected". Images on affected sites will look broken — that is
+the setting working. It is discipline infrastructure, not parental
+controls: a determined user turns it off in two clicks (T7 applies).
+
+What it structurally cannot catch, disclosed rather than patched:
+
+- **Streaming survives.** `media` covers `<video>`/`<audio>` element
+  loads; HLS/DASH players fetch segments as `fetch`/XHR, and blocking
+  that type would break most modern sites outright. Blocking `media`
+  also silences legitimate audio (podcasts) on affected hosts.
+- **Cross-origin iframes.** A request made inside an embedded frame
+  carries the *frame's* origin as initiator, so greylisting a host
+  misses media rendered through third-party embeds. Blocking
+  `sub_frame` would break all embeds; we disclose instead.
+- **Direct navigation.** An image URL opened in its own tab is a
+  `main_frame` load, not an `image` — "open image in new tab" defeats
+  the filter for that image.
+- **`data:`/`blob:` URLs** never produce a network request for DNR to
+  match.
+- Text (erotica) is out of scope by design; text is not the gap.
+
+Media filtering is a browser-extension capability. Android's DNS engine
+categorically cannot see resource types; iOS could express the greylist
+via content-blocker `resource-type` triggers, but does not today — the
+asymmetry is stated in-app rather than papered over.
+
+### T13: Safari Web Extension (macOS) platform limits
+The macOS build runs the extension codebase inside Safari, which
+translates DNR rules into its own in-process content-blocker engine —
+the structural-blindness claim (T1) carries over: no content scripts, no
+webRequest, no page access. What does NOT carry over, stated rather than
+patched:
+
+- **Safari older than 26 mis-enforces DNR priorities** (blocks overrode
+  higher-priority redirects; numeric order was mishandled — fixed in
+  Safari 26). On older Safari the extension renders a red "Safari too
+  old" status and claims nothing.
+- **Host permissions are per-site, user-revocable grants.** An ungranted
+  search-engine host silently disables its SafeSearch redirect while the
+  ruleset still reports enabled — so the protection check verifies the
+  grants themselves (`permissions.contains`) and renders red without
+  them. The sync origin is requested explicitly during the household
+  create/join ceremony, since users never "visit" it.
+- **The badge loses its color channel** (Safari ignores badge colors).
+  The popup and the host app's status window are the red/green surfaces;
+  the badge shows `!`/`?` text only.
+- **No managed layer.** Safari has no `storage.managed`; the
+  institutions feature does not exist on Safari (same honest posture as
+  iOS/Android v1).
+- **Session rules are pooled with dynamic rules** (30,000 combined) and
+  a known WebKit bug breaks session-over-static precedence — the media
+  filter's "just this once" session escape hatch is therefore
+  Chrome-only, hidden on Safari rather than shown broken.
+- **Residual verification gap:** an extension cannot test its own
+  redirects from inside Safari (`testMatchOutcome` does not exist
+  there). Rule behavior is verified by the repo's Safari smoke checks on
+  real page loads, not claimed from `getEnabledRulesets` alone.
+- **Silent rule-drop quirk (worked around):** Safari 26.6 silently
+  drops any DNR rule whose `resourceTypes` include `object` or
+  `csp_report` in a realistic list — no error, no console output,
+  `getEnabledRulesets` still reports the ruleset enabled. Established
+  by on-device bisection (2026-08-26). Both values are excluded from
+  every rule Sitr emits, on all engines, so this cannot recur; the cost
+  (plugin-element and CSP-report blocking) is negligible.
+
 ## Out of scope / honest limitations
 
 - **A determined user can bypass Sitr** (disable the extension, another
@@ -157,4 +240,6 @@ the traffic inspection this product is built not to have.
 - **DNS fallback option**: a user's chosen DNS filter sees query metadata by
   design — we disclose that tradeoff rather than pretend it away.
 - **Content inside allowed sites** (e.g. adult content on a social platform)
-  is not visible to DNR and is not filtered at domain level.
+  is not visible to DNR and is not filtered at domain level. The optional
+  media-filtering layer (T12) narrows this for images and media by resource
+  type; what remains (streaming, embedded frames, text) is listed there.

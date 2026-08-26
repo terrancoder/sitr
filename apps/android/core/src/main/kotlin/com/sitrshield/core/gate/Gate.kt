@@ -28,13 +28,17 @@ enum class MutationKind(val wire: String) {
     ADD_DEVICE_ALLOW_RULE("addDeviceAllowRule"),
     REMOVE_HOUSEHOLD_RULE("removeHouseholdRule"),
     LEAVE_HOUSEHOLD("leaveHousehold"),
+    LOOSEN_MEDIA_MODE("loosenMediaMode"),
+    ADD_IMAGE_ALLOW_RULE("addImageAllowRule"),
 
     // Tightening or neutral actions — never PIN-gated.
     ENABLE_CATEGORY("enableCategory"),
     ADD_DEVICE_BLOCK_RULE("addDeviceBlockRule"),
     REMOVE_DEVICE_ALLOW_RULE("removeDeviceAllowRule"),
     ADD_HOUSEHOLD_RULE("addHouseholdRule"),
-    CHANGE_PIN("changePin");
+    CHANGE_PIN("changePin"),
+    TIGHTEN_MEDIA_MODE("tightenMediaMode"),
+    REMOVE_IMAGE_ALLOW_RULE("removeImageAllowRule");
 
     companion object {
         fun fromWire(s: String?): MutationKind? = entries.firstOrNull { it.wire == s }
@@ -71,6 +75,10 @@ object Gate {
         MutationKind.ADD_DEVICE_ALLOW_RULE,
         MutationKind.REMOVE_HOUSEHOLD_RULE,
         MutationKind.LEAVE_HOUSEHOLD,
+        // Media filter (T12) — browser-extension feature today; the kinds
+        // exist here so the exhaustive gate fixture stays cross-platform.
+        MutationKind.LOOSEN_MEDIA_MODE,
+        MutationKind.ADD_IMAGE_ALLOW_RULE,
     )
 
     fun gateMutation(kind: MutationKind, ctx: GateContext): MutationVerdict {

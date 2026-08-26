@@ -16,7 +16,9 @@
  */
 import {
   TOGGLEABLE_CATEGORIES,
+  type MediaMode,
   type ToggleableRulesetId,
+  mediaRulesets,
   requiredRulesets,
 } from "./categories.js";
 import { isValidDomain } from "./userRules.js";
@@ -101,14 +103,17 @@ export function effectiveRequiredRulesets(
   deviceDisabled: ToggleableRulesetId[],
   householdDisabled: ToggleableRulesetId[],
   forced: ToggleableRulesetId[],
+  mediaMode: MediaMode = "off",
 ): string[] {
   const forcedSet = new Set<string>(forced);
   // A category is disabled only if some layer disabled it AND policy does
   // not force it. Household disable applies household-wide; device disable
-  // applies locally; managed force overrides both.
+  // applies locally; managed force overrides both. The media mode is
+  // device-local (neither synced nor managed-forcible in v1 — see
+  // threat-model T12): whichever ruleset the mode demands is required.
   const disabled = [...new Set([...deviceDisabled, ...householdDisabled])]
     .filter((id) => !forcedSet.has(id));
-  return requiredRulesets(disabled);
+  return [...requiredRulesets(disabled), ...mediaRulesets(mediaMode)];
 }
 
 /** Whether the options UI must render a category toggle as locked. */

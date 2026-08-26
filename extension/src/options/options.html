@@ -38,6 +38,41 @@
     what Sitr is for. Optional categories:</p>
   <ul id="category-list"></ul>
 
+  <h2>Images &amp; media on mixed-content sites</h2>
+  <p class="note">Blocks images and media by <em>type</em>, on top of the
+    blocklist. Sitr cannot tell what a blocked image showed — images on
+    affected sites will simply look broken. That is this setting working.</p>
+  <ul id="media-mode-list">
+    <li><label><input type="radio" name="media-mode" value="off" />
+      Off — filter by the blocklist only</label></li>
+    <li><label><input type="radio" name="media-mode" value="greylist" />
+      Greylist — hide images and media on
+      <a href="https://github.com/terrancoder/sitr/blob/main/blocklist/greylist/hosts.txt"
+         target="_blank" rel="noopener">a public list of mixed-content sites</a></label></li>
+    <li><label><input type="radio" name="media-mode" value="allowlist" />
+      Allowlist-only — hide images and media everywhere except the sites below</label></li>
+  </ul>
+  <div id="image-allowlist-section" hidden>
+    <h3>Show images on these sites</h3>
+    <p class="note">Sites where images and media stay visible in
+      allowlist-only mode. Blocklisted domains stay blocked regardless.</p>
+    <form id="image-allow-form">
+      <input type="text" id="image-allow-input" placeholder="example.com" />
+      <button type="submit">Show images</button>
+    </form>
+    <ul id="image-allow-list"></ul>
+  </div>
+  <div id="session-escape-section" hidden>
+    <h3>Just this once</h3>
+    <p class="note">Show images on a site until the browser closes — nothing
+      is written to disk, and the exception disappears on restart.</p>
+    <form id="session-escape-form">
+      <input type="text" id="session-escape-input" placeholder="example.com" />
+      <button type="submit">Show until restart</button>
+    </form>
+    <ul id="session-escape-list"></ul>
+  </div>
+
   <h2>Always allow these sites</h2>
   <p class="note">Overrides the blocklist. Use for false positives — and please also
     <a href="https://github.com/terrancoder/sitr/issues" target="_blank" rel="noopener">report them</a>

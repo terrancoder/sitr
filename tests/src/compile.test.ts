@@ -14,7 +14,7 @@ test("golden: adult category with two domains compiles byte-identically", () => 
   const expected = `[
   {
     "id": 10001,
-    "priority": 1,
+    "priority": 5,
     "action": {
       "type": "block"
     },
@@ -30,10 +30,8 @@ test("golden: adult category with two domains compiles byte-identically", () => 
         "script",
         "image",
         "font",
-        "object",
         "xmlhttprequest",
         "ping",
-        "csp_report",
         "media",
         "websocket",
         "other"

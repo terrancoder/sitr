@@ -108,7 +108,7 @@ test("planLayerUpdate reconciles adds and removes, leaving other layers alone", 
   assert.ok(r.ok);
   assert.deepEqual(r.value.removeRuleIds, [LAYER_BASES.household.block]);
   assert.equal(r.value.addRules.length, 1);
-  assert.equal(r.value.addRules[0]!.condition.requestDomains[0], "new.example");
+  assert.equal(r.value.addRules[0]!.condition.requestDomains?.[0], "new.example");
   // New rule reuses the freed slot's range but not the kept id.
   assert.equal(r.value.addRules[0]!.id, LAYER_BASES.household.block);
 });

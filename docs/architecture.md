@@ -13,7 +13,7 @@ with the same semantics — see [Mobile engines](#mobile-engines) below.
 |---|---|---|
 | Filtering engine | Browser DNR | Static rulesets in `extension/rulesets/` |
 | Bulk blocklist | On-device | "Safe" block-only rules, compiled from the public `blocklist/` sources |
-| SafeSearch / YouTube | On-device | Separate "unsafe" ruleset: query-param redirects (Google `safe=active`, DuckDuckGo `kp=1`), host redirect (Bing → `strict.bing.com`), and the `YouTube-Restrict: Strict` request header |
+| SafeSearch / YouTube | On-device | Separate "unsafe" ruleset: query-param redirects (Google `safe=active`, Bing `adlt=strict`, DuckDuckGo `kp=1`) and the `YouTube-Restrict: Strict` request header. (Bing was a host redirect to `strict.bing.com` until that host started bouncing direct HTTPS requests to the homepage — 2026-08; the DNS engines still use the host, whose VIP honors the original Host header) |
 | User allow/deny | On-device | DNR **dynamic** rules + `storage.local`; never uploaded |
 | Status surfacing | On-device | Service worker verifies rulesets are enabled; anything less than proof renders a red "Protection INACTIVE" badge |
 
@@ -39,16 +39,30 @@ explicit allow wins; a higher layer's block beats a lower layer's allow
 
 | Layer | Kind | Dynamic-rule id base | Cap | Priority |
 |---|---|---|---|---|
-| Static blocklist | block | (compiler ranges) | — | **1** |
-| Device user | block | 1,500,000 | 5,000 | **10** |
-| Device user | allow | 1,000,000 | 5,000 | **20** |
-| Household | block | 2,500,000 | 5,000 | **30** |
-| Household | allow | 2,000,000 | 5,000 | **40** |
-| Managed (institution) | block | 3,500,000 | 5,000 | **50** |
-| Managed (institution) | allow | 3,000,000 | 5,000 | **60** |
+| Media filter (greylist / blanket) | block | (static, compiler ranges) | — | **1** |
+| Image allowlist | allow (`image`+`media` only) | 4,000,000 | 2,500 | **2** |
+| Static blocklist + SafeSearch | block / redirect | (static, compiler ranges) | — | **5** |
+| Device user | block | 1,500,000 | 4,500 | **10** |
+| Device user | allow | 1,000,000 | 4,500 | **20** |
+| Household | block | 2,500,000 | 4,500 | **30** |
+| Household | allow | 2,000,000 | 4,500 | **40** |
+| Managed (institution) | block | 3,500,000 | 4,500 | **50** |
+| Managed (institution) | allow | 3,000,000 | 4,500 | **60** |
 
-The six caps sum to exactly Chrome's 30,000 dynamic-rule ceiling; overflow
-is a surfaced error, never truncation.
+Static category blocks sit at priority **5**, above the image-allowlist
+band, so an image-allowlist entry (or the session-scoped escape hatch,
+also priority 2) re-enables images on that site without ever overriding
+a category block — a hotlinked image from a blocklisted domain stays
+blocked. A device-user allow (20) still beats a category block, which is
+the T5 contract: an explicit user allow always wins over the static
+lists.
+
+The six layer caps (6 × 4,500 = 27,000) plus the image-allowlist band
+(2,500) leave **500 rules of reserved headroom**. The budget is planned
+against Safari's combined dynamic+session pool of 30,000 — the binding
+constraint across engines; Chrome gives session rules a separate 5,000
+quota, so the headroom exists for Safari's sake. Overflow is a surfaced
+error, never truncation.
 
 ## Household state and sync (Sitr Family)
 
@@ -88,6 +102,7 @@ design, not built.
 | Engine | Coverage | Mechanism |
 |---|---|---|
 | Chrome extension | The browser | DNR static + dynamic rules |
+| Safari Web Extension (macOS) | Safari | The same extension codebase and DNR rulesets, byte-identical, staged by `tools/pack/stage-safari.mjs`; Safari translates DNR into its content-blocker engine in-process |
 | Safari content blocker (iOS) | Safari; WebKit browsers via optional Screen Time | Compiled content-blocker JSON; FamilyControls/ManagedSettings |
 | DNS filter (Android) | System-wide | Local `VpnService`, DNS-only tun |
 

@@ -47,6 +47,9 @@ export interface DnrRule {
   condition: {
     urlFilter?: string;
     requestDomains?: string[];
+    /** Matches the request's initiator (the page making it), not its target
+     *  — used by the media greylist, where targets are unknowable CDNs. */
+    initiatorDomains?: string[];
     resourceTypes?: string[];
   };
 }

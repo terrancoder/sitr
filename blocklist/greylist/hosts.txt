@@ -1,0 +1,12 @@
+# Sitr media greylist — hosts whose IMAGES AND MEDIA are blocked when the
+# optional greylist mode is on (threat-model T12). The sites themselves are
+# never blocked. Inclusion criteria: policy/media-greylist-policy.md.
+#
+# NOT part of blocklist/sources/ — this list feeds only the browser
+# extension's greylist ruleset, wired explicitly in tools/compiler/src/cli.ts.
+# Messaging platforms are deliberately absent (criterion 3).
+imgur.com
+pinterest.com
+reddit.com
+tumblr.com
+x.com

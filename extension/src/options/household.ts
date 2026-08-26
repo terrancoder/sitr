@@ -38,6 +38,7 @@ import {
 import { gateMutation, type HouseholdRole, type MutationKind } from "../lib/gate.js";
 import type { ManagedPolicy } from "../lib/managed.js";
 import { normalizeDomainInput } from "../lib/userRules.js";
+import { promptDialog } from "./dialogs.js";
 
 export interface HouseholdContext {
   role: HouseholdRole | undefined;
@@ -128,7 +129,9 @@ export async function withGate(
       ctx.showError(`Too many wrong PIN attempts — try again in ${seconds}s.`);
       return false;
     }
-    const entered = window.prompt("Enter the guardian PIN:");
+    const entered = await promptDialog("Enter the guardian PIN:", {
+      password: true,
+    });
     if (entered === null) return false;
     if (!(await verifyPin(entered, record))) {
       const next = backoffAfterFailure(attempts.count, Date.now());
@@ -162,7 +165,33 @@ async function saveMutatedState(
   ctx.state = next;
 }
 
+/**
+ * The sync endpoint is a background-only origin the user never visits, so
+ * Safari's visit-a-site-then-grant flow can never grant it — it must be
+ * requested explicitly inside the create/join user gesture. On Chrome the
+ * origin is granted at install and this resolves true without a prompt.
+ * Called FIRST in the gesture: Safari drops gesture context across awaits.
+ */
+async function requestSyncOrigin(ctx: HouseholdContext): Promise<boolean> {
+  try {
+    const granted = await chrome.permissions.request({
+      origins: ["https://sync.sitrshield.com/*"],
+    });
+    if (!granted) {
+      ctx.showError(
+        "Family sync needs permission to reach sync.sitrshield.com — " +
+          "nothing was set up.",
+      );
+    }
+    return granted;
+  } catch (e) {
+    ctx.showError(e instanceof Error ? e.message : String(e));
+    return false;
+  }
+}
+
 export async function createHousehold(ctx: HouseholdContext): Promise<void> {
+  if (!(await requestSyncOrigin(ctx))) return;
   const secret = generateRootSecret();
   const state = emptyHouseholdState(await deviceId(), Date.now());
   const applied = await applyHouseholdState(
@@ -187,6 +216,7 @@ export async function joinHousehold(
   code: string,
   role: HouseholdRole,
 ): Promise<void> {
+  if (!(await requestSyncOrigin(ctx))) return;
   const secret = decodePairingCode(code);
   if (!secret.ok) {
     ctx.showError(secret.error);
