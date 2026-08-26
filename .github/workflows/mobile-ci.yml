@@ -1,22 +1,14 @@
 name: Mobile CI
 
-# Path-filtered so the fast Linux-only ci.yml stays the default gate and
-# macOS minutes are spent only when mobile code or its inputs change.
+# Manual-only: macOS runners bill at a 10x minutes multiplier, so a single
+# push run of the ios+safari jobs costs ~2 hours of quota — and every job
+# here duplicates what the local runbooks already gate (gradlew build,
+# SitrCore swift test, xcodebuild, simulator smoke; docs/device-testing.md
+# and docs/safari.md). The fast Linux ci.yml remains the every-push gate
+# (tests + determinism + published checksums). Run this on demand before a
+# release:  gh workflow run "Mobile CI"
 on:
-  push:
-    paths:
-      - "apps/**"
-      - "blocklist/**"
-      - "tools/**"
-      - "extension/**"
-      - ".github/workflows/mobile-ci.yml"
-  pull_request:
-    paths:
-      - "apps/**"
-      - "blocklist/**"
-      - "tools/**"
-      - "extension/**"
-      - ".github/workflows/mobile-ci.yml"
+  workflow_dispatch:
 
 jobs:
   # Full Android build: :core JVM tests (conformance fixture replay,
