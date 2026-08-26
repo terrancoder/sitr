@@ -14,10 +14,19 @@
  * chrome.storage.managed channel (GPO / plist / Google Admin), never over
  * the network from us.
  */
-import { badgeFor, deriveStatus, type ProtectionStatus } from "../lib/status.js";
+import {
+  SAFESEARCH_ORIGINS,
+  badgeFor,
+  deriveStatus,
+  safariVersionGate,
+  type ProtectionStatus,
+} from "../lib/status.js";
 import {
   DISABLED_CATEGORIES_KEY,
+  MEDIA_MODE_KEY,
   sanitizeDisabled,
+  sanitizeMediaMode,
+  type MediaMode,
   type ToggleableRulesetId,
 } from "../lib/categories.js";
 import {
@@ -61,6 +70,48 @@ async function readDeviceDisabled(): Promise<ToggleableRulesetId[]> {
   return sanitizeDisabled(stored[DISABLED_CATEGORIES_KEY]);
 }
 
+async function readMediaMode(): Promise<MediaMode> {
+  const stored = await chrome.storage.local.get(MEDIA_MODE_KEY);
+  return sanitizeMediaMode(stored[MEDIA_MODE_KEY]);
+}
+
+/**
+ * Household-disabled categories from the persisted household state, so the
+ * preference assert below never re-enables what the household turned off.
+ * No household (or corrupted state) degrades to the empty set.
+ */
+async function readHouseholdDisabled(): Promise<ToggleableRulesetId[]> {
+  const stored = await chrome.storage.local.get(HOUSEHOLD_STATE_KEY);
+  if (stored[HOUSEHOLD_STATE_KEY] === undefined) return [];
+  const state = sanitizeHouseholdState(stored[HOUSEHOLD_STATE_KEY]);
+  return state.ok ? sanitizeDisabled(state.value.disabledCategories) : [];
+}
+
+/**
+ * Assert the user's enabled-ruleset preferences against the engine — the
+ * browser resets enabled-ruleset state to the manifest's `enabled` values
+ * on every extension update, which would otherwise silently re-enable
+ * user-disabled categories (fail-closed, but wrong) and silently turn the
+ * media filter OFF (fail-open — the one failure class this product
+ * promises never to have silently). Runs on every worker wake; the
+ * desired state is recomputed from storage, so this is idempotent and
+ * correct regardless of whether the platform actually reset anything.
+ */
+async function assertRulesetPreferences(required: string[]): Promise<void> {
+  const manifest = chrome.runtime.getManifest() as {
+    declarative_net_request?: { rule_resources?: Array<{ id: string }> };
+  };
+  const known =
+    manifest.declarative_net_request?.rule_resources?.map((r) => r.id) ?? [];
+  const requiredSet = new Set(required);
+  const enableRulesetIds = known.filter((id) => requiredSet.has(id));
+  const disableRulesetIds = known.filter((id) => !requiredSet.has(id));
+  await chrome.declarativeNetRequest.updateEnabledRulesets({
+    enableRulesetIds,
+    disableRulesetIds,
+  });
+}
+
 /**
  * Reconcile the managed dynamic-rule layer with policy, and re-enable any
  * forced categories. Returns an error string on failure so the caller can
@@ -97,6 +148,27 @@ async function applyManagedPolicy(policy: ManagedPolicy): Promise<string | null>
 
 async function checkProtection(): Promise<ProtectionStatus> {
   try {
+    // Engine gate: on Safari older than 26 the DNR priority ladder does not
+    // hold (see status.ts) — nothing downstream can be trusted, so red.
+    const gate = safariVersionGate(navigator.userAgent);
+    if (gate !== null) {
+      return { state: "unknown", reason: gate };
+    }
+    // Host grants are part of the proof: an ungranted SafeSearch host
+    // (per-site grants on Safari; withheld site access on Chrome) disables
+    // the redirect while the ruleset still reports enabled — the one way
+    // getEnabledRulesets alone would overclaim.
+    const granted = await chrome.permissions.contains({
+      origins: SAFESEARCH_ORIGINS,
+    });
+    if (!granted) {
+      return {
+        state: "unknown",
+        reason:
+          "SafeSearch needs access to the search engines' sites — " +
+          "grant Sitr access in the browser's extension settings",
+      };
+    }
     const policy = await readManagedPolicy();
     if (isManaged(policy)) {
       const applyError = await applyManagedPolicy(policy);
@@ -109,9 +181,14 @@ async function checkProtection(): Promise<ProtectionStatus> {
     }
     const required = effectiveRequiredRulesets(
       await readDeviceDisabled(),
-      [], // household categories layer in when a household exists (sync step)
+      await readHouseholdDisabled(),
       policy.forcedCategories,
+      await readMediaMode(),
     );
+    // Engine first (§4): assert the preferences, then verify what actually
+    // took — deriveStatus reports required-but-absent as INACTIVE, so an
+    // assert that failed to stick renders red, never silently off.
+    await assertRulesetPreferences(required);
     const enabled = await chrome.declarativeNetRequest.getEnabledRulesets();
     return deriveStatus(enabled, required);
   } catch (e) {
