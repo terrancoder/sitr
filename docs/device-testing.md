@@ -145,7 +145,8 @@ there even while the destination domains stay blocked.
 
 ## Safari Web Extension (macOS)
 
-Build and enable per [safari.md](safari.md), then verify **on a real
+Build and enable per the Safari runbook (internal: `Udocs/safari.md`),
+then verify **on a real
 Safari 26+** — these are the platform behaviors nothing in CI can prove
 (Safari has no `testMatchOutcome`, and its DNR→content-blocker
 translation has known quirks):

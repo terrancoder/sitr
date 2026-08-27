@@ -4,7 +4,7 @@ name: Mobile CI
 # push run of the ios+safari jobs costs ~2 hours of quota — and every job
 # here duplicates what the local runbooks already gate (gradlew build,
 # SitrCore swift test, xcodebuild, simulator smoke; docs/device-testing.md
-# and docs/safari.md). The fast Linux ci.yml remains the every-push gate
+# and the internal Safari runbook). The fast Linux ci.yml remains the every-push gate
 # (tests + determinism + published checksums). Run this on demand before a
 # release:  gh workflow run "Mobile CI"
 on:
@@ -73,7 +73,7 @@ jobs:
   # Safari (macOS): stage the web-extension bundle deterministically
   # (twice, diffed — same gate the rulesets get), then build the host app
   # + appex unsigned. Behavioral rule checks need a Safari session and
-  # live in the device-testing runbook (docs/safari.md), not CI, until a
+  # live in the device-testing runbook, not CI, until a
   # safaridriver lane proves stable on hosted runners.
   safari:
     runs-on: macos-15
