@@ -1,15 +1,16 @@
-#include "Shared.xcconfig"
+#include "MacShared.xcconfig"
 
-SDKROOT = macosx
-MACOSX_DEPLOYMENT_TARGET = 14.0
-TARGETED_DEVICE_FAMILY =
 PRODUCT_BUNDLE_IDENTIFIER = com.sitrshield.sitr.mac.webext
 CODE_SIGN_ENTITLEMENTS = SitrWebExtension/SitrWebExtension.entitlements
 INFOPLIST_FILE = SitrWebExtension/Info.plist
 SKIP_INSTALL = YES
-ENABLE_HARDENED_RUNTIME = YES
 // The resource-copy phase reads the staged web-extension bundle from
-// build/safari-extension (outside the project tree), which Xcode's script
-// sandbox cannot express. The stager is deterministic and checksummed
+// build/ (outside the project tree), which Xcode's script sandbox cannot
+// express. The stager is deterministic and checksummed
 // (tools/pack/stage-safari.mjs), so the sandbox buys nothing here.
 ENABLE_USER_SCRIPT_SANDBOXING = NO
+// Which staged web-extension bundle the appex copies in. Default is the
+// full-UI devid bundle. A Mac App Store archive must override BOTH knobs
+// (quote them; see docs/safari.md):
+//   xcodebuild archive ... 'SITR_WEBEXT_BUNDLE=$(SRCROOT)/../../build/safari-extension-mas' SITR_REQUIRE_CHANNEL=mas
+SITR_WEBEXT_BUNDLE = $(SRCROOT)/../../build/safari-extension

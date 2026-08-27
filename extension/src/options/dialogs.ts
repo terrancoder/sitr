@@ -14,13 +14,17 @@ function ensureDialog(): HTMLDialogElement {
   if (dialog !== undefined) return dialog;
   dialog = document.createElement("dialog");
   dialog.style.cssText =
-    "max-width: 380px; border: 1px solid #bbb; border-radius: 6px; padding: 16px;";
+    "max-width: 380px; border: 1px solid var(--rule, #bbb); border-radius: 6px; " +
+    "padding: 16px; background: var(--paper, #fff); color: var(--ink, #222);";
   const form = document.createElement("form");
   form.method = "dialog";
   messageEl = document.createElement("p");
   messageEl.style.cssText = "margin: 0 0 10px; font-size: 14px;";
   inputEl = document.createElement("input");
-  inputEl.style.cssText = "width: 100%; box-sizing: border-box; padding: 6px 8px;";
+  inputEl.style.cssText =
+    "width: 100%; box-sizing: border-box; padding: 6px 8px; " +
+    "background: var(--paper-2, #fff); color: var(--ink, #222); " +
+    "border: 1px solid var(--rule, #bbb); border-radius: 4px;";
   const row = document.createElement("div");
   row.style.cssText = "display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;";
   const cancel = document.createElement("button");
@@ -66,6 +70,7 @@ export function promptDialog(
       },
       { once: true },
     );
+    d.returnValue = ""; // stale "ok" from a prior prompt must never leak
     d.showModal();
     inputEl.focus();
   });

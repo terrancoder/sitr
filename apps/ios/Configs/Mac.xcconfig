@@ -1,13 +1,11 @@
-#include "Shared.xcconfig"
+#include "MacShared.xcconfig"
 
 // macOS host app for the Safari Web Extension (Udocs/extension-dev-plan.md
 // workstream B). Safari 26 is the supported floor; macOS 14 is the oldest
 // macOS that runs it.
-SDKROOT = macosx
-MACOSX_DEPLOYMENT_TARGET = 14.0
-TARGETED_DEVICE_FAMILY =
 PRODUCT_BUNDLE_IDENTIFIER = com.sitrshield.sitr.mac
 CODE_SIGN_ENTITLEMENTS = SitrMac/SitrMac.entitlements
-ENABLE_HARDENED_RUNTIME = YES
 INFOPLIST_KEY_CFBundleDisplayName = Sitr
 INFOPLIST_KEY_LSApplicationCategoryType = public.app-category.utilities
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
+INFOPLIST_FILE = SitrMac/Info.plist

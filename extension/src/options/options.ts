@@ -25,10 +25,9 @@ import {
   sanitizeManagedPolicy,
   type ManagedPolicy,
 } from "../lib/managed.js";
+import { HOUSEHOLD_SECRET_KEY } from "../lib/household.js";
 import {
   addHouseholdDomain,
-  createHousehold,
-  hasGuardianPin,
   joinHousehold,
   leaveHousehold,
   loadHousehold,
@@ -132,7 +131,18 @@ async function refreshLists(): Promise<void> {
       if (!managedPolicy.lockOptions) {
         const button = document.createElement("button");
         button.textContent = "Remove";
-        button.addEventListener("click", () => void removeRule(entry.id));
+        // Removing a BLOCK rule loosens protection; the gate decides the
+        // ceremony (PIN when set, refused on child devices).
+        const gateKind =
+          kind === "allow"
+            ? ("removeDeviceAllowRule" as const)
+            : ("removeDeviceBlockRule" as const);
+        button.addEventListener("click", () => {
+          void withGate(gateKind, hh, () => removeRule(entry.id)).catch(
+            (e: unknown) =>
+              showError(e instanceof Error ? e.message : String(e)),
+          );
+        });
         li.append(button);
       }
       listEl.append(li);
@@ -185,17 +195,20 @@ async function removeRule(id: number): Promise<void> {
 function wireForm(kind: UserRuleKind): void {
   const form = document.getElementById(`${kind}-form`) as HTMLFormElement;
   const input = document.getElementById(`${kind}-input`) as HTMLInputElement;
+  const gateKind =
+    kind === "allow"
+      ? ("addDeviceAllowRule" as const)
+      : ("addDeviceBlockRule" as const);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    void addRule(kind, input.value)
-      .then(() => {
-        input.value = "";
-      })
-      .catch((e: unknown) => {
-        showError(
-          `Could not update rules: ${e instanceof Error ? e.message : String(e)}`,
-        );
-      });
+    void withGate(gateKind, hh, async () => {
+      await addRule(kind, input.value);
+      input.value = "";
+    }).catch((e: unknown) => {
+      showError(
+        `Could not update rules: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    });
   });
 }
 
@@ -342,52 +355,7 @@ async function renderHouseholdLists(): Promise<void> {
       : "";
 }
 
-const ENTITLEMENT_KEY = "entitlementToken";
-
-async function renderEntitlement(): Promise<void> {
-  const stored = await chrome.storage.local.get(ENTITLEMENT_KEY);
-  el("entitlement-status").textContent =
-    typeof stored[ENTITLEMENT_KEY] === "string" && stored[ENTITLEMENT_KEY] !== ""
-      ? "Subscription token saved on this device."
-      : "Sitr Family sync needs a subscription token from sitrshield.com/family (creating a household on the official server requires it).";
-}
-
-function wireEntitlement(): void {
-  el("entitlement-enter").addEventListener("click", () => {
-    clearError();
-    void (async () => {
-      const token = await promptDialog(
-        "Paste your Sitr Family subscription token (from the checkout page):",
-      );
-      if (token === null) return;
-      const trimmed = token.trim();
-      if (!trimmed.startsWith("sitr-ent-v1.")) {
-        showError('That does not look like a token (it starts with "sitr-ent-v1.").');
-        return;
-      }
-      await chrome.storage.local.set({ [ENTITLEMENT_KEY]: trimmed });
-      await renderEntitlement();
-    })().catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
-  });
-}
-
 function wireHousehold(): void {
-  el("household-create").addEventListener("click", () => {
-    clearError();
-    void createHousehold(hh)
-      .then(async () => {
-        if (!(await hasGuardianPin())) {
-          const pin = await promptDialog(
-            "Set a guardian PIN (4–32 characters). It will be required to loosen protection:",
-            { password: true },
-          );
-          if (pin !== null) await setGuardianPin(hh, pin);
-        }
-        await hh.onChanged();
-      })
-      .catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
-  });
-
   el<HTMLFormElement>("household-join-form").addEventListener("submit", (event) => {
     event.preventDefault();
     clearError();
@@ -397,7 +365,7 @@ function wireHousehold(): void {
         ? ("guardian" as const)
         : ("child" as const);
     void joinHousehold(hh, code, role)
-      .then(() => hh.onChanged())
+      .then((joined) => (joined ? hh.onChanged() : undefined))
       .catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
   });
 
@@ -435,10 +403,10 @@ function wireHousehold(): void {
         const { decodePairingCode } = await import("../lib/sync/crypto.js");
         const { fromB64 } = await import("../lib/pin.js");
         const secret = decodePairingCode(code);
-        const stored = await chrome.storage.local.get("householdSecret");
+        const stored = await chrome.storage.local.get(HOUSEHOLD_SECRET_KEY);
         const known =
-          typeof stored["householdSecret"] === "string"
-            ? fromB64(stored["householdSecret"])
+          typeof stored[HOUSEHOLD_SECRET_KEY] === "string"
+            ? fromB64(stored[HOUSEHOLD_SECRET_KEY])
             : undefined;
         const matches =
           secret.ok &&
@@ -480,7 +448,6 @@ function wireHousehold(): void {
 wireForm("allow");
 wireForm("block");
 wireHousehold();
-wireEntitlement();
 void (async () => {
   await loadManagedPolicy();
   hh.managed = managedPolicy;
@@ -489,7 +456,18 @@ void (async () => {
   hh.state = loaded.state;
   renderManaged();
   renderHousehold();
-  await renderEntitlement();
+  // Household creation + entitlement UI ship only in full-channel builds;
+  // store builds strip the block AND the module (see stage-safari.mjs).
+  if (document.getElementById("full-channel-only") !== null) {
+    // A failed module load must degrade to the join-only surface, never
+    // take the rest of the options page down with it.
+    try {
+      const fullChannel = await import("./fullChannel.js");
+      await fullChannel.wireFullChannel(hh);
+    } catch (e) {
+      showError(e instanceof Error ? e.message : String(e));
+    }
+  }
   await renderCategories();
   await wireMedia(hh);
   await refreshLists();

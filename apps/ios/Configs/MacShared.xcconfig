@@ -1,0 +1,17 @@
+// Shared by the two macOS targets (SitrMac app + SitrWebExtension appex).
+// Overrides the iOS-oriented Shared.xcconfig keys that don't apply on Mac.
+#include "Shared.xcconfig"
+
+SDKROOT = macosx
+MACOSX_DEPLOYMENT_TARGET = 14.0
+IPHONEOS_DEPLOYMENT_TARGET =
+TARGETED_DEVICE_FAMILY =
+ENABLE_HARDENED_RUNTIME = YES
+// The Safari bundle's manifest version IS the extension version; the mac
+// targets track it exactly (bumped in the same commit — see the plan's
+// version-identity rule).
+MARKETING_VERSION = 0.1.1
+// App Store Connect requires a strictly increasing build number per upload,
+// shared by the app and its appex. Bump here for every archive you upload
+// (release checklist in docs/safari.md).
+CURRENT_PROJECT_VERSION = 1

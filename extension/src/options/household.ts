@@ -190,8 +190,8 @@ async function requestSyncOrigin(ctx: HouseholdContext): Promise<boolean> {
   }
 }
 
-export async function createHousehold(ctx: HouseholdContext): Promise<void> {
-  if (!(await requestSyncOrigin(ctx))) return;
+export async function createHousehold(ctx: HouseholdContext): Promise<boolean> {
+  if (!(await requestSyncOrigin(ctx))) return false;
   const secret = generateRootSecret();
   const state = emptyHouseholdState(await deviceId(), Date.now());
   const applied = await applyHouseholdState(
@@ -201,7 +201,7 @@ export async function createHousehold(ctx: HouseholdContext): Promise<void> {
   );
   if (!applied.ok) {
     ctx.showError(`Could not create household: ${applied.error}`);
-    return;
+    return false;
   }
   await chrome.storage.local.set({
     [HOUSEHOLD_SECRET_KEY]: toB64(secret),
@@ -209,18 +209,19 @@ export async function createHousehold(ctx: HouseholdContext): Promise<void> {
   });
   ctx.role = "guardian";
   ctx.state = state;
+  return true;
 }
 
 export async function joinHousehold(
   ctx: HouseholdContext,
   code: string,
   role: HouseholdRole,
-): Promise<void> {
-  if (!(await requestSyncOrigin(ctx))) return;
+): Promise<boolean> {
+  if (!(await requestSyncOrigin(ctx))) return false;
   const secret = decodePairingCode(code);
   if (!secret.ok) {
     ctx.showError(secret.error);
-    return;
+    return false;
   }
   // Until the first sync pull, start from the empty shared state authored
   // at epoch 0 — so the REAL household state always wins the LWW merge on
@@ -233,7 +234,7 @@ export async function joinHousehold(
   );
   if (!applied.ok) {
     ctx.showError(`Could not join household: ${applied.error}`);
-    return;
+    return false;
   }
   await chrome.storage.local.set({
     [HOUSEHOLD_SECRET_KEY]: toB64(secret.value),
@@ -241,6 +242,7 @@ export async function joinHousehold(
   });
   ctx.role = role;
   ctx.state = state;
+  return true;
 }
 
 export async function leaveHousehold(ctx: HouseholdContext): Promise<void> {

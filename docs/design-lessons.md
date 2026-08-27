@@ -19,7 +19,7 @@ structural countermeasure — this checklist is re-checked before every release:
 | Session-replay analytics | No analytics at all; no code path that transmits user data |
 | Silent app/data uploads | Extension makes **no network requests** unless a Family household is configured — then exactly one E2E-encrypted sync endpoint; any future request must be documented in [data-flow.md](data-flow.md) before shipping |
 | Server-side filtering that sees traffic | On-device DNR only; no per-user server exists |
-| Claims contradicting behavior | Five-way consistency rule (listing = policy = data-safety form = UI = marketing), open source, reproducible builds |
+| Claims contradicting behavior | Six-way consistency rule (listings = policy = data-safety forms = privacy labels = UI = marketing), open source, reproducible builds |
 | Absolutist marketing ("zero tracking") | Only specific, substantiated claims |
 | Opaque blocklist decisions | Public sources, written inclusion policy, named maintainers, appeals process |
 

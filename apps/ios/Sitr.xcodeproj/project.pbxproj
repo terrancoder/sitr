@@ -95,7 +95,15 @@
 			);
 			target = 534954520000000000000172 /* SitrBlocker */;
 		};
+	5349545200000000000000E5 /* Exceptions for "SitrMac" folder in "SitrMac" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 534954520000000000000173 /* SitrMac */;
+		};
 	5349545200000000000000E4 /* Exceptions for "SitrWebExtension" folder in "SitrWebExtension" target */ = {
+
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -128,6 +136,9 @@
 		};
 	534954520000000000000154 /* SitrMac */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5349545200000000000000E5 /* Exceptions for "SitrMac" folder in "SitrMac" target */,
+			);
 			path = SitrMac;
 			sourceTree = "<group>";
 		};
@@ -411,6 +422,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		5349545200000000000000D8 /* Copy staged web extension */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -421,7 +433,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -eu\nSRC=\"${SRCROOT}/../../build/safari-extension\"\nif [ ! -f \"$SRC/manifest.json\" ]; then\n  echo \"error: staged Safari web-extension bundle missing - run 'npm run stage:safari' at the repo root\" >&2\n  exit 1\nfi\nDST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nmkdir -p \"$DST\"\nrsync -a --delete --exclude .DS_Store \"$SRC/\" \"$DST/\"\n";
+			shellScript = "set -eu\nSRC=\"${SITR_WEBEXT_BUNDLE}\"\nif [ ! -f \"$SRC/manifest.json\" ]; then\n  echo \"error: staged Safari web-extension bundle missing - run 'npm run stage:safari' at the repo root\" >&2\n  exit 1\nfi\n# Channel assertion: an App Store archive must pass SITR_REQUIRE_CHANNEL=mas\n# so a forgotten SITR_WEBEXT_BUNDLE override fails the build instead of\n# shipping the full-channel bundle (store risk register, 3.1.1).\nif [ -n \"${SITR_REQUIRE_CHANNEL:-}\" ]; then\n  grep -q \"\\\"channel\\\":\\\"${SITR_REQUIRE_CHANNEL}\\\"\" \"$SRC/channel.json\" || {\n    echo \"error: staged bundle is not channel ${SITR_REQUIRE_CHANNEL} - restage or fix SITR_WEBEXT_BUNDLE\" >&2\n    exit 1\n  }\n  if [ \"${SITR_REQUIRE_CHANNEL}\" = \"mas\" ] && [ -f \"$SRC/dist/options/fullChannel.js\" ]; then\n    echo \"error: full-channel module present in a mas-required build\" >&2\n    exit 1\n  fi\nfi\nDST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nmkdir -p \"$DST\"\n# Remove only what we stage; never --delete over the whole Resources dir\n# (future target resources must survive this phase).\nfor entry in manifest.json channel.json checksums.json dist public rulesets src; do\n  rm -rf \"$DST/$entry\"\ndone\nrsync -a --exclude .DS_Store \"$SRC/\" \"$DST/\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

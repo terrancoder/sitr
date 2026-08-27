@@ -4,5 +4,11 @@
 <dict>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
+	<!-- The extension's Family-sync fetch to sync.sitrshield.com runs in the
+	     sandboxed extension context; outgoing network needs this. The HOST
+	     app deliberately has no network entitlement (it makes no requests —
+	     the one-call-site invariant lives in the extension's sync client). -->
+	<key>com.apple.security.network.client</key>
+	<true/>
 </dict>
 </plist>

@@ -40,7 +40,9 @@ function renderBreakdown(disabledStored: unknown, mediaStored: unknown): void {
     [
       mediaMode === "allowlist"
         ? "Images & media (allowlist-only)"
-        : "Images & media (greylist)",
+        : mediaMode === "greylist"
+          ? "Images & media (greylist)"
+          : "Images & media filter",
       mediaMode !== "off",
     ],
   ];

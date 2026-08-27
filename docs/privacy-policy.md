@@ -1,7 +1,7 @@
 # Sitr privacy policy
 
-*Effective: 2026-07-21. This policy covers the Sitr browser extension and
-the Sitr apps for iOS and Android. This file is the source of the published
+*Effective: 2026-07-21. This policy covers the Sitr browser extension
+(Chrome and Safari) and the Sitr apps for iOS, Android, and macOS. This file is the source of the published
 policy; the store listings, the Chrome data-safety form, the Google Play
 Data safety form, the Apple App Privacy labels, in-app text, website, and
 public statements must all agree

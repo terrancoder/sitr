@@ -4,21 +4,45 @@
   <meta charset="utf-8" />
   <title>Sitr — Settings</title>
   <style>
-    body { font: 14px/1.5 system-ui, sans-serif; margin: 0 auto; max-width: 640px; padding: 24px; color: #222; }
+    /* sitrshield.com design tokens; scheme follows the browser. The alert
+       red is semantic and deliberately NOT a brand hue. */
+    :root {
+      color-scheme: light dark;
+      --paper: #f4efe4; --paper-2: #ece5d4; --ink: #1d2a24;
+      --ink-soft: #51604f; --green: #0f5c46; --gold: #a37e2c;
+      --rule: #c9bfa6; --alert: #c62828;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --paper: #121a16; --paper-2: #0d1411; --ink: #e4ddc9;
+        --ink-soft: #94a093; --green: #3aa886; --gold: #c9a558;
+        --rule: #2c3a32; --alert: #e05d5d;
+      }
+    }
+    body { font: 14px/1.5 system-ui, sans-serif; margin: 0 auto; max-width: 640px;
+           padding: 24px; color: var(--ink); background: var(--paper); }
     h1 { font-size: 20px; }
-    h2 { font-size: 15px; margin-top: 28px; }
-    p.note { color: #555; font-size: 13px; }
+    h2 { font-size: 15px; margin-top: 28px; border-bottom: 1px solid var(--rule); padding-bottom: 4px; }
+    a { color: var(--green); }
+    p.note { color: var(--ink-soft); font-size: 13px; }
     form { display: flex; gap: 8px; margin: 8px 0; }
-    input[type="text"] { flex: 1; padding: 6px 8px; }
-    button { padding: 6px 12px; cursor: pointer; }
+    input[type="text"], select {
+      flex: 1; padding: 6px 8px; background: var(--paper-2); color: var(--ink);
+      border: 1px solid var(--rule); border-radius: 4px; }
+    button { padding: 6px 12px; cursor: pointer; background: var(--green);
+             color: var(--paper); border: none; border-radius: 4px; font-weight: 600; }
+    button:hover { opacity: 0.9; }
+    li button { background: var(--paper-2); color: var(--ink); border: 1px solid var(--rule); font-weight: 400; }
     ul { list-style: none; padding: 0; }
-    li { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; }
-    .error { color: #c62828; font-weight: 600; min-height: 1.5em; }
-    .empty { color: #888; font-style: italic; }
-    .pairing-code { background: #f4f1e8; border: 1px solid #d8d2bd; padding: 10px 12px; border-radius: 4px; font-size: 13px; word-break: break-all; user-select: all; }
-    .managed-banner { background: #eef4f0; border: 1px solid #b9d2c4; color: #1a4d38; padding: 8px 12px; border-radius: 4px; font-size: 13px; }
-    .locked { color: #888; }
-    .locked-tag { font-size: 12px; color: #1a4d38; margin-left: 6px; }
+    li { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+    #media-mode-list li, #category-list li { justify-content: flex-start; }
+    .error { color: var(--alert); font-weight: 600; min-height: 1.5em; }
+    .empty { color: var(--ink-soft); font-style: italic; }
+    .pairing-code { background: var(--paper-2); border: 1px solid var(--rule); color: var(--ink); padding: 10px 12px; border-radius: 4px; font-size: 13px; word-break: break-all; user-select: all; }
+    .managed-banner { background: var(--paper-2); border: 1px solid var(--green); color: var(--green); padding: 8px 12px; border-radius: 4px; font-size: 13px; }
+    .locked { color: var(--ink-soft); }
+    .locked-tag { font-size: 12px; color: var(--green); margin-left: 6px; }
+    dialog { background: var(--paper); color: var(--ink); }
   </style>
 </head>
 <body>
@@ -26,8 +50,8 @@
   <p id="managed-banner" class="managed-banner" hidden></p>
   <p class="note">
     Everything on this page is stored in your browser. Your browsing — pages
-    you visit, searches, blocked requests — never leaves your device. If you
-    create or join a Family household, the household settings below (never
+    you visit, searches, blocked requests — never leaves your device. If this
+    device is part of a Family household, the household settings below (never
     your browsing) sync between your devices as an end-to-end-encrypted blob
     our server cannot read.
   </p>
@@ -96,9 +120,11 @@
     devices. Everything stays on your devices — if sync is used, the server
     only ever stores an encrypted blob it cannot read.</p>
   <div id="household-none">
-    <button id="household-create" type="button">Create a household (guardian)</button>
-    <button id="entitlement-enter" type="button">Enter subscription token</button>
-    <p id="entitlement-status" class="note"></p>
+    <div id="full-channel-only">
+      <button id="household-create" type="button">Create a household (guardian)</button>
+      <button id="entitlement-enter" type="button">Enter subscription token</button>
+      <p id="entitlement-status" class="note"></p>
+    </div>
     <form id="household-join-form">
       <input type="text" id="household-join-code" placeholder="Pairing code from the guardian device" />
       <select id="household-join-role">
