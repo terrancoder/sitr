@@ -20,6 +20,10 @@ const chrome = [
   process.env.SITR_CHROME,
   join(home, ".cache/chrome-for-testing/chrome-win64/chrome.exe"),
   join(home, ".cache/chrome-for-testing/chrome-linux64/chrome"),
+  join(home, ".cache/chrome-for-testing/chrome-mac-arm64/" +
+    "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"),
+  join(home, ".cache/chrome-for-testing/chrome-mac-x64/" +
+    "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"),
 ].filter(Boolean).find((p) => existsSync(p));
 if (!chrome) {
   console.error("capture: no Chrome for Testing found (see README smoke-test note)");
@@ -90,6 +94,24 @@ if (!sw) {
   process.exit(1);
 }
 const extId = new URL(sw.url).host;
+
+// Representative state for the shots: greylist mode on (a real, honest
+// state — the worker's re-assert enables the ruleset from the preference).
+{
+  const attach = await send("Target.attachToTarget", {
+    targetId: sw.targetId,
+    flatten: true,
+  });
+  await send(
+    "Runtime.evaluate",
+    {
+      expression: 'chrome.storage.local.set({ mediaMode: "greylist" })',
+      awaitPromise: true,
+    },
+    attach.sessionId,
+  );
+  await new Promise((r) => setTimeout(r, 1200));
+}
 
 const { targetId } = await send("Target.createTarget", { url: "about:blank" });
 const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
