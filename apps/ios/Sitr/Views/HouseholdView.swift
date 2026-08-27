@@ -23,11 +23,13 @@ struct HouseholdView: View {
             }
         }
         .navigationTitle("Sitr Family")
+        .sitrScreenBackground()
         .sheet(isPresented: $showScanner) {
             QRScannerView { scanned in
                 code = scanned
                 showScanner = false
             }
+            .sitrAppearance()
         }
     }
 
@@ -46,11 +48,14 @@ struct HouseholdView: View {
                 read them.
                 """
             )
+            .foregroundStyle(Theme.ink)
         }
+        .sitrRows()
         Section("Join a household") {
             TextField("Pairing code (XXXX-XXXX-…)", text: $code)
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled()
+                .foregroundStyle(Theme.ink)
             if DataScannerViewController.isSupported {
                 Button("Scan QR code") { showScanner = true }
             }
@@ -58,18 +63,21 @@ struct HouseholdView: View {
                 Text("A guardian").tag(false)
                 Text("A child").tag(true)
             }
+            .foregroundStyle(Theme.ink)
             Button("Join") {
                 Task { await model.joinHousehold(code: code, asChild: asChild) }
             }
             .disabled(code.isEmpty)
         }
+        .sitrRows()
         Section {
             Text(
                 "Households are created on a computer with the Sitr "
                     + "extension, or on the Sitr Android app.")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.inkSoft)
         }
+        .sitrRows()
     }
 
     // MARK: - In a household
@@ -83,15 +91,18 @@ struct HouseholdView: View {
 
         Section("This household") {
             LabeledContent("This device", value: model.settings.role ?? "—")
+                .foregroundStyle(Theme.ink)
             LabeledContent(
                 "Devices",
                 value: "\(household.devices.count)/\(Household.maxHouseholdDevices) (fair use)"
             )
+            .foregroundStyle(Theme.ink)
             Text(model.settings.syncStatus.describe)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.inkSoft)
             Button("Sync now") { Task { await model.runSync() } }
         }
+        .sitrRows()
 
         if isGuardian {
             Section("Pairing") {
@@ -99,6 +110,7 @@ struct HouseholdView: View {
                     Text(revealed)
                         .font(.system(.footnote, design: .monospaced))
                         .textSelection(.enabled)
+                        .foregroundStyle(Theme.gold)
                     if let image = qrImage(for: revealed) {
                         Image(uiImage: image)
                             .interpolation(.none)
@@ -110,7 +122,7 @@ struct HouseholdView: View {
                         "Anyone with this code IS a member of your household "
                             + "— treat it like a house key.")
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.alert)
                     Button("Hide") { revealedCode = nil }
                 } else {
                     Button("Show pairing code") {
@@ -120,6 +132,7 @@ struct HouseholdView: View {
                     }
                 }
             }
+            .sitrRows()
 
             Section("Guardian PIN") {
                 Text(
@@ -128,9 +141,10 @@ struct HouseholdView: View {
                         : "No PIN set. A PIN adds friction against casual loosening — it is not a security boundary."
                 )
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.inkSoft)
                 HStack {
                     SecureField("New PIN (4–32 chars)", text: $newPin)
+                        .foregroundStyle(Theme.ink)
                     Button("Set") {
                         attempt(.changePin, "Change the guardian PIN") {
                             Task {
@@ -141,13 +155,16 @@ struct HouseholdView: View {
                     }
                 }
             }
+            .sitrRows()
 
             Section("Household allow list") {
                 HouseholdListEditor(allow: true, attempt: attempt)
             }
+            .sitrRows()
             Section("Household block list") {
                 HouseholdListEditor(allow: false, attempt: attempt)
             }
+            .sitrRows()
         }
 
         Section {
@@ -157,6 +174,7 @@ struct HouseholdView: View {
                 }
             }
         }
+        .sitrRows()
     }
 
     private func qrImage(for text: String) -> UIImage? {
@@ -189,6 +207,7 @@ struct HouseholdListEditor: View {
             TextField("example.com", text: $input)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .foregroundStyle(Theme.ink)
             Button("Add") {
                 switch DomainInput.normalize(input) {
                 case .failure(let e):
@@ -203,11 +222,11 @@ struct HouseholdListEditor: View {
             }
         }
         if let error {
-            Text(error).foregroundStyle(.red).font(.caption)
+            Text(error).foregroundStyle(Theme.alert).font(.caption)
         }
         ForEach(domains, id: \.self) { domain in
             HStack {
-                Text(domain)
+                Text(domain).foregroundStyle(Theme.ink)
                 Spacer()
                 Button("Remove", role: .destructive) {
                     attempt(.removeHouseholdRule, "Remove \(domain)") {
@@ -218,7 +237,7 @@ struct HouseholdListEditor: View {
             }
         }
         if domains.isEmpty {
-            Text("None yet.").foregroundStyle(.secondary).font(.caption)
+            Text("None yet.").foregroundStyle(Theme.inkSoft).font(.caption)
         }
     }
 }

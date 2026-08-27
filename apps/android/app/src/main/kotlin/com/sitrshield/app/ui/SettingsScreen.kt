@@ -1,13 +1,21 @@
 package com.sitrshield.app.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.sitrshield.app.Screen
 import com.sitrshield.app.UiCtx
@@ -22,6 +30,9 @@ fun SettingsScreen(ctx: UiCtx) {
     Text("About & privacy", style = MaterialTheme.typography.headlineSmall)
     Spacer(Modifier.height(8.dp))
     Column {
+        Text("Appearance", style = MaterialTheme.typography.titleMedium)
+        AppearanceSelector(ctx)
+        Spacer(Modifier.height(12.dp))
         Text("Privacy", style = MaterialTheme.typography.titleMedium)
         Text(
             "Filtering happens entirely on this device. Sitr transmits no " +
@@ -62,4 +73,43 @@ fun SettingsScreen(ctx: UiCtx) {
     }
     Spacer(Modifier.height(16.dp))
     TextButton(onClick = { ctx.navigate(Screen.HOME) }) { Text("Back") }
+}
+
+/**
+ * System / Light / Dark. Cosmetic only, so it is never PIN-gated; it
+ * still flows through applySettings — the single mutation path.
+ */
+@Composable
+private fun AppearanceSelector(ctx: UiCtx) {
+    val options = listOf(
+        Appearance.SYSTEM to "System",
+        Appearance.LIGHT to "Light",
+        Appearance.DARK to "Dark",
+    )
+    Column {
+        for ((value, label) in options) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = ctx.settings.appearance == value,
+                        role = Role.RadioButton,
+                        onClick = {
+                            ctx.app.applySettings(
+                                ctx.app.repository.current().copy(appearance = value)
+                            )
+                        },
+                    )
+                    .padding(vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(
+                    selected = ctx.settings.appearance == value,
+                    onClick = null,
+                )
+                Text(label, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
 }

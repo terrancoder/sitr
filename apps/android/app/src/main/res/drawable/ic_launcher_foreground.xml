@@ -1,14 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A simple shield — placeholder mark until final branding assets land. -->
+<!-- The sitrshield.com mark: octagon / diamond / square construction with
+     the gold four-point star, scaled into the adaptive-icon safe zone
+     (mark spans 51dp centered in the 108dp canvas; 66dp circle is safe).
+     Geometry is the site SVG's, points mapped p -> 24 + 0.15p. The سِتْر
+     wordmark is omitted — vectors carry no text and the launcher size
+     would swallow it anyway (same tiering as the extension's small icons). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,26 L76,34 L76,52 C76,66 67,76 54,82 C41,76 32,66 32,52 L32,34 Z" />
+        android:strokeColor="#3aa886"
+        android:strokeWidth="1.2"
+        android:fillColor="#00000000"
+        android:pathData="M54,28.5 L72,36 L79.5,54 L72,72 L54,79.5 L36,72 L28.5,54 L36,36 Z" />
     <path
-        android:fillColor="#1a7f37"
-        android:pathData="M54,32 L71,38 L71,52 C71,63 64,71 54,76 C44,71 37,63 37,52 L37,38 Z" />
+        android:strokeColor="#3aa886"
+        android:strokeWidth="1.2"
+        android:fillColor="#00000000"
+        android:pathData="M54,28.5 L79.5,54 L54,79.5 L28.5,54 Z" />
+    <path
+        android:strokeColor="#3aa886"
+        android:strokeWidth="1.2"
+        android:fillColor="#00000000"
+        android:pathData="M72,36 L72,72 L36,72 L36,36 Z" />
+    <path
+        android:strokeColor="#c9a558"
+        android:strokeWidth="1.2"
+        android:fillColor="#00000000"
+        android:pathData="M54,38.4 L58.5,49.5 L69.6,54 L58.5,58.5 L54,69.6 L49.5,58.5 L38.4,54 L49.5,49.5 Z" />
 </vector>

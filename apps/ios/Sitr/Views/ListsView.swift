@@ -31,6 +31,7 @@ struct ListsView: View {
                     }
                 )
             }
+            .sitrRows()
             Section("Always block these sites") {
                 editor(
                     input: $blockInput,
@@ -48,11 +49,14 @@ struct ListsView: View {
                     }
                 )
             }
+            .sitrRows()
             if let inputError {
-                Text(inputError).foregroundStyle(.red).font(.caption)
+                Text(inputError).foregroundStyle(Theme.alert).font(.caption)
+                    .sitrRows()
             }
         }
         .navigationTitle("Allow & block lists")
+        .sitrScreenBackground()
     }
 
     @ViewBuilder
@@ -66,6 +70,7 @@ struct ListsView: View {
             TextField("example.com", text: input)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .foregroundStyle(Theme.ink)
             Button("Add") {
                 switch DomainInput.normalize(input.wrappedValue) {
                 case .failure(let error):
@@ -78,14 +83,14 @@ struct ListsView: View {
         }
         ForEach(domains, id: \.self) { domain in
             HStack {
-                Text(domain)
+                Text(domain).foregroundStyle(Theme.ink)
                 Spacer()
                 Button("Remove", role: .destructive) { onRemove(domain) }
                     .buttonStyle(.borderless)
             }
         }
         if domains.isEmpty {
-            Text("None yet.").foregroundStyle(.secondary).font(.caption)
+            Text("None yet.").foregroundStyle(Theme.inkSoft).font(.caption)
         }
     }
 }

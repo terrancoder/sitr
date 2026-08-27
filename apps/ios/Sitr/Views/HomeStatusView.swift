@@ -15,15 +15,18 @@ struct HomeStatusView: View {
             Section {
                 statusCard
             }
+            .sitrRows()
 
             Section("Protections") {
                 blockerRow
                 screenTimeRow
                 LabeledContent("SafeSearch") {
                     Text("not available on iOS")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.inkSoft)
                 }
+                .foregroundStyle(Theme.ink)
             }
+            .sitrRows()
 
             Section {
                 NavigationLink("Filter categories") {
@@ -39,8 +42,11 @@ struct HomeStatusView: View {
                     SettingsAboutView()
                 }
             }
+            .foregroundStyle(Theme.ink)
+            .sitrRows()
         }
         .navigationTitle("Sitr")
+        .sitrScreenBackground()
         .refreshable { await model.refreshStatus() }
         .task { await model.refreshStatus() }
     }
@@ -52,19 +58,21 @@ struct HomeStatusView: View {
             if summary.overallActive {
                 Label("Protection active", systemImage: "checkmark.shield.fill")
                     .font(.title3.bold())
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Theme.green)
                     // Stable handle for the smoke test — the assertion
                     // must not depend on user-facing wording.
                     .accessibilityIdentifier("status.active")
                 Text("Filtering in Safari on this device. Nothing leaves it.")
                     .font(.subheadline)
+                    .foregroundStyle(Theme.inkSoft)
             } else {
                 Label("PROTECTION INACTIVE", systemImage: "exclamationmark.shield.fill")
                     .font(.title3.bold())
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Theme.alert)
                     .accessibilityIdentifier("status.inactive")
                 Text(StatusModel.describe(model.blockerStatus))
                     .font(.subheadline)
+                    .foregroundStyle(Theme.ink)
                 if model.blockerStatus == .stale {
                     Button("Fix — reload rules") {
                         Task { await model.apply(model.settings) }
@@ -79,30 +87,35 @@ struct HomeStatusView: View {
         LabeledContent("Safari filtering") {
             switch model.blockerStatus {
             case .active:
-                Text("enforced").foregroundStyle(.green)
+                Text("enforced").foregroundStyle(Theme.green)
             case .stale:
-                Text("needs reload").foregroundStyle(.red)
+                Text("needs reload").foregroundStyle(Theme.alert)
             case .disabled:
-                Text("off — enable in Settings").foregroundStyle(.red)
+                Text("off — enable in Settings").foregroundStyle(Theme.alert)
             case .unknown:
-                Text("unverified").foregroundStyle(.red)
+                Text("unverified").foregroundStyle(Theme.alert)
             }
         }
+        .foregroundStyle(Theme.ink)
     }
 
     @ViewBuilder private var screenTimeRow: some View {
+        screenTimeRowContent.foregroundStyle(Theme.ink)
+    }
+
+    @ViewBuilder private var screenTimeRowContent: some View {
         switch model.screenTimeStatus {
         case .off:
             NavigationLink {
                 ScreenTimeSetupView()
             } label: {
                 LabeledContent("Screen Time filter") {
-                    Text("off — optional").foregroundStyle(.secondary)
+                    Text("off — optional").foregroundStyle(Theme.inkSoft)
                 }
             }
         case .active(let mode):
             LabeledContent("Screen Time filter") {
-                Text("enforced (\(mode))").foregroundStyle(.green)
+                Text("enforced (\(mode))").foregroundStyle(Theme.green)
             }
         case .revoked:
             NavigationLink {
@@ -110,12 +123,12 @@ struct HomeStatusView: View {
             } label: {
                 LabeledContent("Screen Time filter") {
                     Text("authorization revoked — tap to fix")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.alert)
                 }
             }
         case .unavailable:
             LabeledContent("Screen Time filter") {
-                Text("unavailable in this build").foregroundStyle(.secondary)
+                Text("unavailable in this build").foregroundStyle(Theme.inkSoft)
             }
         }
     }
@@ -137,7 +150,9 @@ struct ScreenTimeSetupView: View {
                     lists. It is optional — the Safari blocker works without it.
                     """
                 )
+                .foregroundStyle(Theme.ink)
             }
+            .sitrRows()
             Section("Choose a mode") {
                 Button("Protect this device (mine)") {
                     enable(child: false)
@@ -145,15 +160,16 @@ struct ScreenTimeSetupView: View {
                 Text(
                     "You can revoke this yourself in Settings — it adds "
                         + "friction, not a lock.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Theme.inkSoft)
                 Button("Protect a child's device (Family Sharing)") {
                     enable(child: true)
                 }
                 Text(
                     "Enabling and disabling require parent approval — the "
                         + "strongest protection iOS offers.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Theme.inkSoft)
             }
+            .sitrRows()
             if case .active = model.screenTimeStatus {
                 Section {
                     Button("Turn Screen Time filtering off", role: .destructive) {
@@ -161,9 +177,11 @@ struct ScreenTimeSetupView: View {
                         Task { await model.refreshStatus() }
                     }
                 }
+                .sitrRows()
             }
         }
         .navigationTitle("Screen Time")
+        .sitrScreenBackground()
         .disabled(working)
     }
 

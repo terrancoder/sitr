@@ -18,11 +18,13 @@ struct CategoriesView: View {
         List {
             Section {
                 LabeledContent("Adult content blocking") {
-                    Text("always on").foregroundStyle(.green)
+                    Text("always on").foregroundStyle(Theme.green)
                 }
+                .foregroundStyle(Theme.ink)
                 Text("Blocking adult content is what Sitr is for — it has no off switch.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Theme.inkSoft)
             }
+            .sitrRows()
             Section("Optional categories") {
                 ForEach(Categories.toggleableCategories, id: \.rulesetId) { category in
                     Toggle(
@@ -50,9 +52,12 @@ struct CategoriesView: View {
                                 }
                             })
                     )
+                    .foregroundStyle(Theme.ink)
                 }
             }
+            .sitrRows()
         }
         .navigationTitle("Filter categories")
+        .sitrScreenBackground()
     }
 }

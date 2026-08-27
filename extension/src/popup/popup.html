@@ -4,17 +4,33 @@
   <meta charset="utf-8" />
   <title>Sitr</title>
   <style>
-    body { font: 14px/1.5 system-ui, sans-serif; margin: 0; min-width: 260px; }
+    /* sitrshield.com design tokens; scheme follows the browser. The alert
+       red is semantic and deliberately NOT a brand hue. */
+    :root {
+      color-scheme: light dark;
+      --paper: #f4efe4; --paper-2: #ece5d4; --ink: #1d2a24;
+      --ink-soft: #51604f; --green: #0f5c46; --gold: #a37e2c;
+      --rule: #c9bfa6; --alert: #c62828;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --paper: #121a16; --paper-2: #0d1411; --ink: #e4ddc9;
+        --ink-soft: #94a093; --green: #3aa886; --gold: #c9a558;
+        --rule: #2c3a32; --alert: #e05d5d;
+      }
+    }
+    body { font: 14px/1.5 system-ui, sans-serif; margin: 0; min-width: 260px;
+           background: var(--paper); color: var(--ink); }
     .status { padding: 16px; display: flex; align-items: center; gap: 10px; }
     .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
-    .active .dot { background: #1a7f37; }
-    .inactive .dot { background: #c62828; }
-    .detail { padding: 0 16px 14px; color: #555; font-size: 12px; }
+    .active .dot { background: var(--green); }
+    .inactive .dot { background: var(--alert); }
+    .detail { padding: 0 16px 14px; color: var(--ink-soft); font-size: 12px; }
     .breakdown { list-style: none; margin: 0; padding: 0 16px 12px; font-size: 12.5px; }
-    .breakdown li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; color: #333; }
-    .breakdown .on { color: #1a7f37; font-weight: 600; }
-    .breakdown .off { color: #888; }
-    footer { border-top: 1px solid #eee; padding: 10px 16px; font-size: 12px; color: #777; }
+    .breakdown li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; color: var(--ink); }
+    .breakdown .on { color: var(--green); font-weight: 600; }
+    .breakdown .off { color: var(--ink-soft); }
+    footer { border-top: 1px solid var(--rule); padding: 10px 16px; font-size: 12px; color: var(--ink-soft); }
   </style>
 </head>
 <body>

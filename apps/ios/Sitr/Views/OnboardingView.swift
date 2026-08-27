@@ -12,6 +12,8 @@ struct OnboardingView: View {
             switch step {
             case 0:
                 Text("Sitr — سِتْر").font(.largeTitle.bold())
+                    .foregroundStyle(Theme.green)
+                Rectangle().fill(Theme.gold).frame(width: 48, height: 3)
                 Text(
                     """
                     A halal/family content filter whose privacy you can \
@@ -25,10 +27,13 @@ struct OnboardingView: View {
                     not a promise.
                     """
                 )
+                .foregroundStyle(Theme.ink)
                 Button("Continue") { step = 1 }
                     .buttonStyle(.borderedProminent)
             case 1:
                 Text("Enable the blocker").font(.title.bold())
+                    .foregroundStyle(Theme.green)
+                Rectangle().fill(Theme.gold).frame(width: 48, height: 3)
                 Text(
                     """
                     Safari needs your permission to use Sitr's rules:
@@ -40,11 +45,14 @@ struct OnboardingView: View {
                     Come back here — the status updates automatically.
                     """
                 )
+                .foregroundStyle(Theme.ink)
                 statusHint
                 Button("Continue") { step = 2 }
                     .buttonStyle(.borderedProminent)
             default:
                 Text("Sitr Family (optional)").font(.title.bold())
+                    .foregroundStyle(Theme.green)
+                Rectangle().fill(Theme.gold).frame(width: 48, height: 3)
                 Text(
                     """
                     A household shares its allow/block lists and settings \
@@ -54,6 +62,7 @@ struct OnboardingView: View {
                     device.
                     """
                 )
+                .foregroundStyle(Theme.ink)
                 Button("Finish") {
                     var next = model.settings
                     next.onboarded = true
@@ -64,6 +73,8 @@ struct OnboardingView: View {
             Spacer()
         }
         .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Theme.paper.ignoresSafeArea())
         .task { await model.refreshStatus() }
         .onChange(of: step) { _ in
             Task { await model.refreshStatus() }
@@ -74,13 +85,13 @@ struct OnboardingView: View {
         switch model.blockerStatus {
         case .active, .stale:
             Label("Blocker enabled", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+                .foregroundStyle(Theme.green)
         case .disabled:
             Label("Not enabled yet", systemImage: "circle")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.inkSoft)
         case .unknown:
             Label("Checking…", systemImage: "circle.dotted")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.inkSoft)
         }
     }
 }

@@ -56,7 +56,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val app = application as SitrApp
         setContent {
-            SitrTheme { SitrRoot(app) }
+            val settings by app.repository.settings.collectAsState()
+            SitrTheme(appearance = settings.appearance) { SitrRoot(app) }
         }
     }
 }

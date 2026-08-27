@@ -15,10 +15,14 @@ let extensionBundleId = "com.sitrshield.sitr.mac.webext"
 
 @main
 struct SitrMacApp: App {
+    @AppStorage("appearance") private var appearance = Appearance.system.rawValue
+
     var body: some Scene {
         WindowGroup {
             StatusView()
-                .frame(minWidth: 420, idealWidth: 460, minHeight: 320)
+                .frame(minWidth: 420, idealWidth: 460, minHeight: 340)
+                .preferredColorScheme(
+                    (Appearance(rawValue: appearance) ?? .system).colorScheme)
         }
         .windowResizability(.contentSize)
     }
@@ -59,26 +63,31 @@ final class StatusModel: ObservableObject {
 
 struct StatusView: View {
     @StateObject private var model = StatusModel()
+    @AppStorage("appearance") private var appearance = Appearance.system.rawValue
+    @Environment(\.colorScheme) private var scheme
     private let timer = Timer.publish(every: 2, on: .main, in: .common)
         .autoconnect()
 
     var body: some View {
+        let theme = Theme.current(scheme)
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 10) {
                 Circle()
-                    .fill(model.status == .enabled ? Color.green : Color.red)
+                    .fill(model.status == .enabled ? theme.green : theme.alert)
                     .frame(width: 12, height: 12)
                 Text(headline)
                     .font(.headline)
+                    .foregroundStyle(theme.ink)
             }
             Text(detail)
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.inkSoft)
                 .fixedSize(horizontal: false, vertical: true)
             Button("Open Safari Extension Settings") {
                 model.openSafariSettings()
             }
-            Divider()
+            .tint(theme.green)
+            Divider().overlay(theme.rule)
             Text(
                 """
                 All filtering happens inside Safari, on this Mac. Sitr cannot \
@@ -88,10 +97,25 @@ struct StatusView: View {
                 """
             )
             .font(.footnote)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.inkSoft)
             .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Text("Appearance")
+                    .font(.footnote)
+                    .foregroundStyle(theme.inkSoft)
+                Picker("Appearance", selection: $appearance) {
+                    ForEach(Appearance.allCases) { a in
+                        Text(a.label).tag(a.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 220)
+            }
         }
         .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(theme.paper)
         .onAppear { model.refresh() }
         .onReceive(timer) { _ in model.refresh() }
     }

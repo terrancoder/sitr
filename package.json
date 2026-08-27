@@ -17,7 +17,7 @@
     "fixtures": "npm run build && tsc -p tools/conformance/tsconfig.json && node tools/conformance/dist/generate.js --out apps/shared/fixtures",
     "build:extension": "tsc -p extension/tsconfig.json",
     "build:server": "tsc -p server/sync/tsconfig.json",
-    "build:icons": "node tools/icons/generate.mjs extension/public",
+    "build:icons": "node tools/icons/render-brand.mjs",
     "smoke": "npm run build && node tests/smoke/smoke.mjs",
     "pack": "npm run build && node tools/pack/pack.mjs",
     "stage:safari": "npm run build && node tools/pack/stage-safari.mjs",

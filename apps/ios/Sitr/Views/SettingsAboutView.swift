@@ -3,8 +3,19 @@ import SwiftUI
 /// About & privacy — mirrors docs/data-flow.md and privacy-policy.md in
 /// substance (six-way consistency rule). No purchase links anywhere.
 struct SettingsAboutView: View {
+    @AppStorage(Theme.appearanceKey) private var appearance = "system"
+
     var body: some View {
         List {
+            Section("Appearance") {
+                Picker("Appearance", selection: $appearance) {
+                    Text("System").tag("system")
+                    Text("Light").tag("light")
+                    Text("Dark").tag("dark")
+                }
+                .pickerStyle(.segmented)
+            }
+            .sitrRows()
             Section("Privacy") {
                 Text(
                     """
@@ -20,7 +31,9 @@ struct SettingsAboutView: View {
                     Without a household, the app makes zero network requests.
                     """
                 )
+                .foregroundStyle(Theme.ink)
             }
+            .sitrRows()
             Section("Honest limits on iOS") {
                 Text(
                     """
@@ -33,7 +46,9 @@ struct SettingsAboutView: View {
                     approval to revoke — the strongest protection iOS offers.
                     """
                 )
+                .foregroundStyle(Theme.ink)
             }
+            .sitrRows()
             Section("Open source") {
                 Text(
                     """
@@ -43,8 +58,11 @@ struct SettingsAboutView: View {
                     published compiler checksums. Version 0.1.0.
                     """
                 )
+                .foregroundStyle(Theme.ink)
             }
+            .sitrRows()
         }
         .navigationTitle("About & privacy")
+        .sitrScreenBackground()
     }
 }

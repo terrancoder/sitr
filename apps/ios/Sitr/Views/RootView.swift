@@ -50,6 +50,8 @@ struct RootView: View {
             }
         }
         .sheet(item: $pinRequest) { request in
+            // Sheets are separate presentations — re-apply the user's
+            // appearance choice so a forced scheme reaches them too.
             PinSheet(title: request.title) { pin in
                 if model.verifyPin(pin) {
                     PinAttemptsStore.reset()
@@ -61,6 +63,8 @@ struct RootView: View {
             } onCancel: {
                 pinRequest = nil
             }
+            .sitrAppearance()
+            .tint(Theme.green)
         }
         .alert(
             "Not allowed", isPresented: .init(
@@ -113,10 +117,14 @@ struct PinSheet: View {
         NavigationStack {
             Form {
                 SecureField("Guardian PIN", text: $pin)
+                    .foregroundStyle(Theme.ink)
+                    .sitrRows()
                 if let error {
-                    Text(error).foregroundStyle(.red)
+                    Text(error).foregroundStyle(Theme.alert)
+                        .sitrRows()
                 }
             }
+            .sitrScreenBackground()
             .navigationTitle(title)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

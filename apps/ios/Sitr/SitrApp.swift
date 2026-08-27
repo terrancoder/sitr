@@ -11,12 +11,15 @@ struct SitrApp: App {
         SyncScheduler.register {
             await SyncScheduler.syncAndApply()
         }
+        Theme.applyChrome()
     }
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(model)
+                .tint(Theme.green)
+                .sitrAppearance()
                 .onChange(of: scenePhase) { phase in
                     guard phase == .active else { return }
                     Task {
