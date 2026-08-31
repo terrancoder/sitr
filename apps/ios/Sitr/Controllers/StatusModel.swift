@@ -80,7 +80,7 @@ enum StatusModel {
             return "Safari filtering needs a reload — tap Fix"
         case .disabled:
             return "Blocker is off. Enable it: Settings → Apps → Safari → "
-                + "Extensions → Sitr Blocker"
+                + "Extensions → Sitr → Allow Extension"
         case .unknown(let reason):
             return "Cannot verify Safari filtering (\(reason))"
         }
