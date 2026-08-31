@@ -39,8 +39,8 @@ struct OnboardingView: View {
                     Safari needs your permission to use Sitr's rules:
 
                     1. Open Settings → Apps → Safari → Extensions
-                    2. Tap Sitr Blocker
-                    3. Turn it on
+                    2. Tap Sitr
+                    3. Turn on Allow Extension
 
                     Come back here — the status updates automatically.
                     """
