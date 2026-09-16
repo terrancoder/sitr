@@ -10,7 +10,7 @@ ENABLE_HARDENED_RUNTIME = YES
 // The Safari bundle's manifest version IS the extension version; the mac
 // targets track it exactly (bumped in the same commit — see the plan's
 // version-identity rule).
-MARKETING_VERSION = 0.1.1
+MARKETING_VERSION = 0.1.2
 // App Store Connect requires a strictly increasing build number per upload,
 // shared by the app and its appex. Bump here for every archive you upload
 // (release checklist in docs/safari.md).
