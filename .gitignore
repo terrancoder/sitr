@@ -39,3 +39,7 @@ apps/android/local.properties
 # Per-developer iOS signing team (see Configs/Shared.xcconfig)
 apps/ios/Configs/Local.xcconfig
 .DS_Store
+# Play upload key — never committed (see apps/android/keystore.properties.example)
+apps/android/keystore.properties
+apps/android/*.jks
+apps/android/*.keystore
