@@ -43,3 +43,6 @@ apps/ios/Configs/Local.xcconfig
 apps/android/keystore.properties
 apps/android/*.jks
 apps/android/*.keystore
+# Promo and demo videos, plus the demo sources (local only; hosted on YouTube)
+apps/android/store-listing/assets/video/*.mp4
+apps/android/store-listing/assets/video/demo/
