@@ -14,6 +14,14 @@
 /// Semantics preserved: allow wins within a layer; a higher layer's block
 /// beats a lower layer's allow. Overflow is a surfaced error, never a
 /// truncation.
+///
+/// Every rule is REQUEST-level: a host-anchored `url-filter` matching a
+/// request to the domain or a subdomain, whatever page it is on — parity
+/// with DNR `requestDomains` and the Android DNS engine. (The earlier
+/// `if-domain` shape is matched by WebKit against the TOP-LEVEL page, so
+/// it only blocked visits: a frame or image from a blocked site still
+/// loaded on any other page.) An allow therefore admits requests TO the
+/// allowed domain, exactly as it does on the other platforms.
 import Foundation
 
 public struct SafariRule: Equatable {
@@ -44,17 +52,19 @@ public enum SafariRules {
     /// surfaced error, mirroring MAX_SAFARI_RULES in the compiler emitter.
     public static let maxRules = 50_000
 
-    /// Same batch size as the compiler (part of the deterministic contract).
-    public static let domainsPerRule = 1_000
+    /// The `url-filter` for one domain. Must stay byte-identical to
+    /// `safariUrlFilter` in tools/compiler/src/emitSafari.ts, which emits
+    /// the static category rules (golden-tested on both sides; that file
+    /// documents what each part matches).
+    public static func urlFilter(for domain: String) -> String {
+        #"^[^:]+://+([^/]*@)?([^:/]+\.)?"#
+            + domain.replacingOccurrences(of: ".", with: #"\."#)
+            + #"\.?[:/]"#
+    }
 
-    static func batched(_ domains: [String], action: SafariRule.Action) -> [SafariRule] {
-        stride(from: 0, to: domains.count, by: domainsPerRule).map { start in
-            let slice = domains[start..<min(start + domainsPerRule, domains.count)]
-            return SafariRule(
-                ifDomain: slice.map { "*\($0)" },
-                action: action
-            )
-        }
+    /// One rule per domain — WebKit's regex subset has no alternation.
+    static func perDomain(_ domains: [String], action: SafariRule.Action) -> [SafariRule] {
+        domains.map { SafariRule(urlFilter: urlFilter(for: $0), ifDomain: nil, action: action) }
     }
 
     /// Assemble the full blocker list from the bundled static fragments and
@@ -68,10 +78,10 @@ public enum SafariRules {
         householdAllow: [String]
     ) -> Result<[SafariRule], SitrError> {
         var rules = staticRules
-        rules += batched(userBlock, action: .block)
-        rules += batched(userAllow, action: .ignorePreviousRules)
-        rules += batched(householdBlock, action: .block)
-        rules += batched(householdAllow, action: .ignorePreviousRules)
+        rules += perDomain(userBlock, action: .block)
+        rules += perDomain(userAllow, action: .ignorePreviousRules)
+        rules += perDomain(householdBlock, action: .block)
+        rules += perDomain(householdAllow, action: .ignorePreviousRules)
         if rules.count > maxRules {
             return .failure(
                 SitrError(

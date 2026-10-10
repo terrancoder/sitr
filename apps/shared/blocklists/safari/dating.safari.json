@@ -1,44 +1,279 @@
 [
   {
     "trigger": {
-      "url-filter": ".*",
-      "if-domain": [
-        "*badoo.com",
-        "*benaughty.com",
-        "*bumble.com",
-        "*c-date.com",
-        "*christianmingle.com",
-        "*eharmony.com",
-        "*elitesingles.com",
-        "*feeld.co",
-        "*flirt.com",
-        "*gleeden.com",
-        "*grindr.com",
-        "*happn.com",
-        "*her.app",
-        "*hinge.co",
-        "*iamnaughty.com",
-        "*jaumo.com",
-        "*jdate.com",
-        "*lovoo.com",
-        "*match.com",
-        "*meetic.com",
-        "*meetme.com",
-        "*okcupid.com",
-        "*onenightfriend.com",
-        "*ourtime.com",
-        "*plentyoffish.com",
-        "*pof.com",
-        "*raya.app",
-        "*seeking.com",
-        "*silversingles.com",
-        "*skout.com",
-        "*sugardaddymeet.com",
-        "*tagged.com",
-        "*tinder.com",
-        "*victoriamilan.com",
-        "*zoosk.com"
-      ]
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?badoo\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?benaughty\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bumble\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?c-date\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?christianmingle\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?eharmony\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?elitesingles\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?feeld\\.co\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?flirt\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?gleeden\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?grindr\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?happn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?her\\.app\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hinge\\.co\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?iamnaughty\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?jaumo\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?jdate\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?lovoo\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?match\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?meetic\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?meetme\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?okcupid\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?onenightfriend\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?ourtime\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?plentyoffish\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pof\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?raya\\.app\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?seeking\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?silversingles\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?skout\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sugardaddymeet\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tagged\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tinder\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?victoriamilan\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?zoosk\\.com\\.?[:/]"
     },
     "action": {
       "type": "block"

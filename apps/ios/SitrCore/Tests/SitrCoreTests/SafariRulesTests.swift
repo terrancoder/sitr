@@ -7,7 +7,36 @@ import Testing
 @testable import SitrCore
 
 @Suite struct SafariRulesTests {
-    let staticRule = SafariRule(ifDomain: ["*blocked.example"], action: .block)
+    let staticRule = SafariRule(
+        urlFilter: SafariRules.urlFilter(for: "blocked.example"), ifDomain: nil, action: .block)
+
+    @Test func urlFilterMatchesTheCompilerByteForByte() {
+        // The same golden string as tests/src/emitSafari.test.ts.
+        #expect(
+            SafariRules.urlFilter(for: "b-c.example")
+                == #"^[^:]+://+([^/]*@)?([^:/]+\.)?b-c\.example\.?[:/]"#)
+    }
+
+    @Test func urlFilterMatchesRequestsToTheDomainOnly() throws {
+        // WebKit's regex subset is a subset of NSRegularExpression's.
+        let regex = try NSRegularExpression(
+            pattern: SafariRules.urlFilter(for: "site.example"), options: [.caseInsensitive])
+        func matches(_ url: String) -> Bool {
+            regex.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)) != nil
+        }
+        for url in [
+            "https://site.example/", "https://www.site.example/x", "https://a.b.site.example:8443/",
+            "https://SITE.example/", "https://user@site.example/", "https://site.example./",
+        ] {
+            #expect(matches(url), "should match \(url)")
+        }
+        for url in [
+            "https://notsite.example/", "https://site.example.evil.test/",
+            "https://evil.test/site.example/", "https://evil.test/@site.example/",
+        ] {
+            #expect(!matches(url), "should not match \(url)")
+        }
+    }
 
     @Test func ladderOrderIsWeakestFirst() throws {
         guard
@@ -24,20 +53,22 @@ import Testing
         }
 
         #expect(rules.count == 5)
-        #expect(rules[0].ifDomain == ["*blocked.example"] && rules[0].action == .block)
-        #expect(rules[1].ifDomain == ["*ub.example"] && rules[1].action == .block)
-        #expect(rules[2].ifDomain == ["*ua.example"] && rules[2].action == .ignorePreviousRules)
-        #expect(rules[3].ifDomain == ["*hb.example"] && rules[3].action == .block)
-        #expect(rules[4].ifDomain == ["*ha.example"] && rules[4].action == .ignorePreviousRules)
+        func filter(_ domain: String) -> String { SafariRules.urlFilter(for: domain) }
+        #expect(rules[0].urlFilter == filter("blocked.example") && rules[0].action == .block)
+        #expect(rules[1].urlFilter == filter("ub.example") && rules[1].action == .block)
+        #expect(rules[2].urlFilter == filter("ua.example") && rules[2].action == .ignorePreviousRules)
+        #expect(rules[3].urlFilter == filter("hb.example") && rules[3].action == .block)
+        #expect(rules[4].urlFilter == filter("ha.example") && rules[4].action == .ignorePreviousRules)
+        // Request-level rules only: `if-domain` would scope a rule to the
+        // top-level page and let embedded content through.
+        #expect(rules.allSatisfy { $0.ifDomain == nil })
         // The order encodes the ladder: user allow (2) cancels only the
         // blocks before it; household block (3) comes after and wins;
         // household allow (4) is last and beats everything.
     }
 
-    @Test func batchingMatchesCompilerContract() throws {
-        let domains = (0..<(SafariRules.domainsPerRule + 1)).map {
-            String(format: "d%06d.example", $0)
-        }
+    @Test func oneRulePerDomain() throws {
+        let domains = (0..<1_001).map { String(format: "d%06d.example", $0) }
         guard
             case .success(let rules) = SafariRules.build(
                 staticRules: [], userBlock: domains, userAllow: [],
@@ -46,14 +77,12 @@ import Testing
             Issue.record("build failed")
             return
         }
-        #expect(rules.count == 2)
-        #expect(rules[0].ifDomain?.count == SafariRules.domainsPerRule)
-        #expect(rules[1].ifDomain?.count == 1)
+        #expect(rules.count == domains.count)
     }
 
     @Test func overflowIsSurfacedNeverTruncated() {
         let tooMany = Array(
-            repeating: SafariRule(ifDomain: ["*x.example"], action: .block),
+            repeating: staticRule,
             count: SafariRules.maxRules + 1
         )
         if case .success = SafariRules.build(
@@ -98,7 +127,7 @@ import Testing
         }
         #expect(!rules.isEmpty)
         #expect(rules.allSatisfy { $0.action == .block })
-        #expect(rules.allSatisfy { $0.ifDomain?.allSatisfy { $0.hasPrefix("*") } ?? false })
+        #expect(rules.allSatisfy { $0.ifDomain == nil && $0.urlFilter.hasPrefix("^[^:]+://+") })
     }
 
     @Test func rejectsUnknownTriggerKeys() {

@@ -3,9 +3,13 @@
  *
  * Emits WebKit content-blocker JSON (`trigger`/`action` rules) from the same
  * parsed, sorted domain lists the DNR compiler consumes. Deterministic: same
- * domains in ⇒ byte-identical rules out. The `*` prefix on an `if-domain`
- * entry matches the domain and every subdomain — parity with DNR's
- * `requestDomains` semantics.
+ * domains in ⇒ byte-identical rules out. One rule per domain, each a
+ * host-anchored `url-filter` that matches a request TO the domain or any
+ * subdomain — parity with DNR's `requestDomains` and the Android DNS engine.
+ *
+ * (The earlier shape was one batched rule with `if-domain`. WebKit matches
+ * `if-domain` against the TOP-LEVEL page, so that only blocked visits: an
+ * image, frame or player from a blocked site still loaded on any other page.)
  *
  * Layer precedence on iOS is expressed by RULE ORDER (weakest first) plus
  * `ignore-previous-rules` for allows; that assembly happens in the app
@@ -13,7 +17,6 @@
  * blocks, exactly as compile.ts produces only the static DNR rulesets.
  */
 import { type CompileIssue, type Result, err, ok } from "./types.js";
-import { DOMAINS_PER_RULE } from "./compile.js";
 
 /**
  * WebKit allows far more, but 50k is the conservative floor across supported
@@ -34,30 +37,38 @@ export interface SafariRule {
 }
 
 /**
- * Compile one category's sorted domain list into Safari block rules,
- * batched like the DNR compiler (shared DOMAINS_PER_RULE keeps batch size
- * part of the deterministic contract in exactly one place).
+ * The `url-filter` for one domain. Must stay byte-identical to
+ * SafariRules.urlFilter(for:) in the iOS app, which builds the same rules
+ * for the user and household lists (pinned by a golden test on each side).
+ *
+ *   ^[^:]+://+      scheme
+ *   ([^/]*@)?       optional userinfo — "https://x@site.example/" is the same host
+ *   ([^:/]+\.)?     optional subdomains
+ *   site\.example   the domain; dots are the only regex-special character a
+ *                   validated domain can contain
+ *   \.?             optional root dot — "site.example./" is the same host
+ *   [:/]            end of the host
+ *
+ * Only constructs WebKit's content-blocker regex subset supports: no
+ * alternation, no counted repeats.
  */
+export function safariUrlFilter(domain: string): string {
+  return `^[^:]+://+([^/]*@)?([^:/]+\\.)?${domain.replace(/\./g, "\\.")}\\.?[:/]`;
+}
+
+/** Compile one category's sorted domain list into Safari block rules. */
 export function compileSafariRuleset(
   category: string,
   sortedDomains: string[],
 ): Result<SafariRule[], CompileIssue> {
-  const rules: SafariRule[] = [];
-  for (let i = 0; i < sortedDomains.length; i += DOMAINS_PER_RULE) {
-    rules.push({
-      trigger: {
-        "url-filter": ".*",
-        "if-domain": sortedDomains
-          .slice(i, i + DOMAINS_PER_RULE)
-          .map((d) => `*${d}`),
-      },
-      action: { type: "block" },
-    });
-  }
+  const rules: SafariRule[] = sortedDomains.map((domain) => ({
+    trigger: { "url-filter": safariUrlFilter(domain) },
+    action: { type: "block" },
+  }));
   if (rules.length > MAX_SAFARI_RULES) {
     return err({
       kind: "rule-limit-exceeded",
-      message: `category "${category}" compiles to ${rules.length} Safari rules (limit ${MAX_SAFARI_RULES}) — split the category or raise batching`,
+      message: `category "${category}" compiles to ${rules.length} Safari rules (limit ${MAX_SAFARI_RULES}) — split the category`,
     });
   }
   return ok(rules);

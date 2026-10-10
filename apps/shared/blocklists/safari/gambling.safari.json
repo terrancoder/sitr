@@ -1,73 +1,511 @@
 [
   {
     "trigger": {
-      "url-filter": ".*",
-      "if-domain": [
-        "*1xbet.com",
-        "*22bet.com",
-        "*888casino.com",
-        "*888casino.es",
-        "*bc.game",
-        "*bet365.com",
-        "*bet365.com.au",
-        "*bet365.de",
-        "*bet365.dk",
-        "*bet365.es",
-        "*bet365.gr",
-        "*bet365.it",
-        "*bet365.nl",
-        "*betfair.com",
-        "*betfair.es",
-        "*betfair.it",
-        "*betfred.com",
-        "*betmgm.com",
-        "*betonline.ag",
-        "*betsson.com",
-        "*betway.com",
-        "*betway.es",
-        "*bovada.lv",
-        "*bwin.com",
-        "*bwin.fr",
-        "*caesars.com",
-        "*casumo.com",
-        "*coral.co.uk",
-        "*draftkings.com",
-        "*duelbits.com",
-        "*fanduel.com",
-        "*ggpoker.com",
-        "*ignitioncasino.eu",
-        "*ladbrokes.com",
-        "*leovegas.com",
-        "*leovegas.se",
-        "*mrgreen.com",
-        "*netbet.com",
-        "*netbet.fr",
-        "*netbet.it",
-        "*paddypower.com",
-        "*parimatch.com",
-        "*partypoker.com",
-        "*pokerstars.com",
-        "*pokerstars.de",
-        "*pokerstars.es",
-        "*pokerstars.fr",
-        "*pokerstars.it",
-        "*pokerstars.net",
-        "*pokerstars.pt",
-        "*pokerstarscasino.com",
-        "*rollbit.com",
-        "*roobet.com",
-        "*skybet.com",
-        "*stake.com",
-        "*stake.us",
-        "*unibet.co.uk",
-        "*unibet.com",
-        "*unibet.fr",
-        "*unibet.it",
-        "*unibet.nl",
-        "*virginbet.com",
-        "*williamhill.com",
-        "*williamhill.es"
-      ]
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?1xbet\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?22bet\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?888casino\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?888casino\\.es\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bc\\.game\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bet365\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bet365\\.com\\.au\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bet365\\.de\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bet365\\.dk\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bet365\\.es\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bet365\\.gr\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bet365\\.it\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bet365\\.nl\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?betfair\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?betfair\\.es\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?betfair\\.it\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?betfred\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?betmgm\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?betonline\\.ag\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?betsson\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?betway\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?betway\\.es\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bovada\\.lv\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bwin\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bwin\\.fr\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?caesars\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?casumo\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?coral\\.co\\.uk\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?draftkings\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?duelbits\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?fanduel\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?ggpoker\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?ignitioncasino\\.eu\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?ladbrokes\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?leovegas\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?leovegas\\.se\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?mrgreen\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?netbet\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?netbet\\.fr\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?netbet\\.it\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?paddypower\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?parimatch\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?partypoker\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pokerstars\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pokerstars\\.de\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pokerstars\\.es\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pokerstars\\.fr\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pokerstars\\.it\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pokerstars\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pokerstars\\.pt\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pokerstarscasino\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?rollbit\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?roobet\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?skybet\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?stake\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?stake\\.us\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?unibet\\.co\\.uk\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?unibet\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?unibet\\.fr\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?unibet\\.it\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?unibet\\.nl\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?virginbet\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?williamhill\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?williamhill\\.es\\.?[:/]"
     },
     "action": {
       "type": "block"

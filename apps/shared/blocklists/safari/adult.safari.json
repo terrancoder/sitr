@@ -1,416 +1,3255 @@
 [
   {
     "trigger": {
-      "url-filter": ".*",
-      "if-domain": [
-        "*10musume.com",
-        "*1pondo.tv",
-        "*21naturals.com",
-        "*21sextreme.com",
-        "*21sextury.com",
-        "*4tube.com",
-        "*8muses.com",
-        "*admireme.vip",
-        "*adultdvdtalk.com",
-        "*adultfriendfinder.com",
-        "*adultgamesworld.com",
-        "*adultsearch.com",
-        "*adulttime.com",
-        "*adultwork.com",
-        "*allporncomic.com",
-        "*alphaporno.com",
-        "*analvids.com",
-        "*anyporn.com",
-        "*anysex.com",
-        "*apetube.com",
-        "*ashleymadison.com",
-        "*asstr.org",
-        "*avnstars.com",
-        "*babes.com",
-        "*babesource.com",
-        "*badmilfs.com",
-        "*bangbros.com",
-        "*bangbros18.com",
-        "*bangbus.com",
-        "*bdsmlibrary.com",
-        "*beeg.com",
-        "*befuck.com",
-        "*bimbim.com",
-        "*blacked.com",
-        "*bongacams.com",
-        "*bongacams2.com",
-        "*boyfriendtv.com",
-        "*brattysis.com",
-        "*bravotube.net",
-        "*brazzers.com",
-        "*bromo.com",
-        "*cam4.com",
-        "*camcaps.io",
-        "*camcontacts.com",
-        "*camplace.com",
-        "*cams.com",
-        "*camsoda.com",
-        "*camster.com",
-        "*camwhores.tv",
-        "*camwhorestv.tv",
-        "*candy.ai",
-        "*caribbeancom.com",
-        "*chaturbate.com",
-        "*cherry.tv",
-        "*cherrynudes.com",
-        "*chyoa.com",
-        "*clips4sale.com",
-        "*clothoff.io",
-        "*coomer.party",
-        "*coomer.su",
-        "*corbinfisher.com",
-        "*crakrevenue.com",
-        "*crushon.ai",
-        "*darkx.com",
-        "*data18.com",
-        "*ddfnetwork.com",
-        "*deeper.com",
-        "*deepnude.cc",
-        "*devilsfilm.com",
-        "*digitalplayground.com",
-        "*divinebitches.com",
-        "*dogfartnetwork.com",
-        "*doujins.com",
-        "*drtuber.com",
-        "*dyked.com",
-        "*e-hentai.org",
-        "*e621.net",
-        "*e926.net",
-        "*elegantangel.com",
-        "*elephanttube.com",
-        "*elitebabes.com",
-        "*empflix.com",
-        "*empornium.is",
-        "*eporner.com",
-        "*eroadvertising.com",
-        "*erogames.com",
-        "*erome.com",
-        "*eros.com",
-        "*eroticax.com",
-        "*eroticbeauties.com",
-        "*eroticmonkey.ch",
-        "*escortdirectory.com",
-        "*euroteenerotica.com",
-        "*evilangel.com",
-        "*exhentai.org",
-        "*exoclick.com",
-        "*exosrv.com",
-        "*exploitedcollegegirls.com",
-        "*extremetube.com",
-        "*f95zone.to",
-        "*facialabuse.com",
-        "*fakehub.com",
-        "*falconstudios.com",
-        "*familystrokes.com",
-        "*famousinternetgirls.com",
-        "*fancentro.com",
-        "*fansly.com",
-        "*fapachi.com",
-        "*fapello.com",
-        "*faphouse.com",
-        "*femjoyhunter.com",
-        "*flirt4free.com",
-        "*freeones.com",
-        "*freeporn.to",
-        "*fullporner.com",
-        "*fux.com",
-        "*gamcore.com",
-        "*gaytube.com",
-        "*gaywire.com",
-        "*gelbooru.com",
-        "*girlfriendgpt.ai",
-        "*girlsway.com",
-        "*gloryholesecrets.com",
-        "*goodporn.to",
-        "*gotmylf.com",
-        "*gotporn.com",
-        "*grooby.com",
-        "*haho.moe",
-        "*hanime.tv",
-        "*hardx.com",
-        "*hclips.com",
-        "*hdzog.com",
-        "*hegre.com",
-        "*hellporno.com",
-        "*hentai-foundry.com",
-        "*hentai.tv",
-        "*hentai2read.com",
-        "*hentaicity.com",
-        "*hentaiera.com",
-        "*hentaifox.com",
-        "*hentaigasm.com",
-        "*hentaihaven.org",
-        "*hentaihaven.xxx",
-        "*hentaihere.com",
-        "*hentaila.com",
-        "*hentaimama.io",
-        "*hentairules.net",
-        "*hentaistream.com",
-        "*heyzo.com",
-        "*highwebmedia.com",
-        "*hitomi.la",
-        "*hogtied.com",
-        "*holed.com",
-        "*hotmovs.com",
-        "*hqbabes.com",
-        "*hqporner.com",
-        "*hstream.moe",
-        "*iafd.com",
-        "*imagefap.com",
-        "*imhentai.xxx",
-        "*imlive.com",
-        "*indexxx.com",
-        "*influencersgonewild.com",
-        "*intporn.com",
-        "*iwantclips.com",
-        "*iwara.tv",
-        "*ixxx.com",
-        "*jab-comix.com",
-        "*janitorai.com",
-        "*jav.guru",
-        "*javfinder.is",
-        "*javgg.net",
-        "*javhd.com",
-        "*javmost.com",
-        "*jerkmate.com",
-        "*joymii.com",
-        "*juicyads.com",
-        "*julesjordan.com",
-        "*justfor.fans",
-        "*justusboys.com",
-        "*katestube.com",
-        "*keezmovies.com",
-        "*kemono.party",
-        "*kemono.su",
-        "*kink.com",
-        "*konachan.com",
-        "*leakedzone.com",
-        "*legalporno.com",
-        "*lewdzone.com",
-        "*lifeselector.com",
-        "*lilhumpers.com",
-        "*listcrawler.com",
-        "*literotica.com",
-        "*livejasmin.com",
-        "*loyalfans.com",
-        "*lubed.com",
-        "*luscious.net",
-        "*lushstories.com",
-        "*madthumbs.com",
-        "*manhwa18.com",
-        "*manyvids.com",
-        "*massagerepublic.com",
-        "*mcstories.com",
-        "*men.com",
-        "*metart.com",
-        "*mfcimg.com",
-        "*milehighmedia.com",
-        "*milfhunter.com",
-        "*milftoon.com",
-        "*milfy.com",
-        "*missav.com",
-        "*modelhub.com",
-        "*mofos.com",
-        "*momsteachsex.com",
-        "*morazzia.com",
-        "*motherless.com",
-        "*moviefap.com",
-        "*mrdeepfakes.com",
-        "*muchohentai.com",
-        "*multporn.net",
-        "*myfreecams.com",
-        "*mylf.com",
-        "*myreadingmanga.info",
-        "*mysexgames.com",
-        "*nannyspy.com",
-        "*naughtyamerica.com",
-        "*newsensations.com",
-        "*nextdoorstudios.com",
-        "*nhentai.net",
-        "*nhentai.to",
-        "*nhentai.xxx",
-        "*nifty.org",
-        "*niteflirt.com",
-        "*noodlemagazine.com",
-        "*nubiles.net",
-        "*nubilesporn.com",
-        "*nudevista.com",
-        "*nudify.online",
-        "*nudostar.com",
-        "*nutaku.com",
-        "*nutaku.net",
-        "*nuvid.com",
-        "*ohentai.org",
-        "*onejav.com",
-        "*onlyfans.com",
-        "*onlytease.com",
-        "*pacopacomama.com",
-        "*paheal.net",
-        "*palmtube.com",
-        "*passion-hd.com",
-        "*perfectgirls.net",
-        "*phncdn.com",
-        "*phun.org",
-        "*pichunter.com",
-        "*planetsuzy.org",
-        "*plugrush.com",
-        "*pmatehunter.com",
-        "*porn.com",
-        "*porn300.com",
-        "*pornbay.org",
-        "*porncomix.info",
-        "*porncomixonline.net",
-        "*porndig.com",
-        "*porndoe.com",
-        "*pornerbros.com",
-        "*pornfidelity.com",
-        "*porngo.com",
-        "*pornhat.com",
-        "*pornhd.com",
-        "*pornhub.com",
-        "*pornhub.net",
-        "*pornhub.org",
-        "*pornhubpremium.com",
-        "*pornjourney.ai",
-        "*pornmd.com",
-        "*pornmegaload.com",
-        "*pornolab.net",
-        "*pornone.com",
-        "*pornoxo.com",
-        "*pornpen.ai",
-        "*pornpics.com",
-        "*pornrabbit.com",
-        "*porntrex.com",
-        "*porntube.com",
-        "*pornx.ai",
-        "*povd.com",
-        "*private.com",
-        "*promptchan.ai",
-        "*propertysex.com",
-        "*publicdisgrace.com",
-        "*punternet.com",
-        "*puretaboo.com",
-        "*r18.com",
-        "*rdtcdn.com",
-        "*realitykings.com",
-        "*recurbate.com",
-        "*redtube.com",
-        "*redtube.net",
-        "*rule34.us",
-        "*rule34.xxx",
-        "*rule34hentai.net",
-        "*rule34video.com",
-        "*sankakucomplex.com",
-        "*scoreland.com",
-        "*seancody.com",
-        "*seduced.ai",
-        "*sex.com",
-        "*sexandsubmission.com",
-        "*sexart.com",
-        "*sexemulator.com",
-        "*sexier.com",
-        "*sexstories.com",
-        "*sextpanther.com",
-        "*sexu.com",
-        "*sexuallybroken.com",
-        "*shemalez.com",
-        "*simply-hentai.com",
-        "*sislovesme.com",
-        "*skipthegames.com",
-        "*slayed.com",
-        "*slixa.com",
-        "*slutload.com",
-        "*smutbase.com",
-        "*smutty.com",
-        "*sofiagray.com",
-        "*soulgen.net",
-        "*spankbang.com",
-        "*spankcdn.net",
-        "*spankwire.com",
-        "*spicychat.ai",
-        "*spizoo.com",
-        "*spyfam.com",
-        "*storiesonline.net",
-        "*streamate.com",
-        "*strip.chat",
-        "*stripchat.com",
-        "*sunporno.com",
-        "*supjav.com",
-        "*sweetheartvideo.com",
-        "*sweetsinner.com",
-        "*sxyprn.com",
-        "*tbib.org",
-        "*teamskeet.com",
-        "*tgcomics.com",
-        "*theporndb.net",
-        "*theporndude.com",
-        "*thothub.lol",
-        "*thotslife.com",
-        "*throated.com",
-        "*thumbzilla.com",
-        "*tiny4k.com",
-        "*tnaflix.com",
-        "*tnaflixcdn.com",
-        "*tokyo-hot.com",
-        "*trafficjunky.com",
-        "*trafficjunky.net",
-        "*trafficstars.com",
-        "*trans500.com",
-        "*transangels.com",
-        "*tryst.link",
-        "*tsescorts.com",
-        "*tspussyhunters.com",
-        "*tsumino.com",
-        "*tsyndicate.com",
-        "*tube8.com",
-        "*tubegalore.com",
-        "*tubepornclassic.com",
-        "*tubewolf.com",
-        "*tushy.com",
-        "*twistys.com",
-        "*txxx.com",
-        "*u18chan.com",
-        "*undress.app",
-        "*undressher.app",
-        "*upornia.com",
-        "*vipissy.com",
-        "*vixen.com",
-        "*vjav.com",
-        "*voyeurhit.com",
-        "*vporn.com",
-        "*watchporn.to",
-        "*wetplace.com",
-        "*whippedass.com",
-        "*wicked.com",
-        "*wickedpictures.com",
-        "*worldsex.com",
-        "*x-art.com",
-        "*xbabe.com",
-        "*xbooru.com",
-        "*xcafe.com",
-        "*xcams.com",
-        "*xhamster.com",
-        "*xhamster.desi",
-        "*xhamster2.com",
-        "*xhamsterlive.com",
-        "*xhcdn.com",
-        "*xnxx.com",
-        "*xtube.com",
-        "*xvideos.com",
-        "*xvideos2.com",
-        "*xvideos3.com",
-        "*yande.re",
-        "*youjizz.com",
-        "*youporn.com",
-        "*youporngay.com",
-        "*ypncdn.com",
-        "*zerotolerance.com"
-      ]
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?10musume\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?1pondo\\.tv\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?21naturals\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?21sextreme\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?21sextury\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?4tube\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?8muses\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?admireme\\.vip\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?adultdvdtalk\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?adultfriendfinder\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?adultgamesworld\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?adultsearch\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?adulttime\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?adultwork\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?allporncomic\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?alphaporno\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?analvids\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?anyporn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?anysex\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?apetube\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?ashleymadison\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?asstr\\.org\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?avnstars\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?babes\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?babesource\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?badmilfs\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bangbros\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bangbros18\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bangbus\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bdsmlibrary\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?beeg\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?befuck\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bimbim\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?blacked\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bongacams\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bongacams2\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?boyfriendtv\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?brattysis\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bravotube\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?brazzers\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?bromo\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?cam4\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?camcaps\\.io\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?camcontacts\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?camplace\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?cams\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?camsoda\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?camster\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?camwhores\\.tv\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?camwhorestv\\.tv\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?candy\\.ai\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?caribbeancom\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?chaturbate\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?cherry\\.tv\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?cherrynudes\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?chyoa\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?clips4sale\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?clothoff\\.io\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?coomer\\.party\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?coomer\\.su\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?corbinfisher\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?crakrevenue\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?crushon\\.ai\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?darkx\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?data18\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?ddfnetwork\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?deeper\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?deepnude\\.cc\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?devilsfilm\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?digitalplayground\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?divinebitches\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?dogfartnetwork\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?doujins\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?drtuber\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?dyked\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?e-hentai\\.org\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?e621\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?e926\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?elegantangel\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?elephanttube\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?elitebabes\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?empflix\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?empornium\\.is\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?eporner\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?eroadvertising\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?erogames\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?erome\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?eros\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?eroticax\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?eroticbeauties\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?eroticmonkey\\.ch\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?escortdirectory\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?euroteenerotica\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?evilangel\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?exhentai\\.org\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?exoclick\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?exosrv\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?exploitedcollegegirls\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?extremetube\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?f95zone\\.to\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?facialabuse\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?fakehub\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?falconstudios\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?familystrokes\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?famousinternetgirls\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?fancentro\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?fansly\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?fapachi\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?fapello\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?faphouse\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?femjoyhunter\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?flirt4free\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?freeones\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?freeporn\\.to\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?fullporner\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?fux\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?gamcore\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?gaytube\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?gaywire\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?gelbooru\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?girlfriendgpt\\.ai\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?girlsway\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?gloryholesecrets\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?goodporn\\.to\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?gotmylf\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?gotporn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?grooby\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?haho\\.moe\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hanime\\.tv\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hardx\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hclips\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hdzog\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hegre\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hellporno\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentai-foundry\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentai\\.tv\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentai2read\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentaicity\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentaiera\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentaifox\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentaigasm\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentaihaven\\.org\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentaihaven\\.xxx\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentaihere\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentaila\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentaimama\\.io\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentairules\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hentaistream\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?heyzo\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?highwebmedia\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hitomi\\.la\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hogtied\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?holed\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hotmovs\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hqbabes\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hqporner\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hstream\\.moe\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?iafd\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?imagefap\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?imhentai\\.xxx\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?imlive\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?indexxx\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?influencersgonewild\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?intporn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?iwantclips\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?iwara\\.tv\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?ixxx\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?jab-comix\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?janitorai\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?jav\\.guru\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?javfinder\\.is\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?javgg\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?javhd\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?javmost\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?jerkmate\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?joymii\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?juicyads\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?julesjordan\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?justfor\\.fans\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?justusboys\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?katestube\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?keezmovies\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?kemono\\.party\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?kemono\\.su\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?kink\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?konachan\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?leakedzone\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?legalporno\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?lewdzone\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?lifeselector\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?lilhumpers\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?listcrawler\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?literotica\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?livejasmin\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?loyalfans\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?lubed\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?luscious\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?lushstories\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?madthumbs\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?manhwa18\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?manyvids\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?massagerepublic\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?mcstories\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?men\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?metart\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?mfcimg\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?milehighmedia\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?milfhunter\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?milftoon\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?milfy\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?missav\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?modelhub\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?mofos\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?momsteachsex\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?morazzia\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?motherless\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?moviefap\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?mrdeepfakes\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?muchohentai\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?multporn\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?myfreecams\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?mylf\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?myreadingmanga\\.info\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?mysexgames\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nannyspy\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?naughtyamerica\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?newsensations\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nextdoorstudios\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nhentai\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nhentai\\.to\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nhentai\\.xxx\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nifty\\.org\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?niteflirt\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?noodlemagazine\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nubiles\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nubilesporn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nudevista\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nudify\\.online\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nudostar\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nutaku\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nutaku\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?nuvid\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?ohentai\\.org\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?onejav\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?onlyfans\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?onlytease\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pacopacomama\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?paheal\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?palmtube\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?passion-hd\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?perfectgirls\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?phncdn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?phun\\.org\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pichunter\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?planetsuzy\\.org\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?plugrush\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pmatehunter\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?porn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?porn300\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornbay\\.org\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?porncomix\\.info\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?porncomixonline\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?porndig\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?porndoe\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornerbros\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornfidelity\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?porngo\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornhat\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornhd\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornhub\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornhub\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornhub\\.org\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornhubpremium\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornjourney\\.ai\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornmd\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornmegaload\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornolab\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornone\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornoxo\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornpen\\.ai\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornpics\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornrabbit\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?porntrex\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?porntube\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pornx\\.ai\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?povd\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?private\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?promptchan\\.ai\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?propertysex\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?publicdisgrace\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?punternet\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?puretaboo\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?r18\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?rdtcdn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?realitykings\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?recurbate\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?redtube\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?redtube\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?rule34\\.us\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?rule34\\.xxx\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?rule34hentai\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?rule34video\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sankakucomplex\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?scoreland\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?seancody\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?seduced\\.ai\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sex\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sexandsubmission\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sexart\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sexemulator\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sexier\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sexstories\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sextpanther\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sexu\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sexuallybroken\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?shemalez\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?simply-hentai\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sislovesme\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?skipthegames\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?slayed\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?slixa\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?slutload\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?smutbase\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?smutty\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sofiagray\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?soulgen\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?spankbang\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?spankcdn\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?spankwire\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?spicychat\\.ai\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?spizoo\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?spyfam\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?storiesonline\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?streamate\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?strip\\.chat\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?stripchat\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sunporno\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?supjav\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sweetheartvideo\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sweetsinner\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?sxyprn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tbib\\.org\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?teamskeet\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tgcomics\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?theporndb\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?theporndude\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?thothub\\.lol\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?thotslife\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?throated\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?thumbzilla\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tiny4k\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tnaflix\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tnaflixcdn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tokyo-hot\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?trafficjunky\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?trafficjunky\\.net\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?trafficstars\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?trans500\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?transangels\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tryst\\.link\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tsescorts\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tspussyhunters\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tsumino\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tsyndicate\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tube8\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tubegalore\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tubepornclassic\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tubewolf\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?tushy\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?twistys\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?txxx\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?u18chan\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?undress\\.app\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?undressher\\.app\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?upornia\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?vipissy\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?vixen\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?vjav\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?voyeurhit\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?vporn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?watchporn\\.to\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?wetplace\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?whippedass\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?wicked\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?wickedpictures\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?worldsex\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?x-art\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xbabe\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xbooru\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xcafe\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xcams\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xhamster\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xhamster\\.desi\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xhamster2\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xhamsterlive\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xhcdn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xnxx\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xtube\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xvideos\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xvideos2\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?xvideos3\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?yande\\.re\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?youjizz\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?youporn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?youporngay\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?ypncdn\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?zerotolerance\\.com\\.?[:/]"
     },
     "action": {
       "type": "block"
