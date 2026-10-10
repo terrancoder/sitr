@@ -5,6 +5,11 @@ import SwiftUI
 struct SettingsAboutView: View {
     @AppStorage(Theme.appearanceKey) private var appearance = "system"
 
+    /// Read from the bundle: the hardcoded string had already drifted from
+    /// the build's real version.
+    private let version =
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+
     var body: some View {
         List {
             Section("Appearance") {
@@ -55,7 +60,7 @@ struct SettingsAboutView: View {
                     Sitr is open source (MPL-2.0). The blocklist is public, \
                     with a written inclusion policy and an appeals process. \
                     The bundled rulesets are byte-verifiable against the \
-                    published compiler checksums. Version 0.1.0.
+                    published compiler checksums. Version \(version).
                     """
                 )
                 .foregroundStyle(Theme.ink)

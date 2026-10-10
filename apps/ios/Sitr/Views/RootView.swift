@@ -53,7 +53,7 @@ struct RootView: View {
             // Sheets are separate presentations — re-apply the user's
             // appearance choice so a forced scheme reaches them too.
             PinSheet(title: request.title) { pin in
-                if model.verifyPin(pin) {
+                if await model.verifyPin(pin) {
                     PinAttemptsStore.reset()
                     pinRequest = nil
                     request.action()
@@ -106,12 +106,14 @@ enum PinAttemptsStore {
 
 struct PinSheet: View {
     let title: String
-    /// Returns nil on success, or an error message to display.
-    let onSubmit: (String) -> String?
+    /// Returns nil on success, or an error message to display. Async: the
+    /// check is a 600,000-iteration hash and runs off the main actor.
+    let onSubmit: (String) async -> String?
     let onCancel: () -> Void
 
     @State private var pin = ""
     @State private var error: String?
+    @State private var checking = false
 
     var body: some View {
         NavigationStack {
@@ -128,7 +130,7 @@ struct PinSheet: View {
             .navigationTitle(title)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Confirm") {
+                    Button(checking ? "Checking…" : "Confirm") {
                         let now = Date().timeIntervalSince1970 * 1000
                         let attempts = PinAttemptsStore.load()
                         if case .failure = Pin.isLockedOut(attempts, now: now) {
@@ -136,14 +138,25 @@ struct PinSheet: View {
                             error = "Too many attempts — try again in \(seconds)s."
                             return
                         }
-                        // Persist the failure BEFORE rendering it.
-                        if let message = onSubmit(pin) {
-                            PinAttemptsStore.save(
-                                Pin.backoffAfterFailure(count: attempts.count, now: now))
-                            error = message
-                            pin = ""
+                        // Count the attempt as failed BEFORE the slow check
+                        // starts; success resets the counter. Dismissing
+                        // the sheet mid-check must not become a way to
+                        // guess without being counted.
+                        PinAttemptsStore.save(
+                            Pin.backoffAfterFailure(count: attempts.count, now: now))
+                        let entered = pin
+                        checking = true
+                        error = nil
+                        Task {
+                            let message = await onSubmit(entered)
+                            checking = false
+                            if let message {
+                                error = message
+                                pin = ""
+                            }
                         }
                     }
+                    .disabled(checking)
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)

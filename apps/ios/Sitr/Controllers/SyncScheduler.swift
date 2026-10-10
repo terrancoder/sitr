@@ -7,6 +7,10 @@ import SitrCore
 /// (docs/data-flow.md). No household → zero network requests, enforced by
 /// the early return in syncNow.
 struct URLSessionTransport: SyncTransport {
+    /// Ephemeral: nothing about a sync (the blob, the household's URL,
+    /// cookies) is written to disk by the URL loading system.
+    private static let session = URLSession(configuration: .ephemeral)
+
     func request(
         method: String, url: URL, headers: [String: String], body: Data?
     ) async throws -> SyncHTTPResponse {
@@ -17,7 +21,7 @@ struct URLSessionTransport: SyncTransport {
         for (name, value) in headers {
             request.setValue(value, forHTTPHeaderField: name)
         }
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await Self.session.data(for: request)
         let http = response as? HTTPURLResponse
         return SyncHTTPResponse(
             status: http?.statusCode ?? 0,
@@ -38,6 +42,12 @@ enum SyncScheduler {
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: taskIdentifier, using: nil
         ) { task in
+            // Without a household there is nothing to sync and no reason to
+            // be woken again; joining one schedules the next run.
+            guard Storage.loadRootSecret() != nil else {
+                task.setTaskCompleted(success: true)
+                return
+            }
             scheduleNext()
             let work = Task {
                 await onRefresh()
@@ -45,6 +55,10 @@ enum SyncScheduler {
             }
             task.expirationHandler = { work.cancel() }
         }
+    }
+
+    static func cancel() {
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: taskIdentifier)
     }
 
     static func scheduleNext() {
@@ -59,15 +73,7 @@ enum SyncScheduler {
     static func syncAndApply() async {
         guard Storage.loadRootSecret() != nil else { return }
         let next = await syncNow(settings: SettingsStore.load())
-        let household = next.household
-        let applied = await BlockerController.apply(
-            disabledCategories: household?.disabledCategories
-                ?? next.disabledCategories,
-            userAllow: next.userAllow,
-            userBlock: next.userBlock,
-            householdAllow: household?.allowDomains ?? [],
-            householdBlock: household?.blockDomains ?? []
-        )
+        let applied = await BlockerController.apply(next)
         if case .success(let outcome) = applied {
             var persisted = next
             if case .applied(let checksum) = outcome {
@@ -78,6 +84,7 @@ enum SyncScheduler {
                 persisted.appliedRulesChecksum = nil
             }
             SettingsStore.persist(persisted)
+            ScreenTimeController.apply(persisted)
         }
     }
 

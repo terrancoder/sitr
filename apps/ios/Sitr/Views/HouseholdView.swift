@@ -25,10 +25,18 @@ struct HouseholdView: View {
         .navigationTitle("Sitr Family")
         .sitrScreenBackground()
         .sheet(isPresented: $showScanner) {
-            QRScannerView { scanned in
-                code = scanned
-                showScanner = false
-            }
+            QRScannerView(
+                onScan: { scanned in
+                    code = scanned
+                    showScanner = false
+                },
+                onFailure: {
+                    // A blank sheet with no explanation otherwise.
+                    showScanner = false
+                    model.lastError =
+                        "The camera could not start. Allow camera access for Sitr in Settings, or type the code."
+                }
+            )
             .sitrAppearance()
         }
     }
@@ -214,7 +222,13 @@ struct HouseholdListEditor: View {
                     error = e.message
                 case .success(let domain):
                     error = nil
-                    attempt(.addHouseholdRule, "") {
+                    // An allow rule beats every category block on every
+                    // device, so adding one is loosening: the kind the
+                    // extension gates it with (PIN when set).
+                    attempt(
+                        allow ? .addDeviceAllowRule : .addHouseholdRule,
+                        allow ? "Allow \(domain) on every household device" : ""
+                    ) {
                         Task { await model.addHouseholdDomain(allow: allow, domain: domain) }
                         input = ""
                     }
@@ -247,6 +261,7 @@ struct HouseholdListEditor: View {
 /// string in App.xcconfig says exactly that.
 struct QRScannerView: UIViewControllerRepresentable {
     let onScan: (String) -> Void
+    let onFailure: () -> Void
 
     func makeUIViewController(context: Context) -> DataScannerViewController {
         let scanner = DataScannerViewController(
@@ -254,7 +269,12 @@ struct QRScannerView: UIViewControllerRepresentable {
             isHighlightingEnabled: true
         )
         scanner.delegate = context.coordinator
-        try? scanner.startScanning()
+        do {
+            try scanner.startScanning()
+        } catch {
+            // Camera denied or restricted. Report after this view update.
+            DispatchQueue.main.async(execute: onFailure)
+        }
         return scanner
     }
 

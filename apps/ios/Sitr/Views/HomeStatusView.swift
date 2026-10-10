@@ -70,12 +70,19 @@ struct HomeStatusView: View {
                     .font(.title3.bold())
                     .foregroundStyle(Theme.alert)
                     .accessibilityIdentifier("status.inactive")
-                Text(StatusModel.describe(model.blockerStatus))
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.ink)
+                // Say which protection failed: with Safari filtering fine and
+                // only Screen Time revoked, this card used to read
+                // "PROTECTION INACTIVE — Safari filtering enforced".
+                Text(
+                    model.blockerStatus == .active
+                        ? "Screen Time access was revoked. Open the Screen Time row below to restore it or stop using it."
+                        : StatusModel.describe(model.blockerStatus)
+                )
+                .font(.subheadline)
+                .foregroundStyle(Theme.ink)
                 if model.blockerStatus == .stale {
                     Button("Fix — reload rules") {
-                        Task { await model.apply(model.settings) }
+                        Task { await model.mutate { _ in } }
                     }
                 }
             }
@@ -107,19 +114,25 @@ struct HomeStatusView: View {
         switch model.screenTimeStatus {
         case .off:
             NavigationLink {
-                ScreenTimeSetupView()
+                ScreenTimeSetupView(attempt: attempt)
             } label: {
                 LabeledContent("Screen Time filter") {
                     Text("off — optional").foregroundStyle(Theme.inkSoft)
                 }
             }
         case .active(let mode):
-            LabeledContent("Screen Time filter") {
-                Text("enforced (\(mode))").foregroundStyle(Theme.green)
+            // A link like the other states: this row is the only way back
+            // to the screen that can switch the filter off again.
+            NavigationLink {
+                ScreenTimeSetupView(attempt: attempt)
+            } label: {
+                LabeledContent("Screen Time filter") {
+                    Text("enforced (\(mode))").foregroundStyle(Theme.green)
+                }
             }
         case .revoked:
             NavigationLink {
-                ScreenTimeSetupView()
+                ScreenTimeSetupView(attempt: attempt)
             } label: {
                 LabeledContent("Screen Time filter") {
                     Text("authorization revoked — tap to fix")
@@ -138,6 +151,7 @@ struct HomeStatusView: View {
 /// friction the owner can undo; child mode is the real tamper story.
 struct ScreenTimeSetupView: View {
     @EnvironmentObject var model: AppModel
+    let attempt: (MutationKind, String, @escaping () -> Void) -> Void
     @State private var working = false
 
     var body: some View {
@@ -146,8 +160,11 @@ struct ScreenTimeSetupView: View {
                 Text(
                     """
                     Screen Time extends filtering beyond Safari to other \
-                    WebKit browsers, using Apple's adult filter plus Sitr's \
-                    lists. It is optional — the Safari blocker works without it.
+                    browsers, using Apple's adult filter plus the first \
+                    \(ScreenTimeController.domainCap) sites on your block lists. \
+                    Sitr's gambling and dating lists are too large for it, so \
+                    those categories are filtered in Safari only. It is \
+                    optional — the Safari blocker works without it.
                     """
                 )
                 .foregroundStyle(Theme.ink)
@@ -170,11 +187,33 @@ struct ScreenTimeSetupView: View {
                     .font(.caption).foregroundStyle(Theme.inkSoft)
             }
             .sitrRows()
-            if case .active = model.screenTimeStatus {
+            if case .active("child") = model.screenTimeStatus {
                 Section {
-                    Button("Turn Screen Time filtering off", role: .destructive) {
-                        ScreenTimeController.disable()
-                        Task { await model.refreshStatus() }
+                    Text(
+                        "To turn this off, remove Sitr's Screen Time access in iOS "
+                            + "Settings. On a child's device that needs the parent's approval.")
+                        .font(.caption).foregroundStyle(Theme.inkSoft)
+                }
+                .sitrRows()
+            }
+            // Shown while active AND while revoked: after the user revokes
+            // access in iOS Settings this is the only way to tell Sitr the
+            // filter is no longer wanted — without it Home stayed red for
+            // good. Switching it off loosens protection, so it takes the
+            // same gate as switching a category off (refused on a child
+            // device, PIN when one is set).
+            if canSwitchOffHere {
+                Section {
+                    Button(
+                        model.screenTimeStatus == .revoked
+                            ? "Stop using Screen Time filtering"
+                            : "Turn Screen Time filtering off",
+                        role: .destructive
+                    ) {
+                        attempt(.disableCategory, "Turn off Screen Time filtering") {
+                            ScreenTimeController.disable()
+                            Task { await model.refreshStatus() }
+                        }
                     }
                 }
                 .sitrRows()
@@ -185,15 +224,24 @@ struct ScreenTimeSetupView: View {
         .disabled(working)
     }
 
+    /// Child mode is ended in iOS Settings, where it needs the parent's
+    /// approval — an in-app switch would be a way around exactly that.
+    /// Once access HAS been revoked there, the button below only tells
+    /// Sitr to stop expecting it.
+    private var canSwitchOffHere: Bool {
+        switch model.screenTimeStatus {
+        case .revoked: return true
+        case .active(let mode): return mode != "child"
+        case .off, .unavailable: return false
+        }
+    }
+
     private func enable(child: Bool) {
         working = true
         Task {
-            let household = model.settings.household
             if let error = await ScreenTimeController.enable(
-                child: child,
-                blockDomains: household?.blockDomains ?? [],
-                allowDomains: household?.allowDomains ?? []
-            ) {
+                child: child, settings: model.settings)
+            {
                 model.lastError = error
             }
             await model.refreshStatus()

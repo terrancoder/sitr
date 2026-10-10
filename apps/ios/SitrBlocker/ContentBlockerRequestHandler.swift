@@ -13,8 +13,16 @@ class ContentBlockerRequestHandler: NSObject, NSExtensionRequestHandling {
     static let appGroup = "group.com.sitrshield.sitr"
 
     func beginRequest(with context: NSExtensionContext) {
-        let url = rulesURL()
-        let attachment = NSItemProvider(contentsOf: url)!
+        // The generated file first, the bundled default if it cannot be
+        // read; an unreadable file must not crash the extension.
+        guard
+            let attachment = NSItemProvider(contentsOf: rulesURL())
+                ?? Bundle.main.url(forResource: "blockerList.default", withExtension: "json")
+                    .flatMap(NSItemProvider.init(contentsOf:))
+        else {
+            context.cancelRequest(withError: CocoaError(.fileReadNoSuchFile))
+            return
+        }
         let item = NSExtensionItem()
         item.attachments = [attachment]
         context.completeRequest(returningItems: [item], completionHandler: nil)

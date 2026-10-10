@@ -6,8 +6,8 @@ import Foundation
 #endif
 
 /// Screen Time integration — Apple's web content filter (system-wide in
-/// WebKit browsers) plus Sitr's deny list and the household's allow
-/// exceptions, applied through ManagedSettings.
+/// WebKit browsers) plus a capped part of the user's own block lists and
+/// their allow exceptions, applied through ManagedSettings.
 ///
 /// Two modes, honestly differentiated (threat-model T10):
 ///  - individual: self-restriction; the owner can revoke in Settings —
@@ -46,7 +46,7 @@ enum ScreenTimeController {
 
     /// Request authorization and apply the filter. `child: true` uses the
     /// Family Sharing flow (parent approval to enable AND to revoke).
-    static func enable(child: Bool, blockDomains: [String], allowDomains: [String]) async -> String? {
+    static func enable(child: Bool, settings: AppSettings) async -> String? {
         #if canImport(FamilyControls)
             do {
                 try await AuthorizationCenter.shared.requestAuthorization(
@@ -56,26 +56,37 @@ enum ScreenTimeController {
             }
             userEnabled = true
             Storage.defaults.set(child ? "child" : "individual", forKey: "screenTimeMode")
-            apply(blockDomains: blockDomains, allowDomains: allowDomains)
+            apply(settings)
             return nil
         #else
             return "Screen Time is not available in this build."
         #endif
     }
 
-    /// Apple's algorithmic adult filter + Sitr's deny list + the family's
-    /// allow exceptions. ManagedSettings domain-set capacity is limited
-    /// (~50 entries per set in practice): the Safari blocker carries the
-    /// FULL lists; this layer carries auto() plus what fits, and the
-    /// status row states exactly that — never overclaims.
-    static func apply(blockDomains: [String], allowDomains: [String]) {
+    /// ManagedSettings accepts only a small domain set (~50 in practice).
+    static let domainCap = 40
+
+    /// What this layer carries: Apple's own adult filter, plus the first
+    /// `domainCap` sites of the household and device BLOCK lists, minus the
+    /// allow lists. It does NOT carry Sitr's gambling and dating category
+    /// lists — they are far larger than the set allows — so in other
+    /// browsers those categories are filtered only as far as Apple's
+    /// filter covers them. The setup screen says exactly this.
+    static func apply(_ s: AppSettings) {
         #if canImport(ManagedSettings)
             guard userEnabled else { return }
+            let householdBlock = s.household?.blockDomains ?? []
+            let householdAllow = s.household?.allowDomains ?? []
+            // Same precedence as the Safari rules: household over device,
+            // allow over block within a layer.
+            let block = (householdBlock + s.userBlock.filter { !s.userAllow.contains($0) })
+                .filter { !householdAllow.contains($0) }
+            let allow = householdAllow + s.userAllow.filter { !householdBlock.contains($0) }
             let store = ManagedSettingsStore(
                 named: ManagedSettingsStore.Name(storeName))
-            let block = Set(blockDomains.prefix(40).map { WebDomain(domain: $0) })
-            let allow = Set(allowDomains.prefix(40).map { WebDomain(domain: $0) })
-            store.webContent.blockedByFilter = .auto(block, except: allow)
+            store.webContent.blockedByFilter = .auto(
+                Set(block.prefix(domainCap).map { WebDomain(domain: $0) }),
+                except: Set(allow.prefix(domainCap).map { WebDomain(domain: $0) }))
         #endif
     }
 

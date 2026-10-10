@@ -13,13 +13,15 @@ enum BlockerController {
     static let blockerIdentifier = "com.sitrshield.sitr.blocker"
 
     /// Writing the rules file IS the apply; asking Safari to reload is a
-    /// separate step that legitimately fails when the user hasn't enabled
-    /// the blocker in Settings yet. Those are different outcomes: the
-    /// first must block persistence, the second must NOT (or a user who
-    /// hasn't enabled the extension could never change a setting) — but
-    /// it must never be reported as active either.
+    /// separate step that fails when the user hasn't enabled the blocker in
+    /// Settings yet — or, on current iOS, reports success without compiling
+    /// anything. Those are different outcomes from a failed write: the
+    /// write must block persistence, the reload must NOT (or a user who
+    /// hasn't enabled the extension could never change a setting) — but it
+    /// must never be reported as active either.
     enum ApplyOutcome {
-        /// Written AND reloaded: checksum is what Safari now enforces.
+        /// Written AND reloaded while the blocker was enabled: checksum is
+        /// what Safari now enforces.
         case applied(checksum: String)
         /// Written, but Safari did not reload it. No checksum is
         /// recorded, so status derives red ("needs reload" / "blocker
@@ -127,7 +129,34 @@ enum BlockerController {
         } catch {
             return .success(.pendingReload(reason: error.localizedDescription))
         }
+        // "Reload succeeded" is only proof when the blocker is ON. With it
+        // off the call can still return cleanly, and Safari then keeps
+        // whatever it compiled last — recording a checksum here showed
+        // green over rules that were not in force.
+        guard await StatusModel.isBlockerEnabled() == true else {
+            return .success(.pendingReload(reason: "the Safari blocker is switched off"))
+        }
         return .success(.applied(checksum: checksum))
+    }
+
+    /// The rule inputs of a settings value: the household's lists and
+    /// category choices win over the device's when joined.
+    static func apply(_ s: AppSettings) async -> Result<ApplyOutcome, ApplyError> {
+        await apply(
+            disabledCategories: s.household?.disabledCategories ?? s.disabledCategories,
+            userAllow: s.userAllow,
+            userBlock: s.userBlock,
+            householdAllow: s.household?.allowDomains ?? [],
+            householdBlock: s.household?.blockDomains ?? [])
+    }
+
+    static func expectedChecksum(_ s: AppSettings) -> String? {
+        expectedChecksum(
+            disabledCategories: s.household?.disabledCategories ?? s.disabledCategories,
+            userAllow: s.userAllow,
+            userBlock: s.userBlock,
+            householdAllow: s.household?.allowDomains ?? [],
+            householdBlock: s.household?.blockDomains ?? [])
     }
 
     /// The checksum the CURRENT settings should produce — compared with

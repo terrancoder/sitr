@@ -117,7 +117,11 @@ struct StatusView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(theme.paper)
         .onAppear { model.refresh() }
-        .onReceive(timer) { _ in model.refresh() }
+        // Only while a window is actually on screen: there is no reason
+        // to ask Safari every 2 s for an app that is hidden or minimised.
+        .onReceive(timer) { _ in
+            if NSApp.occlusionState.contains(.visible) { model.refresh() }
+        }
     }
 
     private var headline: String {

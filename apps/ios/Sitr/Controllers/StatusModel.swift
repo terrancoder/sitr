@@ -41,7 +41,7 @@ enum StatusModel {
     /// Safari's state query is completion-handler based; wrap it once
     /// here. A nil state is "we cannot verify" — surfaced as red, never
     /// optimistically treated as enabled.
-    private static func isBlockerEnabled() async -> Bool? {
+    static func isBlockerEnabled() async -> Bool? {
         await withCheckedContinuation { continuation in
             SFContentBlockerManager.getStateOfContentBlocker(
                 withIdentifier: BlockerController.blockerIdentifier
@@ -59,16 +59,9 @@ enum StatusModel {
         }
         guard enabled else { return .disabled }
 
-        let household = settings.household
-        let expected = BlockerController.expectedChecksum(
-            disabledCategories: household?.disabledCategories
-                ?? settings.disabledCategories,
-            userAllow: settings.userAllow,
-            userBlock: settings.userBlock,
-            householdAllow: household?.allowDomains ?? [],
-            householdBlock: household?.blockDomains ?? []
-        )
-        guard let expected else { return .unknown("rulesets failed verification") }
+        guard let expected = BlockerController.expectedChecksum(settings) else {
+            return .unknown("rulesets failed verification")
+        }
         return settings.appliedRulesChecksum == expected ? .active : .stale
     }
 

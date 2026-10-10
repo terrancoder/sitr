@@ -64,9 +64,7 @@ struct OnboardingView: View {
                 )
                 .foregroundStyle(Theme.ink)
                 Button("Finish") {
-                    var next = model.settings
-                    next.onboarded = true
-                    Task { await model.apply(next) }
+                    Task { await model.mutate { $0.onboarded = true } }
                 }
                 .buttonStyle(.borderedProminent)
             }

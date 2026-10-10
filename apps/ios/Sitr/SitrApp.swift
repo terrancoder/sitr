@@ -12,6 +12,7 @@ struct SitrApp: App {
             await SyncScheduler.syncAndApply()
         }
         Theme.applyChrome()
+        Storage.pinRootSecretToThisDevice()
     }
 
     var body: some Scene {
@@ -23,6 +24,7 @@ struct SitrApp: App {
                 .onChange(of: scenePhase) { phase in
                     guard phase == .active else { return }
                     Task {
+                        await model.reloadFromStore()
                         await model.refreshStatus()
                         await model.runSync()
                     }

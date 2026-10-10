@@ -6,6 +6,11 @@ import Security
 /// household root secret in the Keychain — the blocker extension never
 /// needs the secret, so it deliberately does NOT live in the group
 /// container. At-rest hygiene, not a security boundary (threat-model T7).
+///
+/// Backups: the key is this-device-only. The settings (lists, PIN record)
+/// are in the App Group's defaults, which iOS does include in a device
+/// backup; a device restored from one has the household's settings but no
+/// key, and AppModel.runSync says so until it re-joins.
 enum Storage {
     static let appGroup = "group.com.sitrshield.sitr"
 
@@ -22,7 +27,11 @@ enum Storage {
 
     private static let secretAccount = "sitr-household-root-secret"
 
-    static func saveRootSecret(_ secret: Data) {
+    /// After first unlock (background refresh needs it) and THIS DEVICE
+    /// ONLY: the household key must not travel to another device inside a
+    /// backup. Returns false when the Keychain refused the item.
+    @discardableResult
+    static func saveRootSecret(_ secret: Data) -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: secretAccount,
@@ -30,8 +39,21 @@ enum Storage {
         SecItemDelete(query as CFDictionary)
         var add = query
         add[kSecValueData as String] = secret
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        SecItemAdd(add as CFDictionary, nil)
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
+    }
+
+    /// Keys stored by earlier builds were allowed into backups; move them
+    /// to this-device-only. One attribute update, harmless to repeat.
+    static func pinRootSecretToThisDevice() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: secretAccount,
+        ]
+        let update: [String: Any] = [
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        ]
+        SecItemUpdate(query as CFDictionary, update as CFDictionary)
     }
 
     static func loadRootSecret() -> Data? {
