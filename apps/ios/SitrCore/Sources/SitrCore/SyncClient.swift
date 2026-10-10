@@ -44,7 +44,8 @@ public struct SyncInput {
     /// Highest rev this device has ever decrypted from the server.
     public let maxSeenRev: Int
     public let deviceId: String
-    /// Signed subscription token; sent only when creating a household.
+    /// Signed subscription token: sent with every push when set, checked
+    /// by the server only on creation.
     /// The iOS app is join-only and never sets this — the parameter exists
     /// for protocol parity (docs/sync-protocol.md §Entitlement).
     public let entitlement: String?

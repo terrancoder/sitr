@@ -78,6 +78,45 @@ object DnsMessage {
         )
     }
 
+    /**
+     * True when `reply` answers `query`: same transaction id, the response
+     * bit set, and the question echoed. Everything an upstream sends back
+     * is checked with this before it is cached or handed to a client — the
+     * cache re-ids replies for later queries, so an unchecked datagram
+     * would be served to every client that asks for the name.
+     *
+     * `question` is the parsed query's raw question section, or null when
+     * the query did not parse (then id + response bit is all that can be
+     * checked). Names compare ASCII-case-insensitively, as the system
+     * resolver does; type and class must match exactly.
+     */
+    fun isReplyTo(query: ByteArray, question: ByteArray?, reply: ByteArray): Boolean {
+        if (query.size < 12 || reply.size < 12) return false
+        if (reply[0] != query[0] || reply[1] != query[1]) return false
+        if (reply[2].toInt() and 0x80 == 0) return false
+        if (question == null) return true
+        if (u16(reply, 4) != 1 || reply.size < 12 + question.size) return false
+        val nameLength = question.size - 4
+        for (i in question.indices) {
+            var a = question[i].toInt() and 0xff
+            var b = reply[12 + i].toInt() and 0xff
+            if (i < nameLength) {
+                if (a in 'A'.code..'Z'.code) a += 32
+                if (b in 'A'.code..'Z'.code) b += 32
+            }
+            if (a != b) return false
+        }
+        return true
+    }
+
+    /** The TC bit: the answer did not fit in the datagram. */
+    fun isTruncated(message: ByteArray): Boolean =
+        message.size > 2 && message[2].toInt() and 0x02 != 0
+
+    /** RCODE of a response (0 = NOERROR, 2 = SERVFAIL, 3 = NXDOMAIN). */
+    fun rcode(message: ByteArray): Int =
+        if (message.size > 3) message[3].toInt() and 0x0f else -1
+
     internal fun u16(bytes: ByteArray, offset: Int): Int =
         ((bytes[offset].toInt() and 0xff) shl 8) or (bytes[offset + 1].toInt() and 0xff)
 

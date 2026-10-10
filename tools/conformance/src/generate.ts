@@ -492,9 +492,22 @@ async function genSanitize(): Promise<object> {
       "childLockOptions defaults to true",
       { v: 1, rev: 2, policy: { other: 1 } },
     ],
+    [
+      "updatedAt beyond the exact-integer range resets to 0",
+      { ...good, updatedAt: 1e300 },
+    ],
+    [
+      "pin record with an absurd iteration count dropped",
+      {
+        ...good,
+        pin: { v: 1, algo: "PBKDF2-SHA256", iterations: 5e9, saltB64: "AAAA", hashB64: "AAAA" },
+      },
+    ],
     ["not an object", "nope"],
     ["unknown version", { ...good, v: 2 }],
     ["missing rev", { v: 1 }],
+    ["rev beyond the supported range", { ...good, rev: 2_000_000_001 }],
+    ["rev far beyond any integer type", { ...good, rev: 1e300 }],
     [
       "oversized device list",
       { v: 1, rev: 1, devices: Array.from({ length: 21 }, (_, i) => `d${i}`) },
@@ -516,7 +529,7 @@ async function genSanitize(): Promise<object> {
   });
   assert.deepEqual(
     cases.map((c) => c.ok),
-    [true, true, true, true, true, true, false, false, false, false, false],
+    [true, true, true, true, true, true, true, true, false, false, false, false, false, false, false],
   );
   return {
     version: 1,

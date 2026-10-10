@@ -22,4 +22,9 @@ tasks.test {
     useJUnitPlatform()
     // Fixture tests locate apps/shared/fixtures by walking up from here.
     systemProperty("sitr.repo.marker", rootDir.parentFile.parentFile.absolutePath)
+    // The fixtures and compiled artifacts ARE test inputs. Undeclared,
+    // Gradle (and its build cache) served the previous result when only
+    // they had changed — a regenerated fixture looked like a pass.
+    inputs.dir(rootDir.parentFile.resolve("shared/fixtures"))
+    inputs.dir(rootDir.parentFile.resolve("shared/blocklists"))
 }

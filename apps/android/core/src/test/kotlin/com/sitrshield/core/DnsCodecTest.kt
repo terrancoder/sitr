@@ -7,6 +7,7 @@ import com.sitrshield.core.dns.UdpDatagram
 import java.net.InetAddress
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -276,5 +277,45 @@ class DnsCodecTest {
         assertNull(IpPacket.parseUdp(tcp))
         // Garbage.
         assertNull(IpPacket.parseUdp(ByteArray(3)))
+    }
+
+    @Test
+    fun acceptsOnlyGenuineRepliesFromUpstream() {
+        val q = query("Example.com", DnsMessage.TYPE_A)
+        val question = assertNotNull(DnsMessage.parseQuery(q)).questionBytes
+        // A response echoing id + question: QR set.
+        val good = q.copyOf().also { it[2] = (it[2].toInt() or 0x80).toByte() }
+        assertTrue(DnsMessage.isReplyTo(q, question, good))
+        // Resolvers that change the name's case still answer the question.
+        val lowered = good.copyOf().also { it[13] = 'e'.code.toByte() }
+        assertTrue(DnsMessage.isReplyTo(q, question, lowered))
+
+        // The crash input: an empty or one-byte datagram.
+        assertFalse(DnsMessage.isReplyTo(q, question, ByteArray(0)))
+        assertFalse(DnsMessage.isReplyTo(q, question, ByteArray(1)))
+        // Wrong id, not a response, a different name, a different type.
+        assertFalse(DnsMessage.isReplyTo(q, question, good.copyOf().also { it[1] = 0x35 }))
+        assertFalse(DnsMessage.isReplyTo(q, question, q))
+        val otherName = query("examplf.com", DnsMessage.TYPE_A)
+            .also { it[2] = (it[2].toInt() or 0x80).toByte() }
+        assertFalse(DnsMessage.isReplyTo(q, question, otherName))
+        val otherType = query("Example.com", DnsMessage.TYPE_AAAA)
+            .also { it[2] = (it[2].toInt() or 0x80).toByte() }
+        assertFalse(DnsMessage.isReplyTo(q, question, otherType))
+        // Truncated before the end of the question.
+        assertFalse(DnsMessage.isReplyTo(q, question, good.copyOf(14)))
+
+        // An unparsed query can only be matched on id + response bit.
+        assertTrue(DnsMessage.isReplyTo(q, null, good))
+        assertFalse(DnsMessage.isReplyTo(q, null, q))
+    }
+
+    @Test
+    fun readsTruncationAndRcode() {
+        val reply = query("example.com", DnsMessage.TYPE_A)
+            .also { it[2] = 0x83.toByte(); it[3] = 0x82.toByte() } // QR|TC|RD, RA|SERVFAIL
+        assertTrue(DnsMessage.isTruncated(reply))
+        assertEquals(2, DnsMessage.rcode(reply))
+        assertFalse(DnsMessage.isTruncated(query("example.com", DnsMessage.TYPE_A)))
     }
 }

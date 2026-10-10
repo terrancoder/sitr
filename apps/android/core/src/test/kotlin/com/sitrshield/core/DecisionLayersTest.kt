@@ -1,7 +1,9 @@
 package com.sitrshield.core
 
+import com.sitrshield.core.dns.SafeSearchMap
 import com.sitrshield.core.rules.DecisionSnapshot
 import com.sitrshield.core.rules.DecisionSnapshot.Verdict
+import com.sitrshield.core.rules.NameAction
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -98,5 +100,46 @@ class DecisionLayersTest {
         assertEquals(Verdict.FORWARD, snapshot.decide("ok.blocked.example"))
         assertEquals(Verdict.BLOCK, snapshot.decide("blocked.example"))
         assertEquals(Verdict.BLOCK, snapshot.decide("other.blocked.example"))
+    }
+
+    private val safeSearch = SafeSearchMap(
+        listOf(
+            SafeSearchMap.Rule(
+                match = listOf("google.*", "www.google.*"),
+                target = "forcesafesearch.google.com",
+                fallbackA = emptyList(),
+                fallbackAaaa = emptyList(),
+            )
+        )
+    )
+
+    @Test
+    fun blockRuleWinsOverSafeSearchRewrite() {
+        // The regression: the rewrite used to be checked first, so a block
+        // on a search host's own domain never applied.
+        val snapshot = DecisionSnapshot(userBlock = setOf("google.co.uk"))
+        assertEquals(NameAction.Block, NameAction.of("www.google.co.uk", snapshot, safeSearch))
+        assertEquals(NameAction.Block, NameAction.of("google.co.uk", snapshot, safeSearch))
+        // Other search hosts keep their rewrite.
+        assertEquals(
+            NameAction.Rewrite(safeSearch.rules[0]),
+            NameAction.of("www.google.com", snapshot, safeSearch),
+        )
+    }
+
+    @Test
+    fun allowRuleCannotSwitchSafeSearchOff() {
+        val snapshot = DecisionSnapshot(userAllow = setOf("google.com"))
+        assertEquals(
+            NameAction.Rewrite(safeSearch.rules[0]),
+            NameAction.of("www.google.com", snapshot, safeSearch),
+        )
+    }
+
+    @Test
+    fun ordinaryNamesForward() {
+        val snapshot = DecisionSnapshot(staticBlock = setOf("blocked.example"))
+        assertEquals(NameAction.Forward, NameAction.of("fine.example", snapshot, safeSearch))
+        assertEquals(NameAction.Block, NameAction.of("blocked.example", snapshot, safeSearch))
     }
 }

@@ -116,6 +116,9 @@ object SyncCrypto {
     /** Opens a blob to the raw plaintext; state sanitizing lives in Household. */
     fun open(blob: ByteArray, encKey: ByteArray): SitrResult<ByteArray> {
         if (blob.size < 1 + 12 + 16) return SitrResult.Err("blob too short")
+        if (blob.size > MAX_BLOB_BYTES) {
+            return SitrResult.Err("blob exceeds $MAX_BLOB_BYTES bytes")
+        }
         if (blob[0].toInt() and 0xff != BLOB_VERSION) {
             return SitrResult.Err("unknown blob version: ${blob[0].toInt() and 0xff}")
         }

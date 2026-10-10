@@ -76,7 +76,7 @@ class SyncClientTest {
         assertEquals(SyncStatus.State.OK, outcome.status.state)
         assertEquals(local, outcome.state)
         assertEquals(1, outcome.maxSeenRev)
-        assertEquals(1, outcome.etag)
+        assertEquals(1L, outcome.etag)
 
         assertEquals(2, transport.recorded.size)
         val put = transport.recorded[1]
@@ -111,7 +111,7 @@ class SyncClientTest {
         assertEquals(SyncStatus.State.OK, outcome.status.state)
         assertEquals(remote, outcome.state)
         assertEquals(5, outcome.maxSeenRev)
-        assertEquals(7, outcome.etag)
+        assertEquals(7L, outcome.etag)
         assertEquals(1, transport.recorded.size, "no push when the server copy won")
     }
 
@@ -128,7 +128,7 @@ class SyncClientTest {
 
         assertEquals(SyncStatus.State.OK, outcome.status.state)
         assertEquals(local, outcome.state, "local won the merge; pushed unbumped")
-        assertEquals(10, outcome.etag)
+        assertEquals(10L, outcome.etag)
         assertEquals("\"9\"", transport.recorded[1].headers["If-Match"])
         assertNull(transport.recorded[1].headers["If-None-Match"])
     }
@@ -167,7 +167,7 @@ class SyncClientTest {
 
         assertEquals(SyncStatus.State.OK, outcome.status.state)
         assertEquals(4, transport.recorded.size, "pull, conflicted push, re-pull, re-push")
-        assertEquals(7, outcome.etag)
+        assertEquals(7L, outcome.etag)
     }
 
     @Test

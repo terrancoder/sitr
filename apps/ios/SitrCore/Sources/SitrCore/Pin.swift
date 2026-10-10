@@ -23,6 +23,11 @@ public struct PinAttempts: Equatable {
 
 public enum Pin {
     public static let iterations = 600_000
+
+    /// Largest iteration count accepted from a synced record (pin.ts). The
+    /// count arrives with the household state; unbounded, one bad record
+    /// means minutes of hashing the next time anyone types the PIN.
+    public static let maxIterations = 10_000_000
     public static let minLength = 4
     public static let maxLength = 32
 
@@ -33,7 +38,11 @@ public enum Pin {
     static let maxDelayMs: Double = 15 * 60_000
 
     public static func isValidInput(_ pin: String) -> Result<Void, SitrError> {
-        guard pin.count >= minLength && pin.count <= maxLength else {
+        // UTF-16 units, as the reference (JavaScript) and the Android port
+        // count — `count` is grapheme clusters and would disagree on a PIN
+        // with combining marks or emoji.
+        let length = pin.utf16.count
+        guard length >= minLength && length <= maxLength else {
             return .failure(
                 SitrError("PIN must be \(minLength)–\(maxLength) characters"))
         }
@@ -52,7 +61,7 @@ public enum Pin {
                     saltBuf.bindMemory(to: UInt8.self).baseAddress,
                     salt.count,
                     CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
-                    UInt32(iterations),
+                    UInt32(clamping: iterations),
                     derivedBuf.bindMemory(to: UInt8.self).baseAddress,
                     32
                 )

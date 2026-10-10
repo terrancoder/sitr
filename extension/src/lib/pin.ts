@@ -58,6 +58,14 @@ export function fromB64(s: string): Result<Uint8Array, string> {
   }
 }
 
+/**
+ * Upper bound on a record's iteration count. The count comes from the
+ * synced household state; without a bound, one bad record makes every
+ * device hash for minutes (or overflow the ports' 32-bit parameter) the
+ * next time someone types the PIN.
+ */
+export const MAX_PIN_ITERATIONS = 10_000_000;
+
 export function sanitizePinRecord(raw: unknown): PinRecord | undefined {
   if (typeof raw !== "object" || raw === null) return undefined;
   const o = raw as Record<string, unknown>;
@@ -67,6 +75,7 @@ export function sanitizePinRecord(raw: unknown): PinRecord | undefined {
     typeof o["iterations"] === "number" &&
     Number.isInteger(o["iterations"]) &&
     o["iterations"] >= 1 &&
+    o["iterations"] <= MAX_PIN_ITERATIONS &&
     typeof o["saltB64"] === "string" &&
     typeof o["hashB64"] === "string" &&
     fromB64(o["saltB64"]).ok &&

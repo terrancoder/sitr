@@ -63,6 +63,15 @@ public enum Household {
     /// which is the product working as designed.
     public static let maxHouseholdDevices = 20
 
+    /// Upper bound on `rev` (household.ts): every port must hold a revision
+    /// and add one to it. `Int(_:)` TRAPS on an out-of-range Double, so
+    /// without these bounds one blob carrying 1e300 crashed the app on
+    /// every sync.
+    public static let maxHouseholdRev = 2_000_000_000
+
+    /// JavaScript's Number.MAX_SAFE_INTEGER — the reference's timestamp range.
+    static let maxSafeInteger: Double = 9_007_199_254_740_991
+
     public static func emptyState(deviceId: String, now: Double) -> HouseholdState {
         HouseholdState(
             rev: 1,
@@ -125,6 +134,7 @@ public enum Household {
             o["algo"] as? String == "PBKDF2-SHA256",
             let iterations = asNumber(o["iterations"]),
             iterations >= 1,
+            iterations <= Double(Pin.maxIterations),
             iterations.truncatingRemainder(dividingBy: 1) == 0,
             let saltB64 = o["saltB64"] as? String,
             let hashB64 = o["hashB64"] as? String,
@@ -147,7 +157,8 @@ public enum Household {
         guard
             let rev = asNumber(o["rev"]),
             rev.truncatingRemainder(dividingBy: 1) == 0,
-            rev >= 1
+            rev >= 1,
+            rev <= Double(maxHouseholdRev)
         else {
             return .failure(SitrError("household state has no valid rev"))
         }
@@ -180,7 +191,9 @@ public enum Household {
         }
 
         let updatedAtRaw = asNumber(o["updatedAt"])
-        let updatedAt = (updatedAtRaw != nil && updatedAtRaw! >= 0) ? updatedAtRaw! : 0
+        let updatedAt =
+            (updatedAtRaw != nil && updatedAtRaw! >= 0 && updatedAtRaw! <= maxSafeInteger)
+            ? updatedAtRaw! : 0
         let updatedBy = (o["updatedBy"] as? String).map { String($0.prefix(64)) } ?? ""
         let policy = o["policy"] as? [String: Any] ?? [:]
         let lockRaw = policy["childLockOptions"]

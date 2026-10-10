@@ -62,6 +62,15 @@ export function emptyHouseholdState(deviceId: string, now: number): HouseholdSta
   };
 }
 
+/**
+ * Upper bound on `rev`. Every implementation must be able to hold a
+ * revision and add one to it: the Kotlin port uses a 32-bit Int and the
+ * Swift port a trapping conversion, so an unbounded value (JSON happily
+ * carries 1e300) either wrapped around or crashed the app. Two billion
+ * edits is not a real household.
+ */
+export const MAX_HOUSEHOLD_REV = 2_000_000_000;
+
 function sanitizeDomains(raw: unknown): Result<string[], string> {
   if (!Array.isArray(raw)) return ok([]);
   const domains = [
@@ -85,7 +94,12 @@ export function sanitizeHouseholdState(raw: unknown): Result<HouseholdState, str
   }
   const o = raw as Record<string, unknown>;
   if (o["v"] !== 1) return err(`unknown household state version: ${String(o["v"])}`);
-  if (typeof o["rev"] !== "number" || !Number.isInteger(o["rev"]) || o["rev"] < 1) {
+  if (
+    typeof o["rev"] !== "number" ||
+    !Number.isInteger(o["rev"]) ||
+    o["rev"] < 1 ||
+    o["rev"] > MAX_HOUSEHOLD_REV
+  ) {
     return err("household state has no valid rev");
   }
   const allow = sanitizeDomains(o["allowDomains"]);
@@ -115,8 +129,14 @@ export function sanitizeHouseholdState(raw: unknown): Result<HouseholdState, str
   return ok({
     v: 1,
     rev: o["rev"],
+    // A timestamp outside the exactly-representable integers is as
+    // invalid as a negative one (and overflows the ports' 64-bit integers).
     updatedAt:
-      typeof o["updatedAt"] === "number" && o["updatedAt"] >= 0 ? o["updatedAt"] : 0,
+      typeof o["updatedAt"] === "number" &&
+      o["updatedAt"] >= 0 &&
+      o["updatedAt"] <= Number.MAX_SAFE_INTEGER
+        ? o["updatedAt"]
+        : 0,
     updatedBy: typeof o["updatedBy"] === "string" ? o["updatedBy"].slice(0, 64) : "",
     allowDomains: allow.value,
     blockDomains: block.value,

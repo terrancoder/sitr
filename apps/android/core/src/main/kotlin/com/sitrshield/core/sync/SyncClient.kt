@@ -46,7 +46,7 @@ data class SyncInput(
     /** Highest rev this device has ever decrypted from the server. */
     val maxSeenRev: Int,
     val deviceId: String,
-    /** Signed subscription token; sent only on household creation. */
+    /** Signed subscription token. Sent with every push; the server checks it only on creation. */
     val entitlement: String? = null,
 )
 
@@ -56,7 +56,7 @@ data class SyncOutcome(
     val maxSeenRev: Int,
     val status: SyncStatus,
     /** ETag of the server copy after this sync (diagnostics only). */
-    val etag: Int?,
+    val etag: Long?,
 )
 
 class SyncClient(
@@ -67,14 +67,14 @@ class SyncClient(
     companion object {
         const val DEFAULT_BASE_URL = "https://sync.sitrshield.com"
 
-        internal fun parseEtag(raw: String?): Int? {
+        internal fun parseEtag(raw: String?): Long? {
             val trimmed = raw?.trim() ?: return null
             val match = Regex("^\"(\\d{1,15})\"$").find(trimmed) ?: return null
-            return match.groupValues[1].toIntOrNull()
+            return match.groupValues[1].toLongOrNull()
         }
     }
 
-    private class Remote(val state: HouseholdState?, val etag: Int?)
+    private class Remote(val state: HouseholdState?, val etag: Long?)
 
     private sealed class AttemptError {
         object Retry : AttemptError()
@@ -109,9 +109,9 @@ class SyncClient(
     private fun push(
         keys: SyncCrypto.HouseholdKeys,
         state: HouseholdState,
-        etag: Int?,
+        etag: Long?,
         entitlement: String?,
-    ): SitrResult<Int> {
+    ): SitrResult<Long> {
         val sealed = when (val r = Household.sealState(state, keys.encKey)) {
             is SitrResult.Err -> return r
             is SitrResult.Ok -> r.value
@@ -130,7 +130,7 @@ class SyncClient(
         if (response.status !in 200..299) {
             return SitrResult.Err("server responded ${response.status}")
         }
-        return SitrResult.Ok(parseEtag(response.etagHeader) ?: 0)
+        return SitrResult.Ok(parseEtag(response.etagHeader) ?: 0L)
     }
 
     /**

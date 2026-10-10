@@ -3,6 +3,7 @@ package com.sitrshield.core.household
 import com.sitrshield.core.SitrResult
 import com.sitrshield.core.categories.Categories
 import com.sitrshield.core.domains.DomainInput
+import com.sitrshield.core.pin.Pin
 import com.sitrshield.core.pin.PinRecord
 import com.sitrshield.core.sync.SyncCrypto
 import org.json.JSONArray
@@ -40,6 +41,16 @@ object Household {
      * which is the product working as designed.
      */
     const val MAX_HOUSEHOLD_DEVICES = 20
+
+    /**
+     * Upper bound on `rev` (household.ts): every port must hold a revision
+     * and add one to it. Unbounded, a value like 1e300 saturated this Int
+     * here and crashed the Swift port.
+     */
+    const val MAX_HOUSEHOLD_REV = 2_000_000_000
+
+    /** JavaScript's Number.MAX_SAFE_INTEGER — the reference's timestamp range. */
+    private const val MAX_SAFE_INTEGER = 9_007_199_254_740_991.0
 
     fun emptyState(deviceId: String, now: Double): HouseholdState =
         HouseholdState(
@@ -79,7 +90,9 @@ object Household {
         val iterations = asNumber(o.opt("iterations")) ?: return null
         if (asNumber(o.opt("v")) != 1.0) return null
         if (o.opt("algo") != "PBKDF2-SHA256") return null
-        if (iterations < 1 || iterations % 1.0 != 0.0) return null
+        if (iterations < 1 || iterations % 1.0 != 0.0 || iterations > Pin.MAX_ITERATIONS) {
+            return null
+        }
         val saltB64 = o.opt("saltB64") as? String ?: return null
         val hashB64 = o.opt("hashB64") as? String ?: return null
         return try {
@@ -103,7 +116,7 @@ object Household {
             return SitrResult.Err("unknown household state version")
         }
         val rev = asNumber(o.opt("rev"))
-        if (rev == null || rev % 1.0 != 0.0 || rev < 1) {
+        if (rev == null || rev % 1.0 != 0.0 || rev < 1 || rev > MAX_HOUSEHOLD_REV) {
             return SitrResult.Err("household state has no valid rev")
         }
         val allowDomains = when (val r = sanitizeDomains(o.opt("allowDomains"))) {
@@ -134,7 +147,10 @@ object Household {
         return SitrResult.Ok(
             HouseholdState(
                 rev = rev.toInt(),
-                updatedAt = if (updatedAtRaw != null && updatedAtRaw >= 0) updatedAtRaw else 0.0,
+                updatedAt =
+                    if (updatedAtRaw != null && updatedAtRaw >= 0 &&
+                        updatedAtRaw <= MAX_SAFE_INTEGER
+                    ) updatedAtRaw else 0.0,
                 updatedBy = updatedBy,
                 allowDomains = allowDomains,
                 blockDomains = blockDomains,

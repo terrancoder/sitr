@@ -115,6 +115,9 @@ public enum SyncCrypto {
         guard blob.count >= 1 + 12 + 16 else {
             return .failure(SitrError("blob too short"))
         }
+        guard blob.count <= maxBlobBytes else {
+            return .failure(SitrError("blob exceeds \(maxBlobBytes) bytes"))
+        }
         guard blob[blob.startIndex] == blobVersion else {
             return .failure(SitrError("unknown blob version: \(blob[blob.startIndex])"))
         }

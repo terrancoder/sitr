@@ -1,5 +1,7 @@
 package com.sitrshield.core.rules
 
+import com.sitrshield.core.dns.SafeSearchMap
+
 /**
  * The DNS decision function — the Android embodiment of the rule ladder
  * in extension/src/lib/ruleLayers.ts (managed > household > device-user >
@@ -47,5 +49,32 @@ class DecisionSnapshot(
             if (matches(name, block)) return Verdict.BLOCK
         }
         return if (matches(name, staticBlock)) Verdict.BLOCK else Verdict.FORWARD
+    }
+}
+
+/**
+ * The engine's whole decision for one name, in priority order.
+ *
+ * The rule ladder runs FIRST: a block — device, household, managed or
+ * category — must win even for a host that has a SafeSearch rewrite.
+ * (Checking the rewrite first skipped the ladder for every search host:
+ * blocking `google.co.uk` left `www.google.co.uk` reachable.) Anything not
+ * blocked then gets the rewrite, so an ALLOW rule can never switch
+ * SafeSearch off.
+ */
+sealed class NameAction {
+    object Block : NameAction()
+    data class Rewrite(val rule: SafeSearchMap.Rule) : NameAction()
+    object Forward : NameAction()
+
+    companion object {
+        fun of(
+            qname: String,
+            snapshot: DecisionSnapshot,
+            safeSearch: SafeSearchMap,
+        ): NameAction {
+            if (snapshot.decide(qname) == DecisionSnapshot.Verdict.BLOCK) return Block
+            return safeSearch.ruleFor(qname)?.let { Rewrite(it) } ?: Forward
+        }
     }
 }
