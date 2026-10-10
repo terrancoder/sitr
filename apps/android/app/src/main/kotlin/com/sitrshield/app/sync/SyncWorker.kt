@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit
  * network — the zero-requests-without-household invariant, structurally
  * enforced and grep-verifiable.
  *
- * Ordering: syncOnce → engine apply → persist (via applySettings).
+ * Ordering: syncOnce → engine apply → persist (via SitrApp.update).
  * Sync outcomes write only household state + sync status; they cannot
  * touch protection status (EngineFacts has no sync input).
  */
@@ -83,15 +83,32 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
             }
         }
 
-        app.applySettings(
-            app.repository.current().copy(
-                household = outcome.state,
-                maxSeenRev = outcome.maxSeenRev,
-                syncStatus = outcome.status,
-            ),
-            kickSync = false,
-        )
-        return Result.success()
+        // Merge into the settings as they are NOW, not as they were when
+        // this run started: the network round-trip takes seconds, and a
+        // result written wholesale would undo anything changed meanwhile.
+        var changedMeanwhile = false
+        app.update { current ->
+            when {
+                // Left the household while we were on the network — this
+                // result belongs to a household the device is no longer in.
+                app.secretStore.load()?.contentEquals(secret) != true -> current
+                // Edited locally meanwhile: keep the edit, sync again from it.
+                current.household != settings.household -> {
+                    changedMeanwhile = true
+                    current.copy(maxSeenRev = maxOf(current.maxSeenRev, outcome.maxSeenRev))
+                }
+                else -> current.copy(
+                    household = outcome.state,
+                    maxSeenRev = outcome.maxSeenRev,
+                    syncStatus = outcome.status,
+                )
+            }
+        }
+        if (changedMeanwhile) kick(applicationContext)
+        // Connectivity dropped mid-run: WorkManager retries with backoff
+        // once the network constraint holds again.
+        return if (outcome.status.state == SyncStatus.State.OFFLINE) Result.retry()
+        else Result.success()
     }
 
     companion object {
@@ -113,7 +130,13 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
             WorkManager.getInstance(context).enqueueUniqueWork(
                 "sitr-sync-now",
                 ExistingWorkPolicy.REPLACE,
-                OneTimeWorkRequestBuilder<SyncWorker>().build(),
+                OneTimeWorkRequestBuilder<SyncWorker>()
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+                    )
+                    .build(),
             )
         }
 

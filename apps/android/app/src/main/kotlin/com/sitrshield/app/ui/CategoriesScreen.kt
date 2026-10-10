@@ -112,9 +112,7 @@ fun CategoriesScreen(ctx: UiCtx) {
             enabled = strictAvailable,
             onCheckedChange = { on ->
                 val set = {
-                    ctx.app.applySettings(
-                        ctx.app.repository.current().copy(strictSearch = on)
-                    )
+                    ctx.app.update { it.copy(strictSearch = on) }
                 }
                 // Turning it ON tightens; turning it OFF loosens.
                 if (on) ctx.attempt(MutationKind.ENABLE_CATEGORY, "") { set() }

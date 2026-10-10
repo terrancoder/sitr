@@ -2,6 +2,7 @@ package com.sitrshield.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,8 +17,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -49,26 +52,42 @@ class UiCtx(
     val attempt: (MutationKind, String, () -> Unit) -> Unit,
     val requirePin: (String, () -> Unit) -> Unit,
     val navigate: (Screen) -> Unit,
+    /** Changes every time the activity resumes — a key for state that
+     *  system settings can change behind the app's back. */
+    val resumes: Int,
 )
 
 class MainActivity : ComponentActivity() {
+    private val resumes = mutableIntStateOf(0)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as SitrApp
         setContent {
             val settings by app.repository.settings.collectAsState()
-            SitrTheme(appearance = settings.appearance) { SitrRoot(app) }
+            SitrTheme(appearance = settings.appearance) { SitrRoot(app, resumes.intValue) }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        resumes.intValue++
     }
 }
 
 @Composable
-fun SitrRoot(app: SitrApp) {
+fun SitrRoot(app: SitrApp, resumes: Int) {
     val context = LocalContext.current
     val settings by app.repository.settings.collectAsState()
     val actions = remember { HouseholdActions(app) }
-    var screen by remember {
+    // Saveable: a rotation recreates the activity, and plain `remember`
+    // dropped the user back on Home from wherever they were.
+    var screen by rememberSaveable {
         mutableStateOf(if (app.repository.current().onboarded) Screen.HOME else Screen.ONBOARDING)
+    }
+    // System Back returns to Home from a sub-screen instead of leaving the app.
+    BackHandler(enabled = screen != Screen.HOME && screen != Screen.ONBOARDING) {
+        screen = Screen.HOME
     }
     var pinRequest by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
     var gateMessage by remember { mutableStateOf<String?>(null) }
@@ -93,6 +112,7 @@ fun SitrRoot(app: SitrApp) {
             if (settings.household?.pin != null) pinRequest = title to action else action()
         },
         navigate = { screen = it },
+        resumes = resumes,
     )
 
     Scaffold { padding ->

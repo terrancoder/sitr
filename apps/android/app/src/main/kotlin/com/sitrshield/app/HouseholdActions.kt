@@ -11,6 +11,7 @@ import com.sitrshield.core.gate.MutationVerdict
 import com.sitrshield.core.household.Household
 import com.sitrshield.core.household.HouseholdState
 import com.sitrshield.core.pin.Pin
+import com.sitrshield.core.pin.PinRecord
 import com.sitrshield.core.sync.PairingCode
 import com.sitrshield.core.sync.SyncCrypto
 import com.sitrshield.core.sync.SyncStatus
@@ -18,7 +19,7 @@ import com.sitrshield.core.sync.SyncStatus
 /**
  * Every settings mutation, gate-checked through the ported authority
  * ladder (managed > child > PIN; the PIN gates loosening actions only)
- * and applied engine-first via SitrApp.applySettings. The UI calls
+ * and applied engine-first via SitrApp.update. The UI calls
  * gate() first, collects the PIN when the verdict requires it, then
  * calls the action.
  */
@@ -48,19 +49,16 @@ class HouseholdActions(private val app: SitrApp) {
         if (token != null && !token.startsWith("sitr-ent-v1.")) {
             return SitrResult.Err("that doesn't look like a Sitr Family token")
         }
-        val secret = SyncCrypto.generateRootSecret()
-        app.secretStore.save(secret)
-        val s = settings()
-        app.applySettings(
+        app.secretStore.save(SyncCrypto.generateRootSecret())
+        app.update(kickSync = true) { s ->
             s.copy(
                 household = Household.emptyState(s.deviceId, now()),
                 role = "guardian",
                 entitlementToken = token,
                 maxSeenRev = 0,
                 syncStatus = SyncStatus.NEVER_SYNCED,
-            ),
-            kickSync = true,
-        )
+            )
+        }
         return SitrResult.Ok(Unit)
     }
 
@@ -70,16 +68,14 @@ class HouseholdActions(private val app: SitrApp) {
             is SitrResult.Ok -> decoded.value
         }
         app.secretStore.save(secret)
-        val s = settings()
-        app.applySettings(
+        app.update(kickSync = true) { s ->
             s.copy(
                 household = Household.emptyState(s.deviceId, now()),
                 role = role,
                 maxSeenRev = 0,
                 syncStatus = SyncStatus.NEVER_SYNCED,
-            ),
-            kickSync = true,
-        )
+            )
+        }
         return SitrResult.Ok(Unit)
     }
 
@@ -88,27 +84,28 @@ class HouseholdActions(private val app: SitrApp) {
         app.secretStore.load()?.let { PairingCode.encode(it) }
 
     fun leaveHousehold() {
+        // Secret first: a sync still on the network checks for it before
+        // writing, so its late result cannot bring the household back.
         app.secretStore.clear()
         SyncWorker.cancel(app)
-        app.applySettings(
-            settings().copy(
+        app.update {
+            it.copy(
                 household = null,
                 role = null,
                 maxSeenRev = 0,
                 entitlementToken = null,
                 syncStatus = SyncStatus.NEVER_SYNCED,
             )
-        )
+        }
     }
 
-    fun setPin(newPin: String): SitrResult<Unit> {
-        val record = when (val created = Pin.createRecord(newPin)) {
-            is SitrResult.Err -> return created
-            is SitrResult.Ok -> created.value
-        }
-        mutateHousehold { it.copy(pin = record) }
-        return SitrResult.Ok(Unit)
-    }
+    /**
+     * PBKDF2 at 600,000 iterations takes seconds on a budget phone: call
+     * this (and verifyPin) off the main thread, then setPin with the result.
+     */
+    fun createPinRecord(newPin: String): SitrResult<PinRecord> = Pin.createRecord(newPin)
+
+    fun setPin(record: PinRecord) = mutateHousehold { it.copy(pin = record) }
 
     fun setHouseholdCategoryDisabled(rulesetId: String, disabled: Boolean) {
         mutateHousehold {
@@ -120,11 +117,23 @@ class HouseholdActions(private val app: SitrApp) {
         }
     }
 
-    fun addHouseholdDomain(allow: Boolean, domain: String) {
+    /**
+     * Refuses at the cap instead of saving a list that Household.sanitize
+     * would reject wholesale on every device, this one included.
+     */
+    fun addHouseholdDomain(allow: Boolean, domain: String): SitrResult<Unit> {
+        val list = settings().household?.let { if (allow) it.allowDomains else it.blockDomains }
+            ?: return SitrResult.Ok(Unit)
+        if (domain !in list && list.size >= Household.MAX_HOUSEHOLD_DOMAINS) {
+            return SitrResult.Err(
+                "a household list holds at most ${Household.MAX_HOUSEHOLD_DOMAINS} sites"
+            )
+        }
         mutateHousehold {
             if (allow) it.copy(allowDomains = (it.allowDomains + domain).distinct().sorted())
             else it.copy(blockDomains = (it.blockDomains + domain).distinct().sorted())
         }
+        return SitrResult.Ok(Unit)
     }
 
     fun removeHouseholdDomain(allow: Boolean, domain: String) {
@@ -136,38 +145,33 @@ class HouseholdActions(private val app: SitrApp) {
 
     /** Device-level lists and toggles (no household required). */
     fun setDeviceCategoryDisabled(rulesetId: String, disabled: Boolean) {
-        val s = settings()
-        app.applySettings(
+        app.update { s ->
             s.copy(
                 disabledCategories =
                     if (disabled) (s.disabledCategories + rulesetId).distinct()
                     else s.disabledCategories - rulesetId,
             )
-        )
+        }
     }
 
     fun addDeviceDomain(allow: Boolean, domain: String) {
-        val s = settings()
-        app.applySettings(
+        app.update { s ->
             if (allow) s.copy(userAllow = (s.userAllow + domain).distinct().sorted())
             else s.copy(userBlock = (s.userBlock + domain).distinct().sorted())
-        )
+        }
     }
 
     fun removeDeviceDomain(allow: Boolean, domain: String) {
-        val s = settings()
-        app.applySettings(
+        app.update { s ->
             if (allow) s.copy(userAllow = s.userAllow - domain)
             else s.copy(userBlock = s.userBlock - domain)
-        )
+        }
     }
 
     private fun mutateHousehold(transform: (HouseholdState) -> HouseholdState) {
-        val s = settings()
-        val household = s.household ?: return
-        app.applySettings(
-            s.copy(household = Household.bumpRev(transform(household), s.deviceId, now())),
-            kickSync = true,
-        )
+        app.update(kickSync = true) { s ->
+            val household = s.household ?: return@update s
+            s.copy(household = Household.bumpRev(transform(household), s.deviceId, now()))
+        }
     }
 }

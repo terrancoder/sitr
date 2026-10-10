@@ -16,6 +16,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    testOptions {
+        unitTests.all { it.useJUnitPlatform() }
+    }
 }
 
 kotlin {
@@ -26,4 +29,7 @@ dependencies {
     api(project(":core"))
     implementation(libs.coroutines.android)
     implementation(libs.core.ktx)
+    // JVM tests for the socket-level pieces (resolver, cache): they use
+    // only java.net, so they run without a device.
+    testImplementation(kotlin("test"))
 }

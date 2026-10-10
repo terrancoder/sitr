@@ -12,9 +12,10 @@ import java.io.FileOutputStream
  * datagram. Only the synthetic resolver addresses are routed here, so
  * the traffic is DNS by construction:
  *  - UDP:53  → DnsForwarder
- *  - TCP SYN → RST (Private-DNS :853 probes fail fast into cleartext;
- *              truncated-answer :53 retries RST until the TCP shim ships
- *              — documented gap, docs/mobile.md)
+ *  - TCP SYN → RST (Private-DNS :853 probes fail fast into cleartext.
+ *              Clients rarely need TCP :53 any more: a truncated upstream
+ *              answer is re-fetched over TCP by UpstreamResolver and
+ *              returned whole over UDP)
  *  - rest    → dropped
  * Replies are written back under a lock (writes must not interleave).
  */
@@ -68,11 +69,17 @@ class TunLoop(
             }
             if (length <= 0) continue
             val packet = buffer.copyOfRange(0, length)
-            val datagram = IpPacket.parseUdp(packet)
-            when {
-                datagram != null && datagram.dstPort == 53 -> forwarder.handle(datagram)
-                isTcp(packet) -> TcpReset.buildRstFor(packet)?.let(::writeRaw)
-                // Anything else cannot occur given the routes; drop.
+            // An uncaught exception on this thread kills the whole process
+            // and the filter with it; no single packet may do that.
+            try {
+                val datagram = IpPacket.parseUdp(packet)
+                when {
+                    datagram != null && datagram.dstPort == 53 -> forwarder.handle(datagram)
+                    isTcp(packet) -> TcpReset.buildRstFor(packet)?.let(::writeRaw)
+                    // The rest is the kernel's own IPv6 housekeeping on the
+                    // tun (router solicitations, multicast reports); drop.
+                }
+            } catch (_: Exception) {
             }
         }
         if (running) onDead()

@@ -17,7 +17,7 @@ import java.util.UUID
  * stored locally). The root secret is NOT here — see SecretStore.
  *
  * ORDERING RULE (engine first, persist after): every mutation goes
- * through SitrApp.applySettings, which installs the new DecisionSnapshot
+ * through SitrApp.update, which installs the new DecisionSnapshot
  * into the engine BEFORE this repository persists — settings never claim
  * a state the engine doesn't have.
  */

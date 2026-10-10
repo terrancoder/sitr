@@ -1,6 +1,11 @@
 package com.sitrshield.app
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import com.sitrshield.app.data.Repository
 import com.sitrshield.app.data.SecretStore
 import com.sitrshield.app.data.Settings
@@ -16,8 +21,8 @@ import org.json.JSONObject
 /**
  * Application: loads the committed blocklist artifacts (checksum-verified
  * — a failure is surfaced red and the engine refuses to start), builds
- * the decision snapshot, and is the single mutation path enforcing
- * "engine first, persist after".
+ * the decision snapshot, and is the single mutation path (update)
+ * enforcing "engine first, persist after".
  */
 class SitrApp : Application() {
     lateinit var repository: Repository
@@ -37,6 +42,21 @@ class SitrApp : Application() {
         loadArtifacts()
         rebuildEngine(repository.current())
         if (secretStore.load() != null) SyncWorker.schedulePeriodic(this)
+
+        // Managed configuration can change while the filter runs; without
+        // this the engine kept the old policy until some unrelated setting
+        // changed or the process restarted. (The broadcast only reaches
+        // receivers registered at run time.)
+        ContextCompat.registerReceiver(
+            this,
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) {
+                    update { it }
+                }
+            },
+            IntentFilter(Intent.ACTION_APPLICATION_RESTRICTIONS_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
     }
 
     /**
@@ -76,19 +96,30 @@ class SitrApp : Application() {
         }
     }
 
+    private val settingsLock = Any()
+
     /**
-     * THE mutation path. Installs the snapshot for `next` into the engine
-     * (atomic swap), THEN persists — settings never claim a state the
-     * engine doesn't have. `kickSync` is set by UI mutations that change
-     * household state; the sync worker itself passes false.
+     * THE mutation path. `transform` runs against the CURRENT settings
+     * under a lock; the result is installed into the engine (atomic swap)
+     * and THEN persisted — settings never claim a state the engine doesn't
+     * have. Every writer goes through here (UI thread, sync worker,
+     * restrictions receiver), so one read-modify-write can no longer
+     * interleave with another and silently undo it. `kickSync` is set by
+     * UI mutations that change household state; the sync worker itself
+     * passes false.
      */
-    fun applySettings(next: Settings, kickSync: Boolean = false) {
-        rebuildEngine(next)
-        repository.persist(next)
+    fun update(kickSync: Boolean = false, transform: (Settings) -> Settings): Settings {
+        val next = synchronized(settingsLock) {
+            transform(repository.current()).also {
+                rebuildEngine(it)
+                repository.persist(it)
+            }
+        }
         if (kickSync && secretStore.load() != null) {
             SyncWorker.schedulePeriodic(this)
             SyncWorker.kick(this)
         }
+        return next
     }
 
     fun managedPolicy() = ManagedConfig.read(this)

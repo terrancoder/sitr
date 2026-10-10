@@ -13,8 +13,10 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.sitrshield.app.Screen
@@ -27,6 +29,12 @@ import com.sitrshield.app.UiCtx
  */
 @Composable
 fun SettingsScreen(ctx: UiCtx) {
+    val context = LocalContext.current
+    // Read from the installed package: a hardcoded string goes stale with
+    // the first release that forgets it.
+    val version = remember {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName
+    }
     Text("About & privacy", style = MaterialTheme.typography.headlineSmall)
     Spacer(Modifier.height(8.dp))
     Column {
@@ -67,7 +75,7 @@ fun SettingsScreen(ctx: UiCtx) {
         Text("Open source", style = MaterialTheme.typography.titleMedium)
         Text(
             "Sitr is open source (MPL-2.0). The blocklist is public, with a " +
-                "written inclusion policy and an appeals process. Version 0.1.0.",
+                "written inclusion policy and an appeals process. Version $version.",
             style = MaterialTheme.typography.bodyMedium,
         )
     }
@@ -77,7 +85,7 @@ fun SettingsScreen(ctx: UiCtx) {
 
 /**
  * System / Light / Dark. Cosmetic only, so it is never PIN-gated; it
- * still flows through applySettings — the single mutation path.
+ * still flows through SitrApp.update — the single mutation path.
  */
 @Composable
 private fun AppearanceSelector(ctx: UiCtx) {
@@ -95,9 +103,7 @@ private fun AppearanceSelector(ctx: UiCtx) {
                         selected = ctx.settings.appearance == value,
                         role = Role.RadioButton,
                         onClick = {
-                            ctx.app.applySettings(
-                                ctx.app.repository.current().copy(appearance = value)
-                            )
+                            ctx.app.update { it.copy(appearance = value) }
                         },
                     )
                     .padding(vertical = 2.dp),

@@ -17,6 +17,13 @@ import androidx.core.app.NotificationCompat
  */
 object EngineNotification {
     const val CHANNEL_ID = "sitr.protection"
+
+    /**
+     * Red states get their own channel: a channel's importance is fixed
+     * once created, and "protection has stopped" must not arrive silently
+     * in the low-importance channel the green state lives in.
+     */
+    const val ALERT_CHANNEL_ID = "sitr.alert"
     const val NOTIFICATION_ID = 1
 
     private const val GREEN = 0xff1a7f37.toInt()
@@ -34,9 +41,32 @@ object EngineNotification {
                 setShowBadge(false)
             }
         )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                ALERT_CHANNEL_ID,
+                "Protection warnings",
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description = "Shown when Sitr's filtering has stopped"
+            }
+        )
     }
 
-    private fun builder(context: Context): NotificationCompat.Builder {
+    /**
+     * False when the red warning cannot be shown: notifications denied
+     * for the app (Android 13+ asks, and "Don't allow" is one tap) or the
+     * warnings channel switched off. The home screen says so — otherwise
+     * the only warning visible outside the app fails silently.
+     */
+    fun warningsVisible(context: Context): Boolean {
+        ensureChannel(context)
+        val manager = context.getSystemService(NotificationManager::class.java)
+        return manager.areNotificationsEnabled() &&
+            manager.getNotificationChannel(ALERT_CHANNEL_ID)?.importance !=
+            NotificationManager.IMPORTANCE_NONE
+    }
+
+    private fun builder(context: Context, channel: String): NotificationCompat.Builder {
         val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
         val contentIntent = launch?.let {
             PendingIntent.getActivity(
@@ -44,24 +74,31 @@ object EngineNotification {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         }
-        return NotificationCompat.Builder(context, CHANNEL_ID)
+        return NotificationCompat.Builder(context, channel)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentIntent(contentIntent)
-            .setOnlyAlertOnce(true)
     }
 
     fun active(context: Context): Notification =
-        builder(context)
+        builder(context, CHANNEL_ID)
+            .setOnlyAlertOnce(true)
             .setContentTitle("Sitr — protection active")
             .setContentText("Filtering on this device. Nothing leaves it.")
             .setColor(GREEN)
             .setOngoing(true)
             .build()
 
+    /**
+     * Deliberately NOT only-alert-once: this replaces the green
+     * notification under the same id, and that flag would mute exactly
+     * the update that matters. The service posts it once per state
+     * change, so it cannot repeat.
+     */
     fun inactive(context: Context, reason: Protection.Reason): Notification =
-        builder(context)
+        builder(context, ALERT_CHANNEL_ID)
             .setContentTitle("Sitr — PROTECTION INACTIVE")
             .setContentText(describe(reason))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(describe(reason)))
             .setColor(RED)
             .setColorized(true)
             .build()

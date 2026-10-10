@@ -1,11 +1,14 @@
 package com.sitrshield.app.ui
 
+import android.view.WindowManager
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -13,9 +16,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -26,6 +32,9 @@ import com.sitrshield.app.sync.SyncWorker
 import com.sitrshield.core.SitrResult
 import com.sitrshield.core.gate.MutationKind
 import com.sitrshield.core.household.Household
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
 
@@ -52,9 +61,9 @@ fun FamilyScreen(ctx: UiCtx) {
 
 @Composable
 private fun NoHousehold(ctx: UiCtx) {
-    var code by remember { mutableStateOf("") }
-    var joinAsChild by remember { mutableStateOf(false) }
-    var token by remember { mutableStateOf("") }
+    var code by rememberSaveable { mutableStateOf("") }
+    var joinAsChild by rememberSaveable { mutableStateOf(false) }
+    var token by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
     Text(
@@ -128,6 +137,8 @@ private fun InHousehold(ctx: UiCtx) {
     var revealedCode by remember { mutableStateOf<String?>(null) }
     var newPin by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
+    var hashing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     Text(
         "This device is a ${ctx.settings.role} device. " +
@@ -154,11 +165,21 @@ private fun InHousehold(ctx: UiCtx) {
                 }
             }) { Text("Show pairing code") }
         } else {
-            Text(
-                revealedCode!!,
-                style = MaterialTheme.typography.bodyMedium,
-                fontFamily = FontFamily.Monospace,
-            )
+            // The code IS household membership: keep it out of screenshots
+            // and the recents preview for as long as it is on screen.
+            val window = LocalActivity.current?.window
+            DisposableEffect(Unit) {
+                window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+            }
+            // Selectable, so it can be copied instead of retyped by hand.
+            SelectionContainer {
+                Text(
+                    revealedCode!!,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
             Text(
                 "Anyone with this code IS a member of your household — " +
                     "treat it like a house key.",
@@ -179,24 +200,44 @@ private fun InHousehold(ctx: UiCtx) {
             style = MaterialTheme.typography.bodyMedium,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Left readable on purpose: there is no "repeat PIN" field,
+            // and a mistyped PIN nobody can see would lock the guardian
+            // out of every loosening action. The password keyboard still
+            // stops the keyboard from learning it.
             OutlinedTextField(
                 value = newPin,
                 onValueChange = { newPin = it },
                 placeholder = { Text("New PIN (4–32 chars)") },
+                keyboardOptions = PinKeyboard,
                 singleLine = true,
+                enabled = !hashing,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = {
-                ctx.attempt(MutationKind.CHANGE_PIN, "Change the guardian PIN") {
-                    when (val set = ctx.actions.setPin(newPin)) {
-                        is SitrResult.Err -> message = set.message
-                        is SitrResult.Ok -> {
-                            newPin = ""
-                            message = "PIN updated."
+            TextButton(
+                enabled = !hashing,
+                onClick = {
+                    ctx.attempt(MutationKind.CHANGE_PIN, "Change the guardian PIN") {
+                        val entered = newPin
+                        hashing = true
+                        scope.launch {
+                            // PBKDF2 — seconds on a budget phone, so not here
+                            // on the main thread.
+                            val created = withContext(Dispatchers.Default) {
+                                ctx.actions.createPinRecord(entered)
+                            }
+                            hashing = false
+                            when (created) {
+                                is SitrResult.Err -> message = created.message
+                                is SitrResult.Ok -> {
+                                    ctx.actions.setPin(created.value)
+                                    newPin = ""
+                                    message = "PIN updated."
+                                }
+                            }
                         }
                     }
-                }
-            }) { Text("Set") }
+                },
+            ) { Text(if (hashing) "Saving…" else "Set") }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -205,9 +246,17 @@ private fun InHousehold(ctx: UiCtx) {
             title = "Household allow list",
             domains = household.allowDomains,
             onAdd = { domain, done ->
-                ctx.attempt(MutationKind.ADD_HOUSEHOLD_RULE, "") {
-                    ctx.actions.addHouseholdDomain(allow = true, domain = domain)
-                    done()
+                // An allow rule beats every category block on every
+                // device, so adding one is loosening: same kind the
+                // extension gates it with (PIN when set).
+                ctx.attempt(
+                    MutationKind.ADD_DEVICE_ALLOW_RULE,
+                    "Allow $domain on every household device",
+                ) {
+                    when (val added = ctx.actions.addHouseholdDomain(allow = true, domain = domain)) {
+                        is SitrResult.Err -> message = added.message
+                        is SitrResult.Ok -> done()
+                    }
                 }
             },
             onRemove = { domain ->
@@ -222,8 +271,10 @@ private fun InHousehold(ctx: UiCtx) {
             domains = household.blockDomains,
             onAdd = { domain, done ->
                 ctx.attempt(MutationKind.ADD_HOUSEHOLD_RULE, "") {
-                    ctx.actions.addHouseholdDomain(allow = false, domain = domain)
-                    done()
+                    when (val added = ctx.actions.addHouseholdDomain(allow = false, domain = domain)) {
+                        is SitrResult.Err -> message = added.message
+                        is SitrResult.Ok -> done()
+                    }
                 }
             },
             onRemove = { domain ->

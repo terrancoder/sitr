@@ -16,7 +16,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -27,11 +27,12 @@ import com.sitrshield.app.UiCtx
  * Three honest steps: what Sitr does and does NOT do; why Android will
  * show a VPN key icon (DNS-only design, plainly explained); and why the
  * notification permission matters (fail-visible — a denial means no red
- * warning when protection drops, which is itself surfaced on Home).
+ * warning when protection drops; Home shows a row saying so for as long
+ * as warnings cannot be delivered).
  */
 @Composable
 fun OnboardingScreen(ctx: UiCtx) {
-    var step by remember { mutableIntStateOf(0) }
+    var step by rememberSaveable { mutableIntStateOf(0) }
 
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -99,6 +100,6 @@ fun OnboardingScreen(ctx: UiCtx) {
 }
 
 private fun finish(ctx: UiCtx) {
-    ctx.app.applySettings(ctx.app.repository.current().copy(onboarded = true))
+    ctx.app.update { it.copy(onboarded = true) }
     ctx.navigate(Screen.HOME)
 }

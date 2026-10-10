@@ -1,5 +1,6 @@
 package com.sitrshield.app.sync
 
+import com.sitrshield.core.sync.SyncCrypto
 import com.sitrshield.core.sync.SyncHttpResponse
 import com.sitrshield.core.sync.SyncTransport
 import java.io.IOException
@@ -34,7 +35,19 @@ class SyncHttp : SyncTransport {
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream
             else connection.errorStream
-            val bytes = stream?.use { it.readBytes() } ?: ByteArray(0)
+            // One byte past the protocol's blob limit is enough to tell an
+            // oversized body from a valid one (SyncCrypto.open rejects it);
+            // the rest is never read into memory.
+            val bytes = stream?.use { input ->
+                val out = java.io.ByteArrayOutputStream()
+                val chunk = ByteArray(8192)
+                while (out.size() <= SyncCrypto.MAX_BLOB_BYTES) {
+                    val n = input.read(chunk)
+                    if (n < 0) break
+                    out.write(chunk, 0, n)
+                }
+                out.toByteArray()
+            } ?: ByteArray(0)
             return SyncHttpResponse(status, connection.getHeaderField("ETag"), bytes)
         } finally {
             connection.disconnect()

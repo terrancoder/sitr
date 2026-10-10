@@ -1,7 +1,9 @@
 package com.sitrshield.app.ui
 
 import android.app.Activity
+import android.content.Intent
 import android.net.VpnService
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -19,12 +21,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sitrshield.app.Screen
 import com.sitrshield.app.UiCtx
+import com.sitrshield.core.gate.MutationKind
 import com.sitrshield.engine.EngineController
 import com.sitrshield.engine.EngineNotification
 import com.sitrshield.engine.Protection
@@ -47,7 +51,7 @@ fun HomeScreen(ctx: UiCtx) {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            ctx.app.applySettings(ctx.app.repository.current().copy(filterEnabled = true))
+            ctx.app.update { it.copy(filterEnabled = true) }
             SitrVpnService.start(context)
         }
     }
@@ -57,7 +61,7 @@ fun HomeScreen(ctx: UiCtx) {
         if (consent != null) {
             consentLauncher.launch(consent)
         } else {
-            ctx.app.applySettings(ctx.app.repository.current().copy(filterEnabled = true))
+            ctx.app.update { it.copy(filterEnabled = true) }
             SitrVpnService.start(context)
         }
     }
@@ -90,11 +94,17 @@ fun HomeScreen(ctx: UiCtx) {
                         "Filtering on this device. Nothing leaves it.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                    // Switching everything off is the largest loosening
+                    // there is, so it takes the same gate as switching
+                    // one category off: refused on a child or locked
+                    // device, PIN when one is set. (The gate table has no
+                    // kind of its own for it — the extension it is shared
+                    // with has no global off switch.)
                     OutlinedButton(onClick = {
-                        ctx.app.applySettings(
-                            ctx.app.repository.current().copy(filterEnabled = false)
-                        )
-                        SitrVpnService.stop(context)
+                        ctx.attempt(MutationKind.DISABLE_CATEGORY, "Turn off protection") {
+                            ctx.app.update { it.copy(filterEnabled = false) }
+                            SitrVpnService.stop(context)
+                        }
                     }) { Text("Turn off") }
                 }
                 protection is Protection.Inactive -> {
@@ -109,6 +119,34 @@ fun HomeScreen(ctx: UiCtx) {
                     )
                     Button(onClick = ::turnOn) { Text("Re-enable") }
                 }
+            }
+        }
+    }
+
+    // The notification is the only warning anyone sees without opening
+    // the app. When it cannot be delivered, say so here — re-checked on
+    // every resume, since the switch lives in system settings.
+    val warningsVisible = remember(ctx.resumes) { EngineNotification.warningsVisible(context) }
+    if (!warningsVisible) {
+        Spacer(Modifier.height(12.dp))
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Warnings are switched off",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ProtectionRed,
+                )
+                Text(
+                    "Notifications for Sitr are off, so it cannot warn you if " +
+                        "protection stops. You would only find out by opening this app.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                OutlinedButton(onClick = {
+                    context.startActivity(
+                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    )
+                }) { Text("Open notification settings") }
             }
         }
     }

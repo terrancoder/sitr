@@ -51,6 +51,12 @@ class SitrVpnService : VpnService() {
     private var forwarder: DnsForwarder? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
+    /** The verdict the notification currently shows (startForeground posts green). */
+    private var shown: Protection? = null
+
+    /** Non-VPN networks the callback has reported, most recent last. */
+    private val seen = LinkedHashMap<Network, LinkProperties>()
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             EngineController.updateFacts { it.copy(tunActive = false) }
@@ -68,18 +74,18 @@ class SitrVpnService : VpnService() {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
             else 0,
         )
+        synchronized(this) { shown = Protection.Active }
 
-        if (tun != null) return START_STICKY // already running (always-on restart)
+        if (tun != null) { // already running (always-on restart)
+            refreshNotification() // startForeground just painted it green
+            return START_STICKY
+        }
 
         // Fail-visible: never run without a verified blocklist snapshot.
         // The app installs it (EngineController.apply) before starting us;
         // an always-on cold start goes through SitrApp which re-loads it.
         if (!EngineController.facts.value.blocklistVerified) {
-            EngineNotification.post(
-                this,
-                EngineNotification.inactive(this, Protection.Reason.BLOCKLIST_LOAD_FAILED),
-            )
-            stopSelf()
+            stopWithWarning(Protection.Reason.BLOCKLIST_LOAD_FAILED)
             return START_NOT_STICKY
         }
 
@@ -93,6 +99,11 @@ class SitrVpnService : VpnService() {
             .addRoute(DNS4, 32)
             .addRoute(DNS6, 128)
             .setBlocking(true)
+            // Sitr stays outside its own tunnel: its sockets (and its
+            // "active network") are then the real default network, so the
+            // resolvers followDefaultNetwork() reads always belong to the
+            // network the forwarded queries leave by.
+            .addDisallowedApplication(packageName)
             .apply { if (Build.VERSION.SDK_INT >= 29) setMetered(false) }
             .establish()
 
@@ -101,16 +112,15 @@ class SitrVpnService : VpnService() {
             EngineController.updateFacts {
                 it.copy(tunActive = false, revokedAt = System.currentTimeMillis())
             }
-            EngineNotification.post(
-                this,
-                EngineNotification.inactive(this, Protection.Reason.VPN_REVOKED),
-            )
-            stopSelf()
+            stopWithWarning(Protection.Reason.VPN_REVOKED)
             return START_NOT_STICKY
         }
 
         tun = established
-        val upstream = UpstreamResolver(protect = { socket -> protect(socket) })
+        val upstream = UpstreamResolver(
+            protect = { socket -> protect(socket) },
+            protectStream = { socket -> protect(socket) },
+        )
         resolver = upstream
         val tunLoop = TunLoop(established) {
             EngineController.updateFacts { it.copy(tunActive = false) }
@@ -126,9 +136,16 @@ class SitrVpnService : VpnService() {
         loop = tunLoop
         tunLoop.start()
 
+        // No network at all is not a failure (there is nothing to filter,
+        // and the next network reports before DNS can flow), so the facts
+        // start clean and followDefaultNetwork() fills in what is known —
+        // synchronously, or the first status would always be "no DNS
+        // server" and sound the warning on every start.
+        EngineController.updateFacts {
+            it.copy(tunActive = true, revokedAt = 0, hasUpstreams = true, privateDnsStrict = false)
+        }
+        followDefaultNetwork()
         registerNetworkCallback()
-        EngineController.updateFacts { it.copy(tunActive = true, revokedAt = 0) }
-        refreshNotification()
         return START_STICKY
     }
 
@@ -137,11 +154,18 @@ class SitrVpnService : VpnService() {
         EngineController.updateFacts {
             it.copy(tunActive = false, revokedAt = System.currentTimeMillis())
         }
-        // Post as a NON-ongoing notification so it survives stopForeground.
-        EngineNotification.post(
-            this,
-            EngineNotification.inactive(this, Protection.Reason.VPN_REVOKED),
-        )
+        stopWithWarning(Protection.Reason.VPN_REVOKED)
+    }
+
+    /**
+     * Fail-visible exit: the red notification must outlive the service.
+     * Android cancels a foreground service's notification id when the
+     * service stops — whatever its flags — so the notification is detached
+     * from the service first and only then turned red.
+     */
+    private fun stopWithWarning(reason: Protection.Reason) {
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+        EngineNotification.post(this, EngineNotification.inactive(this, reason))
         shutdown()
         stopSelf()
     }
@@ -152,42 +176,91 @@ class SitrVpnService : VpnService() {
     }
 
     /**
-     * Watch the UNDERLYING network (NOT_VPN): its resolvers are our
-     * upstreams, and its Private-DNS setting decides whether we are
-     * bypassed (strict mode → red, surfaced, service keeps running so
-     * recovery is instant when the user fixes the setting).
+     * Any change to a non-VPN network is only a TRIGGER: what the engine
+     * uses is always re-read from the system's active network, which for
+     * this app (excluded from its own tunnel) is the default network its
+     * forwarded queries leave by. Taking resolvers from whichever network
+     * reported last used the wrong network's resolvers whenever two were
+     * visible, and kept a lost network's.
+     *
+     * (registerDefaultNetworkCallback cannot do this: Android reports a
+     * VPN's own network as its owner's default, exclusion or not.)
+     *
+     * The callback also remembers each non-VPN network's link properties,
+     * most recently reported last — the fallback in followDefaultNetwork.
      */
     private fun registerNetworkCallback() {
-        val manager = getSystemService(ConnectivityManager::class.java)
         val request = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
             .build()
         val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onLinkPropertiesChanged(network: Network, lp: LinkProperties) {
-                resolver?.setUpstreams(lp.dnsServers)
-                forwarder?.clearCaches()
-                val strict = Build.VERSION.SDK_INT >= 28 &&
-                    lp.isPrivateDnsActive && lp.privateDnsServerName != null
-                EngineController.updateFacts {
-                    it.copy(
-                        hasUpstreams = resolver?.upstreams?.isNotEmpty() == true,
-                        privateDnsStrict = strict,
-                    )
-                }
-                refreshNotification()
-            }
-
+            override fun onAvailable(network: Network) = followDefaultNetwork()
             override fun onLost(network: Network) {
-                forwarder?.clearCaches()
+                synchronized(seen) { seen.remove(network) }
+                followDefaultNetwork()
             }
+            override fun onLinkPropertiesChanged(network: Network, lp: LinkProperties) {
+                synchronized(seen) {
+                    seen.remove(network)
+                    seen[network] = lp
+                }
+                followDefaultNetwork()
+            }
+            override fun onCapabilitiesChanged(network: Network, nc: NetworkCapabilities) =
+                followDefaultNetwork()
         }
-        manager.registerNetworkCallback(request, callback)
+        getSystemService(ConnectivityManager::class.java)
+            .registerNetworkCallback(request, callback)
         networkCallback = callback
     }
 
+    /**
+     * The default network's resolvers are our upstreams, and its
+     * Private-DNS setting decides whether we are bypassed (strict mode →
+     * red, surfaced, service keeps running so recovery is instant when the
+     * user fixes the setting). With no network the upstream list is empty
+     * (queries get no answer) and the last verdict stands.
+     */
+    private fun followDefaultNetwork() {
+        val upstream = resolver ?: return
+        val manager = getSystemService(ConnectivityManager::class.java)
+        val active = manager.activeNetwork
+        val activeIsVpn = active?.let(manager::getNetworkCapabilities)
+            ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        // Should the system ever name a VPN (ours included) as this app's
+        // active network, its resolvers are not the ones to forward to:
+        // fall back to the non-VPN network that reported last, which is
+        // what this engine used before it followed the active network.
+        val link =
+            if (active != null && !activeIsVpn) manager.getLinkProperties(active)
+            else synchronized(seen) { seen.values.lastOrNull() }
+        if (upstream.setUpstreams(link?.dnsServers.orEmpty())) forwarder?.clearCaches()
+        if (link != null) {
+            EngineController.updateFacts {
+                it.copy(
+                    hasUpstreams = upstream.upstreams.isNotEmpty(),
+                    privateDnsStrict = isPrivateDnsStrict(link),
+                )
+            }
+        }
+        refreshNotification()
+    }
+
+    private fun isPrivateDnsStrict(lp: LinkProperties): Boolean =
+        Build.VERSION.SDK_INT >= 28 && lp.isPrivateDnsActive && lp.privateDnsServerName != null
+
+    /**
+     * Posts only when the verdict changed: link-property callbacks arrive
+     * in bursts, and re-posting a red notification would re-alert each time.
+     */
     private fun refreshNotification() {
-        val notification = when (val p = EngineController.protection()) {
+        val p = EngineController.protection()
+        synchronized(this) {
+            if (p == shown) return
+            shown = p
+        }
+        val notification = when (p) {
             is Protection.Active -> EngineNotification.active(this)
             is Protection.Inactive -> EngineNotification.inactive(this, p.reason)
         }
@@ -199,6 +272,7 @@ class SitrVpnService : VpnService() {
             getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(it)
         }
         networkCallback = null
+        synchronized(seen) { seen.clear() }
         loop?.stop()
         loop = null
         resolver?.shutdown()

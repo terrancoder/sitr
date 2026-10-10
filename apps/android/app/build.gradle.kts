@@ -22,8 +22,10 @@ android {
         targetSdk = 36
         // Static version identity — never derived at build time
         // (reproducibility, docs/mobile.md §Verifiability).
-        versionCode = 1
-        versionName = "0.1.0"
+        // Play accepts an upload only with a code above the published one
+        // (1); bump it for every upload. versionName is the label users see.
+        versionCode = 2
+        versionName = "0.1.1"
     }
 
     sourceSets["main"].assets.srcDirs("../../shared/blocklists/android")
@@ -51,7 +53,25 @@ android {
         }
     }
 
+    // The launcher label is a placeholder so the side-by-side build below
+    // can call itself something else.
+    defaultConfig.manifestPlaceholders["appLabel"] = "Sitr"
+
     buildTypes {
+        debug {
+            // On-device QA next to the Play build: `-PsideBySide` gives the
+            // debug build its own application id. A locally signed build
+            // can never replace the Play-signed one (different key), and
+            // uninstalling that would wipe its data.
+            if (project.hasProperty("sideBySide")) {
+                applicationIdSuffix = ".debug"
+                manifestPlaceholders["appLabel"] = "Sitr (debug)"
+                // Not debuggable: Android runs debuggable apps unoptimised
+                // (the PIN hash was 5–10x slower), so timings taken on a
+                // debuggable build say nothing about what users get.
+                isDebuggable = false
+            }
+        }
         release {
             // No minification in v1: the APK stays byte-auditable against
             // the source, and there is no dead third-party code to strip.
