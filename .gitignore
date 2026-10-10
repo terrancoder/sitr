@@ -43,6 +43,16 @@ apps/ios/Configs/Local.xcconfig
 apps/android/keystore.properties
 apps/android/*.jks
 apps/android/*.keystore
-# Promo and demo videos, plus the demo sources (local only; hosted on YouTube)
-apps/android/store-listing/assets/video/*.mp4
-apps/android/store-listing/assets/video/demo/
+# Promo and demo videos and everything they are made from — renders, demo
+# sources, intro/outro/overlay frames and their HTML, narration and music
+# (local only; the finished videos are hosted on YouTube)
+apps/android/store-listing/assets/video/
+# ...and any video or audio render, wherever a future one is produced
+*.mp4
+*.mov
+*.m4v
+*.webm
+*.mkv
+*.wav
+*.mp3
+*.m4a
