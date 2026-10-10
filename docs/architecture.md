@@ -120,7 +120,8 @@ the Swift and Kotlin implementations are tested against the same vectors.
 evaluates it in-process, so like DNR the app never sees browsing —
 structurally, not by policy. It protects Safari only. Optional Screen
 Time integration (FamilyControls/ManagedSettings) extends coverage to
-WebKit browsers system-wide — Apple's adult filter plus our deny list —
+WebKit browsers system-wide — Apple's adult filter plus a capped part of
+the user's own block lists —
 where `.individual` mode is revocable friction and only `.child` mode via
 Family Sharing (parent approval required to revoke) gives real tamper
 resistance. SafeSearch is not enforceable on iOS at all; T10 in

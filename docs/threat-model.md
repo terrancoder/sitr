@@ -106,7 +106,9 @@ break all other traffic.
 The Safari Content Blocker protects Safari only. Screen Time's web
 filter, when the user authorizes it, extends to WebKit browsers
 system-wide — but it is Apple's framework enforcing Apple's algorithmic
-filter plus Sitr's deny list — the evaluation is Apple's, not ours.
+filter plus a small part of the user's own block lists (the framework's
+domain set is too small for Sitr's category lists) — the evaluation is
+Apple's, not ours.
 SafeSearch cannot be enforced on iOS at all. We state each of
 these in-app rather than imply full coverage.
 

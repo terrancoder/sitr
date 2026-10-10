@@ -67,7 +67,10 @@ engine actually answers.
 | Network handover | Walk from Wi-Fi to cellular | Upstream resolvers re-read, filtering continues |
 | Captive portal | Join a hotel/airport Wi-Fi | The portal must still be reachable |
 | IPv6-only carrier | A carrier on 464XLAT | Filtering works over the IPv6 resolver |
-| Force-stop | Settings → Apps → Sitr → Force stop | Status worker posts the red notification within ~15 min |
+| Force-stop | Settings → Apps → Sitr → Force stop | Android removes the notification and runs nothing of ours until Sitr is opened again, so there is **no warning** in this state — no app can give one. Opening Sitr shows red with Re-enable |
+| App update | `adb install -r` a newer build, or a Play update | Filtering comes back by itself within seconds, without opening the app. On Xiaomi/HyperOS this needs Autostart allowed for Sitr |
+| Notifications denied | Deny the notification permission, or switch the "Protection warnings" channel off | Home shows "Warnings are switched off" with a button to notification settings |
+| VPN disconnected in Settings | Settings → Network → VPN → Sitr → Disconnect | The red notification stays after the service has stopped |
 
 ## iOS
 
