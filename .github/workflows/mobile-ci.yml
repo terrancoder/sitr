@@ -7,8 +7,15 @@ name: Mobile CI
 # and the internal Safari runbook). The fast Linux ci.yml remains the every-push gate
 # (tests + determinism + published checksums). Run this on demand before a
 # release:  gh workflow run "Mobile CI"
+# Only the Linux jobs (no macOS minutes), e.g. to get a release checksum:
+#   gh workflow run "Mobile CI" -f android_only=true
 on:
   workflow_dispatch:
+    inputs:
+      android_only:
+        description: Skip the macOS jobs (ios, safari)
+        type: boolean
+        default: false
 
 jobs:
   # Full Android build: :core JVM tests (conformance fixture replay,
@@ -38,6 +45,12 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      # The APK's bytes depend on the SDK that built it; print what this
+      # runner has so a mismatch elsewhere can be traced to a revision.
+      - name: Print the Android SDK revisions
+        run: |
+          cat "$ANDROID_HOME/platforms/android-36/source.properties"
+          ls "$ANDROID_HOME/build-tools" "$ANDROID_HOME/ndk" || true
       - name: Build twice and compare
         working-directory: apps/android
         run: |
@@ -46,13 +59,21 @@ jobs:
           ./gradlew clean -q
           ./gradlew :app:assembleRelease --console=plain -q
           cmp /tmp/build1.apk app/build/outputs/apk/release/app-release-unsigned.apk
-          shasum -a 256 app/build/outputs/apk/release/app-release-unsigned.apk
+          cd app/build/outputs/apk/release
+          shasum -a 256 app-release-unsigned.apk | tee app-release-unsigned.apk.sha256
+      # Kept so the published checksum can be checked against the file
+      # itself, and so a build from another machine can be diffed with it.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-unsigned-apk
+          path: apps/android/app/build/outputs/apk/release/app-release-unsigned.apk*
 
   # Swift SitrCore — the same conformance fixtures replayed by the Swift
   # port, plus sync-client and Safari-rule-ladder suites — then the full
   # app + Content Blocker extension build (unsigned; signing happens at
   # release time). macOS runners ship full Xcode.
   ios:
+    if: ${{ !inputs.android_only }}
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -76,6 +97,7 @@ jobs:
   # live in the device-testing runbook, not CI, until a
   # safaridriver lane proves stable on hosted runners.
   safari:
+    if: ${{ !inputs.android_only }}
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
