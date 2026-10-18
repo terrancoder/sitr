@@ -37,6 +37,17 @@ export const MEDIA_FILTER_PRIORITY = 1;
 /** The two resource types the media filter touches — nothing else. */
 export const MEDIA_RESOURCE_TYPES = ["image", "media"];
 
+/**
+ * X's media servers, for the apps' "images and video off on X" setting.
+ * The extension matches by initiator (x.com, above); the Android DNS
+ * engine and the iOS content blocker can't see initiators, so they block
+ * the hosts X serves pictures (pbs), video (video) and DM media (ton)
+ * from. Not abs.twimg.com — that is the site's own scripts and styles.
+ * X labels sensitive media only inside its API responses, never in these
+ * URLs, so this is all of X's media or none of it (threat-model T12).
+ */
+export const X_MEDIA_HOSTS = ["pbs.twimg.com", "ton.twimg.com", "video.twimg.com"];
+
 /** Compile the greylist hosts into initiator-scoped block rules. */
 export function compileGreylistRuleset(
   sortedHosts: string[],

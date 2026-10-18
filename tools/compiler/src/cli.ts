@@ -25,7 +25,7 @@ import { join } from "node:path";
 import { parseDomainList } from "./parse.js";
 import { compileBlockRuleset, serializeRuleset } from "./compile.js";
 import { safesearchRules } from "./safesearch.js";
-import { compileGreylistRuleset, mediaAllRules } from "./greylist.js";
+import { X_MEDIA_HOSTS, compileGreylistRuleset, mediaAllRules } from "./greylist.js";
 import {
   buildDefaultBlockerList,
   compileSafariRuleset,
@@ -159,6 +159,11 @@ if (safariOutDir !== undefined) {
     "blockerList.default.json",
     serializeSafariRuleset(buildDefaultBlockerList(safariByCategory)),
   );
+  // Optional, off by default — added outside safariByCategory so it can
+  // never land in the bundled default list.
+  const xMedia = compileSafariRuleset("x-media", X_MEDIA_HOSTS);
+  if (!xMedia.ok) fail([xMedia.error]);
+  safariOutputs.set("x-media.safari.json", serializeSafariRuleset(xMedia.value));
 }
 
 if (androidOutDir !== undefined) {
@@ -172,6 +177,7 @@ if (androidOutDir !== undefined) {
     "strict-search-hosts.json",
     serializeStrictSearchHosts(strictSearchHosts()),
   );
+  androidOutputs.set("x-media.domains", serializeDomainList(X_MEDIA_HOSTS));
 }
 
 // Hash manifest: lets the extension/CI verify artifact integrity and lets

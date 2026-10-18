@@ -3,5 +3,6 @@
   "dating.domains": "013dc0687d33d30189654947b8291ee666d63d44db188e726e936aeb1227307e",
   "gambling.domains": "7084a4c0fb9ccc9085ab154ed113f44cae04111d05fa10bf778607e72bd58492",
   "safesearch-hosts.json": "45c508d889d741ade8dc627b2ee7ebb7704acc49fcf36704ad16f8a0c46e3191",
-  "strict-search-hosts.json": "5242bfb15a5d2de386ec79e583927001cdde6f7dce4231b39393a6691bcf7437"
+  "strict-search-hosts.json": "5242bfb15a5d2de386ec79e583927001cdde6f7dce4231b39393a6691bcf7437",
+  "x-media.domains": "1b4dc9e3216f6a61e89c817c59e443066f6ee894cd44e34a6054e71fb496e807"
 }

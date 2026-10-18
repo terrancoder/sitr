@@ -1,0 +1,26 @@
+[
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?pbs\\.twimg\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?ton\\.twimg\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?video\\.twimg\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  }
+]
