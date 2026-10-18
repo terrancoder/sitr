@@ -1,5 +1,7 @@
 package com.sitrshield.app.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -53,9 +55,19 @@ fun SettingsScreen(ctx: UiCtx) {
                 "If you use Sitr Family, the only network request is an " +
                 "end-to-end encrypted settings blob to sync.sitrshield.com — " +
                 "unreadable by the server, tied to no account or email. " +
-                "Without a household, the app makes zero network requests.",
+                "Without a household, the app makes zero network requests.\n\n" +
+                "The optional child lock uses Android's Accessibility service: " +
+                "while a guardian has it on, Sitr reads the text of Settings, " +
+                "installer, Play Store and system windows on this device to " +
+                "close the screens that would switch it off. That text is " +
+                "discarded at once; nothing is stored or sent.",
             style = MaterialTheme.typography.bodyMedium,
         )
+        TextButton(onClick = {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse("https://sitrshield.com/privacy"))
+            )
+        }) { Text("Full privacy policy") }
         Spacer(Modifier.height(12.dp))
         Text("Staying protected", style = MaterialTheme.typography.titleMedium)
         Text(
@@ -63,12 +75,11 @@ fun SettingsScreen(ctx: UiCtx) {
                 "Sitr in system Settings → Network → VPN. Leave \"Block " +
                 "connections without VPN\" OFF — Sitr's tunnel carries only " +
                 "DNS, so that setting would block everything else.\n\n" +
-                "Honestly stated: on an unmanaged device, a determined user " +
-                "can uninstall Sitr or turn the VPN off — Android offers no " +
-                "legitimate way to prevent that, and Sitr refuses illegitimate " +
-                "ones. The guardian PIN is friction, not security. Real " +
-                "enforcement comes from managed devices (Family Link or an " +
-                "organization's management).",
+                "Honestly stated: without the child lock, a determined user " +
+                "can uninstall Sitr or turn the VPN off, and the guardian PIN " +
+                "is friction, not security. On a child's phone in Sitr Family, " +
+                "the child lock (Home → Child lock) makes the PIN the only way " +
+                "to switch protection off.",
             style = MaterialTheme.typography.bodyMedium,
         )
         Spacer(Modifier.height(12.dp))

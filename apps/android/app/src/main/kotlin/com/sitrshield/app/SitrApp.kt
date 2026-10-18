@@ -33,6 +33,7 @@ class SitrApp : Application() {
     private var categorySets: Map<String, DomainSet> = emptyMap()
     private var safeSearchMap: SafeSearchMap = SafeSearchMap(emptyList())
     var strictSearchHosts: StrictSearchHosts = StrictSearchHosts.EMPTY
+    var xMediaHosts: Set<String> = emptySet()
         private set
 
     override fun onCreate() {
@@ -87,6 +88,11 @@ class SitrApp : Application() {
             strictSearchHosts = StrictSearchHosts.parse(
                 assets.open("strict-search-hosts.json").readBytes().decodeToString()
             ).getOrNull() ?: StrictSearchHosts.EMPTY
+            // Optional too: a bad artifact leaves the X media toggle unavailable.
+            xMediaHosts = DomainSet.load(
+                assets.open("x-media.domains").readBytes(),
+                checksums.optString("x-media.domains").ifEmpty { "missing" },
+            ).getOrNull()?.domains ?: emptySet()
 
             categorySets = sets
             safeSearchMap = map
@@ -144,6 +150,7 @@ class SitrApp : Application() {
             // Strict Search folds into the same static layer, so a user
             // allow rule can still override it like any other block.
             if (settings.strictSearch) addAll(strictSearchHosts.hosts)
+            if (settings.xMedia) addAll(xMediaHosts)
         }
         EngineController.apply(
             DecisionSnapshot(

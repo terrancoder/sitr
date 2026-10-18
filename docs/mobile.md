@@ -19,8 +19,9 @@ The apps are new clients of the existing system, not a new system.
   the wire changes.
 - Gate semantics: the layer ladder (managed > household > device user >
   static)
-  and the guardian PIN as **friction, not security**
-  ([threat-model.md](threat-model.md) T7). On Android, managed
+  and the guardian PIN as **friction, not security** — except on an
+  Android phone under the child lock, where it is the boundary
+  ([threat-model.md](threat-model.md) T7, [child-lock.md](child-lock.md)). On Android, managed
   configurations (`RestrictionsManager`) deliver the managed layer — the
   strongest gate.
 - Fail-visible discipline: anything less than proof of protection renders
@@ -154,7 +155,10 @@ Tamper story: [threat-model.md](threat-model.md) T7; platform limits: T10.
   with guidance. A browser's own DoH ("Secure DNS") cannot be
   intercepted. Android's "block connections without VPN" lockdown is
   unsupported — DNS-only routes would break all other traffic — so
-  always-on VPN *without* lockdown is the recommended persistence.
+  always-on VPN *without* lockdown is the recommended persistence; it
+  also stops another VPN app taking the slot. On a child's phone the
+  child lock ([child-lock.md](child-lock.md)) stops the setting being
+  changed.
 
 Bypass analysis: [threat-model.md](threat-model.md) T9.
 
@@ -173,8 +177,10 @@ adb shell dumpsys package com.sitrshield.sitr \
   | sed -n '/requested permissions/,/install permissions/p'
 ```
 
-Absent by design, and to stay that way: QUERY_ALL_PACKAGES,
-Accessibility, Device Admin, camera, location, storage.
+Absent by design, and to stay that way: QUERY_ALL_PACKAGES, camera,
+location, storage, Device Admin. An Accessibility service exists only
+for the child lock and does nothing until a guardian turns it on
+([child-lock.md](child-lock.md)).
 
 ## Testing on a device
 

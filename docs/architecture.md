@@ -140,8 +140,10 @@ past the filter. SafeSearch is enforced by rewriting engine hosts to
 their published SafeSearch counterparts, and allowed queries are
 forwarded only to the network's own resolvers — never to a Sitr or
 third-party resolver. The bypass surface (strict Private DNS, a browser's
-own DoH, no lockdown support) is disclosed in T9 of
-[threat-model.md](threat-model.md).
+own DoH, another VPN app taking the slot, no lockdown support) is
+disclosed in T9 of [threat-model.md](threat-model.md); the optional child
+lock that closes it on a child's phone is in T7 and
+[child-lock.md](child-lock.md).
 
 ## DNR limits we design within
 

@@ -13,4 +13,7 @@
     <string name="restriction_block_desc">Comma- or newline-separated registrable domains</string>
     <string name="restriction_allow_title">Allowed domains</string>
     <string name="restriction_allow_desc">Comma- or newline-separated registrable domains</string>
+
+    <!-- Child lock (Guard mode). Shown in system accessibility settings. -->
+    <string name="guard_service_description">Sitr child lock. While a guardian has the lock on, this closes the screens that would switch Sitr off: its app info, uninstalling, its VPN and accessibility settings, the VPN disconnect dialog, Developer options, adding users, factory reset and safe mode. It reads the text of those screens on this phone only; nothing is stored or sent anywhere.</string>
 </resources>

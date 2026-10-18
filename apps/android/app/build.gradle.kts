@@ -24,8 +24,8 @@ android {
         // (reproducibility, docs/mobile.md §Verifiability).
         // Play accepts an upload only with a code above the published one
         // (1); bump it for every upload. versionName is the label users see.
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.2.0"
     }
 
     sourceSets["main"].assets.srcDirs("../../shared/blocklists/android")

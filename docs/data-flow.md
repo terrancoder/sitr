@@ -59,6 +59,15 @@ technical capability than the extension's DNR engine (where the browser
 matches rules and extension code never sees a hostname); see
 [threat-model.md](threat-model.md) T9 for the analysis.
 
+### Android child lock (on-device only)
+
+Guard mode's accessibility service reads the text of the foreground
+window, only when it belongs to Settings, an installer, the Play Store
+or a system dialog, to match it against a fixed list of screens that would switch
+Sitr off (`GuardRules.kt`), and closes a match. The text is checked in
+memory and discarded; nothing is stored, logged or sent. It runs only
+after a guardian opts in. See [child-lock.md](child-lock.md).
+
 If a blocklist-update endpoint is ever added, it will appear here first,
 carry nothing user-specific, and return an artifact **identical for every
 user**, checksum-verified before applying. The same promise covers the

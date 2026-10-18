@@ -68,11 +68,20 @@ state this plainly rather than overclaim.
 The same honesty applies on mobile. On iOS, Screen Time in `.child` mode
 (via Family Sharing) is real platform enforcement — a parent's approval is
 required to revoke it. `.individual` mode is revocable friction, same as
-the PIN. On Android, an unmanaged device offers no legitimate way to
-prevent uninstall, and we refuse to abuse Device Admin or Accessibility
-APIs to fake one. Real enforcement is a managed device (EMM or Family
-Link) applying managed configurations — mirroring how the extension
-defers to the browser's force-install policy.
+the PIN. On Android, the **child lock** (Sitr Family; docs/child-lock.md)
+turns the PIN into the boundary on a child's phone. It works on any
+phone: an accessibility service closes the screens that would switch
+Sitr off, uninstalling included (Device Admin isn't used: Play forbids it
+for blocking uninstall, and adb can still remove Sitr). It is bypassable —
+safe mode entered with the volume keys, settings in a language its
+phrase list doesn't know, a "cleaner" app that force-stops Sitr (which
+also stops filtering until Sitr is opened again) — and
+says so next to the toggle. The guard reads window text on the device
+and discards it; it is opt-in by a guardian, behind a disclosure, and
+stores and sends nothing. The exit takes the guardian PIN and are refused outright when no PIN exists,
+so a cleared app can never be an unlocked one. Without the child lock,
+an unmanaged Android phone still can't stop uninstall, and managed
+devices (EMM or Family Link) remain the alternative.
 
 ### T8: A malicious or compromised institution admin
 Managed policy can force categories ON, add domain rules, and lock the
@@ -100,7 +109,11 @@ build. The bypass surface is disclosed, never hidden: strict Private DNS
 a red protection status with guidance; a browser's own DoH ("Secure
 DNS") cannot be intercepted; and Android's "block connections without
 VPN" lockdown is unsupported by design, because DNS-only routes would
-break all other traffic.
+break all other traffic. Android runs one VPN at a time, so **another
+VPN app** (a privacy VPN, or one a child installs) silently replaces
+Sitr's — surfaced red as "replaced by another app". Setting Sitr as the
+always-on VPN stops other apps taking the slot until someone changes
+that setting; the child lock (T7) is what stops the change.
 
 ### T10: iOS platform limits
 The Safari Content Blocker protects Safari only. Screen Time's web
@@ -190,10 +203,23 @@ What it structurally cannot catch, disclosed rather than patched:
   match.
 - Text (erotica) is out of scope by design; text is not the gap.
 
-Media filtering is a browser-extension capability. Android's DNS engine
-categorically cannot see resource types; iOS could express the greylist
-via content-blocker `resource-type` triggers, but does not today — the
-asymmetry is stated in-app rather than papered over.
+Media filtering by resource type is a browser-extension capability.
+Android's DNS engine categorically cannot see resource types; iOS could
+express the greylist via content-blocker `resource-type` triggers, but
+does not today — the asymmetry is stated in-app rather than papered over.
+
+The apps do have one narrower lever: **images and video off on X**
+(optional, off by default). X serves media from its own hosts
+(`pbs.twimg.com`, `video.twimg.com`, `ton.twimg.com`), so blocking those
+hosts — by DNS on Android, by content-blocker rule on iOS — removes all
+of X's pictures and video while posts still load. It is all-or-nothing
+for the same reason as above: X marks sensitive media only inside its API
+responses, never in these URLs, so nothing outside the X app can pick
+out just the explicit items. The in-app text says so and points to X's
+own sensitive-content setting, the only filter that does know. On iOS it
+reaches Safari only, not the X app. Media X has already cached on the
+device stays visible, and a blocked host's earlier DNS answer can outlive
+the toggle by up to the record's TTL.
 
 ### T13: Safari Web Extension (macOS) platform limits
 The macOS build runs the extension codebase inside Safari, which

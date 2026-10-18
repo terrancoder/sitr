@@ -132,6 +132,17 @@ class ArtifactsTest {
     }
 
     @Test
+    fun xMediaHostsLoadVerifiedAndSpareTheSitesScripts() {
+        val set = DomainSet.load(
+            File(dir, "x-media.domains").readBytes(), checksums().getString("x-media.domains"),
+        ).getOrNull() ?: error("x-media.domains must load")
+        assertTrue("pbs.twimg.com" in set.domains)
+        assertTrue("video.twimg.com" in set.domains)
+        // abs.twimg.com serves X's own JS/CSS; blocking it breaks the site.
+        assertTrue("abs.twimg.com" !in set.domains)
+    }
+
+    @Test
     fun strictSearchRejectsMalformedArtifacts() {
         assertTrue(StrictSearchHosts.parse("not json") is SitrResult.Err)
         assertTrue(StrictSearchHosts.parse("""{"v":2,"hosts":[]}""") is SitrResult.Err)

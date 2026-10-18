@@ -57,13 +57,18 @@ public threat model.
   encrypted, unreadable to us
 • Shows a red "protection inactive" warning if filtering ever stops —
   another VPN takes over, Private DNS bypasses it — instead of pretending
+• Optional child lock (Sitr Family): on a child's phone, protection can't be
+  switched off without the guardian PIN. It uses Android's Accessibility
+  service to close the screens that would turn Sitr off (its app info,
+  uninstalling, VPN and accessibility settings and the like). It reads those
+  screens on the phone only; nothing is recorded or sent
 • Supports managed configuration for organisations and Family Link
 
 **What it doesn't do**
 
 No monitoring. Sitr never records, reports, or shows anyone what you or your
-children browse. No screenshots, no location, no app lists, no accessibility
-service. The optional Family plan stores exactly one thing on our server: an
+children browse. No screenshots, no location, no app lists. The optional
+Family plan stores exactly one thing on our server: an
 end-to-end-encrypted household-settings blob we cannot decrypt — household
 preferences, never browsing.
 
@@ -123,6 +128,51 @@ Background wording, useful if a reviewer asks for clarification:
 > disclosure screen and can be turned off at any time. Source:
 > https://github.com/terrancoder/sitr (apps/android/engine).
 
+## Accessibility API declaration (App content → Sensitive permissions and APIs → Accessibility API)
+
+Appears after a build with the AccessibilityService is uploaded. Policy:
+https://support.google.com/googleplay/android-developer/answer/10964491 —
+the service is **not** an accessibility tool (`isAccessibilityTool="false"`;
+Play reserves that for apps built for people with disabilities). Parental
+control use is allowed: the Accessibility API may not be used to "prevent
+the ability for users to disable or uninstall any app or service unless
+authorized by a parent or guardian through a parental control app"
+(answer/16558241).
+
+| Question | Answer |
+|---|---|
+| Why does your app need the Accessibility Services API? | **App functionality** only |
+| Do you collect and/or share personal or sensitive data using the accessibility capabilities? | **No** — window text is read in memory on the device and discarded; nothing leaves the phone. Must match Data safety and the privacy policy |
+| Video link | Unlisted YouTube link to the accessibility review video (script below) |
+
+Description wording if asked: "Sitr is a parental control. When a guardian
+turns on the optional child lock (protected by the guardian PIN), a fixed,
+rule-based list of checks closes the screens that would switch Sitr off on
+the child's phone: Sitr's App info and uninstall prompt, its VPN and
+accessibility settings, the VPN disconnect dialog, Developer options,
+adding users, factory reset, the Private DNS dialog and the safe-mode
+prompt. It reads text only in Settings, app installers, the Play Store and
+system dialogs, only on the device, stores nothing and sends nothing. It
+does not act autonomously, does not read other apps, and does nothing until
+the lock is on."
+
+**Video (required parts, per answer/10964491)** — record on a phone with the
+release build, ≈60–90 s, captions on:
+1. Open Sitr on the device.
+2. Home → Child lock (household with a PIN already set) → step 2 "Turn on
+   accessibility guard" → the disclosure dialog, shown whole.
+3. Decline: tap "No thanks" — back on the Child lock screen, nothing opens;
+   tap "Turn on accessibility guard" again to show the disclosure returns.
+4. Consent: tap "I agree" → Accessibility settings → "Sitr child lock" →
+   switch on → Allow.
+5. Core feature: back in Sitr tap "Lock this phone", then long-press the
+   Sitr icon → App info, and again → Uninstall: each closes at once with
+   "Locked by Sitr — ask your guardian." Then open the lock with the PIN.
+   (Don't go through Settings → Apps: that whole page closes because Sitr
+   is listed under Recent apps, which looks like a crash on video.)
+
+If the use changes later, Play requires submitting this form again.
+
 ## Data safety form
 
 Same claims as docs/privacy-policy.md and the Chrome data-safety form.
@@ -150,13 +200,18 @@ Same claims as docs/privacy-policy.md and the Chrome data-safety form.
 - Every other category, including Web browsing history and App activity:
   **not collected**. Sitr reads DNS names in memory and discards them; that
   is on-device processing and is not "collection" under Play's definition
-  (never leaves the device).
+  (never leaves the device). The same holds for the optional child lock's
+  accessibility service, which reads foreground window text in memory to
+  recognise screens that would disable Sitr, and discards it.
 - Independent security review: No.
 
 ## Review notes (App content → App access / notes)
 
 > Sitr is a DNS-based content filter, not a monitoring app. It does not use
-> the Accessibility API, Device Admin, or QUERY_ALL_PACKAGES. To test: open
+> QUERY_ALL_PACKAGES or Device Admin. The Accessibility API is used only by
+> the optional child lock, which a guardian turns on after a prominent
+> disclosure dialog; the accessibility service closes the screens that would
+> disable the parental control, and nothing it reads leaves the device. To test: open
 > the app, complete the three onboarding screens (the second explains the
 > local DNS-only VPN before any system dialog), tap Turn on, accept the VPN
 > prompt, then open Chrome and load https://1xbet.com — it fails to load
@@ -165,6 +220,11 @@ Same claims as docs/privacy-policy.md and the Chrome data-safety form.
 > on. Sitr Family: joining a household needs a pairing code; creating one
 > needs a Sitr Family token purchased on sitrshield.com. Test token: [PASTE
 > ON SUBMISSION DAY]. Test pairing code: [PASTE ON SUBMISSION DAY].
+> Child lock: Sitr Family → Create household with the test token → set a
+> guardian PIN → Back → Child lock → step 1 (set Sitr as always-on VPN) →
+> step 2 (disclosure → I agree → switch on "Sitr child lock") → Lock this
+> phone. Long-press the Sitr icon → App info or Uninstall: the screen is
+> closed. Child lock → Turn off child lock → the PIN unlocks it.
 
 ## Assets checklist
 
@@ -178,6 +238,11 @@ cached Chrome for Testing in headless mode at the exact pixel size):
   emulator captures are in `raw/`; they are 9:20, outside Play's 16:9–9:16
   limit, hence the framing): Home active, blocked site in Chrome,
   Filter categories, VPN disclosure onboarding, Sitr Family.
+- The promo video's claims still hold (checked frame by frame 2026-10-18;
+  it never mentions accessibility). The separate 16:9 demo
+  (`video/demo/`) said "No accessibility service"; that line was removed
+  from its source on 2026-10-18 — re-render before using that demo
+  anywhere.
 - `video/sitr-promo-1080p.mp4` — 1920×1080, 63 s, silent promo for the
   "Video" field of the store listing: intro card → the review recording
   framed beside the pitch → end card. Upload to YouTube (public or

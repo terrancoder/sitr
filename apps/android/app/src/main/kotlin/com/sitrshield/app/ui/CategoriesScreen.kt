@@ -147,6 +147,46 @@ fun CategoriesScreen(ctx: UiCtx) {
         color = MaterialTheme.colorScheme.secondary,
     )
 
+    Spacer(Modifier.height(20.dp))
+    Text("Social media", style = MaterialTheme.typography.titleMedium)
+    Spacer(Modifier.height(4.dp))
+
+    val xMediaAvailable = ctx.app.xMediaHosts.isNotEmpty()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            "Images and video off on X",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(
+            checked = ctx.settings.xMedia && xMediaAvailable,
+            enabled = xMediaAvailable,
+            onCheckedChange = { on ->
+                val set = {
+                    ctx.app.update { it.copy(xMedia = on) }
+                }
+                if (on) ctx.attempt(MutationKind.ENABLE_CATEGORY, "") { set() }
+                else ctx.attempt(MutationKind.DISABLE_CATEGORY, "Turn on images and video on X") { set() }
+            },
+        )
+    }
+    // Same honesty rule as Strict Search: say it blocks everything, not
+    // "explicit content", and point at the one filter that does know.
+    Text(
+        "Blocks every picture and video on X, in the app and the website — " +
+            "Sitr cannot tell which ones are explicit. Posts and text still " +
+            "load.\n\nTo hide only media X marks as sensitive, use X's own " +
+            "setting: Settings and privacy → Privacy and safety → Content " +
+            "you see.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.secondary,
+    )
+
     Spacer(Modifier.height(16.dp))
     TextButton(onClick = { ctx.navigate(Screen.HOME) }) { Text("Back") }
 }

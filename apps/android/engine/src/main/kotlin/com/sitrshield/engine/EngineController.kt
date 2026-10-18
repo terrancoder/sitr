@@ -31,6 +31,9 @@ data class EngineFacts(
     val privateDnsStrict: Boolean = false,
     /** The system or another VPN revoked us (epoch ms, 0 = never). */
     val revokedAt: Long = 0,
+    /** Sitr is the always-on VPN, so no other app may take the slot.
+     *  Null below Android 10, where the service can't tell. */
+    val alwaysOn: Boolean? = null,
 )
 
 /** The fail-visible verdict shown as notification + home status card. */

@@ -196,7 +196,9 @@ private fun InHousehold(ctx: UiCtx) {
                 "A PIN is set. It gates loosening actions on every household device."
             else
                 "No PIN set. A PIN adds friction against casual loosening — " +
-                    "it is not a security boundary, and we say so plainly.",
+                    "on its own it is not a security boundary. With the child " +
+                    "lock on a child's phone, it is the only way to switch " +
+                    "protection off.",
             style = MaterialTheme.typography.bodyMedium,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

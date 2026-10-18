@@ -77,6 +77,10 @@ class SitrVpnService : VpnService() {
         synchronized(this) { shown = Protection.Active }
 
         if (tun != null) { // already running (always-on restart)
+            // Setting always-on for a running VPN re-delivers this start.
+            if (Build.VERSION.SDK_INT >= 29) {
+                EngineController.updateFacts { it.copy(alwaysOn = isAlwaysOn) }
+            }
             refreshNotification() // startForeground just painted it green
             return START_STICKY
         }
@@ -142,7 +146,10 @@ class SitrVpnService : VpnService() {
         // synchronously, or the first status would always be "no DNS
         // server" and sound the warning on every start.
         EngineController.updateFacts {
-            it.copy(tunActive = true, revokedAt = 0, hasUpstreams = true, privateDnsStrict = false)
+            it.copy(
+                tunActive = true, revokedAt = 0, hasUpstreams = true, privateDnsStrict = false,
+                alwaysOn = if (Build.VERSION.SDK_INT >= 29) isAlwaysOn else null,
+            )
         }
         followDefaultNetwork()
         registerNetworkCallback()

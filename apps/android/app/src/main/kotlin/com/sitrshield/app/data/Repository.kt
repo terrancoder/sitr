@@ -30,6 +30,10 @@ data class Settings(
     val disabledCategories: List<String> = emptyList(),
     /** Strict Search — off by default; see StrictSearchHosts. */
     val strictSearch: Boolean = false,
+    /** Images and video off on X — off by default; see X_MEDIA_HOSTS. */
+    val xMedia: Boolean = false,
+    /** Guard mode armed by a guardian (ChildLock); opened only by the PIN. */
+    val childLock: Boolean = false,
     /** UI appearance: "system" | "light" | "dark" (ui.Appearance). */
     val appearance: String = "system",
     val userAllow: List<String> = emptyList(),
@@ -76,6 +80,8 @@ class Repository(context: Context) {
             onboarded = prefs.getBoolean("onboarded", false),
             filterEnabled = prefs.getBoolean("filterEnabled", false),
             strictSearch = prefs.getBoolean("strictSearch", false),
+            xMedia = prefs.getBoolean("xMedia", false),
+            childLock = prefs.getBoolean("childLock", false),
             appearance = prefs.getString("appearance", null)
                 ?.takeIf { it in setOf("system", "light", "dark") } ?: "system",
             deviceId = deviceId,
@@ -96,6 +102,8 @@ class Repository(context: Context) {
             .putBoolean("onboarded", next.onboarded)
             .putBoolean("filterEnabled", next.filterEnabled)
             .putBoolean("strictSearch", next.strictSearch)
+            .putBoolean("xMedia", next.xMedia)
+            .putBoolean("childLock", next.childLock)
             .putString("appearance", next.appearance)
             .putStringSet("disabledCategories", next.disabledCategories.toSet())
             .putStringSet("userAllow", next.userAllow.toSet())

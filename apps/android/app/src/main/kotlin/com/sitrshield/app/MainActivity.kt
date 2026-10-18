@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sitrshield.app.data.Settings
 import com.sitrshield.app.ui.CategoriesScreen
+import com.sitrshield.app.ui.ChildLockScreen
 import com.sitrshield.app.ui.FamilyScreen
 import com.sitrshield.app.ui.HomeScreen
 import com.sitrshield.app.ui.ListsScreen
@@ -37,7 +38,7 @@ import com.sitrshield.app.ui.SitrTheme
 import com.sitrshield.core.gate.MutationKind
 import com.sitrshield.core.gate.MutationVerdict
 
-enum class Screen { HOME, ONBOARDING, CATEGORIES, LISTS, FAMILY, SETTINGS }
+enum class Screen { HOME, ONBOARDING, CATEGORIES, LISTS, FAMILY, SETTINGS, CHILD_LOCK }
 
 /**
  * Shared per-screen context: settings snapshot, actions, navigation, and
@@ -130,6 +131,7 @@ fun SitrRoot(app: SitrApp, resumes: Int) {
                 Screen.LISTS -> ListsScreen(ctx)
                 Screen.FAMILY -> FamilyScreen(ctx)
                 Screen.SETTINGS -> SettingsScreen(ctx)
+                Screen.CHILD_LOCK -> ChildLockScreen(ctx)
             }
         }
     }

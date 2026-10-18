@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sitrshield.app.Screen
 import com.sitrshield.app.UiCtx
+import com.sitrshield.app.lock.ChildLock
 import com.sitrshield.core.gate.MutationKind
 import com.sitrshield.engine.EngineController
 import com.sitrshield.engine.EngineNotification
@@ -161,6 +162,18 @@ fun HomeScreen(ctx: UiCtx) {
     ProtectionRow("Gambling", active && "sitr_gambling" !in disabled)
     ProtectionRow("Dating", active && "sitr_dating" !in disabled)
 
+    // The child lock's state belongs next to protection: a guard that has
+    // been switched off is exactly what a guardian needs to see.
+    val guardWhole = remember(ctx.resumes) { ChildLock.isGuardServiceOn(context) }
+    when {
+        ctx.settings.childLock && guardWhole -> ProtectionRow("Child lock (Guard mode)", true)
+        ctx.settings.childLock -> Text(
+            "Child lock is NOT fully on — open Child lock to see what is off.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = ProtectionRed,
+        )
+    }
+
     val managed = ctx.app.managedPolicy()
     if (managed.isManaged) {
         Spacer(Modifier.height(8.dp))
@@ -185,6 +198,10 @@ fun HomeScreen(ctx: UiCtx) {
             onClick = { ctx.navigate(Screen.FAMILY) },
             Modifier.fillMaxWidth(),
         ) { Text("Sitr Family") }
+        OutlinedButton(
+            onClick = { ctx.navigate(Screen.CHILD_LOCK) },
+            Modifier.fillMaxWidth(),
+        ) { Text("Child lock") }
         OutlinedButton(
             onClick = { ctx.navigate(Screen.SETTINGS) },
             Modifier.fillMaxWidth(),
