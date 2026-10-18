@@ -137,3 +137,23 @@ All passed after one more fix (see the test log's last section).
 - Data safety: https://support.google.com/googleplay/android-developer/answer/10787469
 - Target API: https://support.google.com/googleplay/android-developer/answer/11926878
 - Device test log: `docs/child-lock-test-2026-10-18.md`
+
+## Progress (2026-10-18, evening)
+
+- **Step 1, done:** branch `android-0.2.0` with two commits (`baebe9d`
+  Blocklists: optional X images-and-video list; `e166abc` Android 0.2.0),
+  annotated tag `android-v0.2.0` on `e166abc`. Fast-forwarded into main
+  and pushed with the tag the same evening. iOS changes, the code-review file, the launch announcement,
+  `tools/curation/` and the 0.1.1 handoff were left uncommitted on purpose.
+  `npm test` (145) and `./gradlew clean build :app:bundleRelease` pass
+  from the tagged tree. Bundle: `apps/android/app/build/outputs/bundle/
+  release/app-release.aab`, SHA-256 `dcc0a04613690fa7dbd23bba85fc0e9ced2394653f2c57a5d1d536661f0af5d4`.
+- **Step 2, done:** sitr-site branch `child-lock-copy` (one commit, since
+  merged into main and pushed), deployed to production with
+  `wrangler pages deploy … --branch=main`.
+  Verified live on https://sitrshield.com/privacy and /family.
+- **Step 3, video done; declaration not yet:** the video is
+  `apps/android/store-listing/assets/video/sitr-accessibility-review.mp4`.
+  The Accessibility API declaration only appears in Play Console after the
+  bundle is uploaded (step 5), and the video needs to go on YouTube
+  (unlisted) from your account first.

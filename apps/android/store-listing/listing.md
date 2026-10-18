@@ -143,7 +143,7 @@ authorized by a parent or guardian through a parental control app"
 |---|---|
 | Why does your app need the Accessibility Services API? | **App functionality** only |
 | Do you collect and/or share personal or sensitive data using the accessibility capabilities? | **No** — window text is read in memory on the device and discarded; nothing leaves the phone. Must match Data safety and the privacy policy |
-| Video link | Unlisted YouTube link to the accessibility review video (script below) |
+| Video link | Unlisted YouTube link to `assets/video/sitr-accessibility-review.mp4` (gitignored; recorded 2026-10-18 on the Redmi A3 with the 0.2.0 code, labelled "Sitr" as in the release; 1:41, captions burned in; the app drawer cut out) |
 
 Description wording if asked: "Sitr is a parental control. When a guardian
 turns on the optional child lock (protected by the guardian PIN), a fixed,
