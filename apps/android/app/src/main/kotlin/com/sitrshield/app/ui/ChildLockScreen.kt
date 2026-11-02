@@ -85,9 +85,9 @@ fun ChildLockScreen(ctx: UiCtx) {
                     "The screens that would switch Sitr off are closed: its app " +
                         "info, uninstalling, its VPN and accessibility settings, the " +
                         "VPN disconnect dialog, Developer options, adding users and " +
-                        "factory reset. " +
-                        "Not covered: restarting into safe mode on phones where that " +
-                        "is done with the volume keys, settings shown in a language " +
+                        "the mobile network reset. " +
+                        "Not covered: safe mode and factory reset (Android's own " +
+                        "recovery tools), settings shown in a language " +
                         "other than English except those that name Sitr, and phone " +
                         "\"cleaner\" tools that force-stop apps — Android then " +
                         "switches the guard off until a guardian turns it back on, " +
@@ -144,7 +144,7 @@ private const val GUARD_DISCLOSURE =
         "it is Settings, an app installer, the Play Store or a system dialog, to " +
         "recognise the screens that would switch Sitr off — its app info, " +
         "uninstalling, its VPN and accessibility settings, the VPN disconnect dialog, " +
-        "Developer options, adding users, factory reset and safe mode — and " +
+        "Developer options, adding users and the mobile network reset — and " +
         "closes them. The text is checked on this phone and discarded at once: " +
         "nothing is stored, and nothing is sent anywhere. Sitr doesn't read other " +
         "apps, and the lock opens only with the guardian PIN."

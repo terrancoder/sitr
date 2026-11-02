@@ -24,16 +24,20 @@ class GuardRulesTest {
         // A new user or guest isn't filtered.
         assertTrue(decide("com.android.settings", "Users", "You (Owner)", "Add user", "Add guest"))
         assertTrue(decide("com.android.settings", "Private space", "Set up"))
-        assertTrue(decide("com.android.settings", "Erase all data (factory reset)"))
         assertTrue(decide("com.android.settings", "Private DNS provider hostname"))
-        assertTrue(decide("android", "Reboot to safe mode"))
+        // Mobile network reset clears always-on VPN (Android 15 page, its
+        // confirmation, and the older combined reset).
+        assertTrue(decide("com.android.settings", "Reset Mobile Network Settings", "This will reset all mobile network settings", "Reset settings"))
+        assertTrue(decide("com.android.settings", "Reset Mobile Network Settings?", "Reset all network settings? You can’t undo this action."))
+        assertTrue(decide("com.android.settings", "This will reset all network settings, including:", "Wi‑Fi", "Mobile data"))
     }
 
     @Test
     fun readsOnlyThePackagesItCanClose() {
         assertTrue(GuardRules.watches("com.android.settings"))
         assertTrue(GuardRules.watches("com.android.vpndialogs"))
-        assertTrue(GuardRules.watches("android"))
+        assertFalse(GuardRules.watches("android"))
+        assertFalse(GuardRules.watches("com.android.systemui"))
         assertFalse(GuardRules.watches("com.brave.browser"))
         assertFalse(GuardRules.watches("com.twitter.android"))
     }
@@ -51,8 +55,18 @@ class GuardRulesTest {
         assertTrue(decide("com.android.settings", "Network & internet > VPN", "Sitr"))
         // The home screen shows Sitr's icon label — never a launcher.
         assertFalse(decide("com.google.android.apps.nexuslauncher", "Sitr"))
-        // The power menu without safe mode, and any other app.
-        assertFalse(decide("com.android.systemui", "Power off", "Restart"))
+        // Android's own recovery tools stay usable (Play's Accessibility policy).
+        assertFalse(
+            decide(
+                "com.android.settings", "Reset options", "Delete private space",
+                "Erase all data (factory reset)", "Reset Bluetooth & Wi‑Fi",
+                "Reset Mobile Network Settings", "Reset app preferences",
+            ),
+        )
+        assertFalse(decide("com.android.settings", "Reset options Delete private space Erase all data (factory reset)"))
+        assertFalse(decide("com.android.settings", "Erase all data", "Erase all data"))
+        assertFalse(decide("android", "Reboot to safe mode"))
+        // Any other app.
         assertFalse(decide("com.twitter.android", "Sitr", "factory reset"))
     }
 }

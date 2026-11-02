@@ -7,8 +7,9 @@ set, because the PIN is the only way to open the lock again.
 
 Sitr's accessibility guard closes the screens that would switch Sitr
 off: its app info, its VPN
-settings, the accessibility page, Developer options, factory reset, the
-uninstall prompt, the Private DNS dialog, the VPN disconnect dialog and
+settings, the accessibility page, Developer options, the mobile network
+reset (it clears always-on VPN), the uninstall prompt, the Private DNS
+dialog, the VPN disconnect dialog and
 the Users page (a new user or guest has no Sitr, and a VPN
 filters only the user that started it). Wi-Fi and the "Network & internet" page stay usable.
 Other VPN apps can't take Sitr's place because Sitr is the always-on VPN:
@@ -16,7 +17,9 @@ Android itself refuses them, so their permission prompts are left alone.
 
 What it does not cover, as the app says next to the toggle:
 
-- safe mode, on phones where it is entered with the volume keys;
+- safe mode and factory reset. Both are Android's own recovery tools,
+  and Google Play doesn't allow an accessibility service to block them;
+  both can also be reached with the hardware keys;
 - settings shown in a language other than English, except screens that
   name Sitr;
 - phone "cleaner" apps that force-stop Sitr. Android then switches the

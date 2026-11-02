@@ -10,8 +10,9 @@ import android.provider.Settings
  * Guard mode (docs/child-lock.md) — any phone, no reset. The
  * accessibility guard (GuardService) closes the screens that would switch
  * Sitr off, uninstalling included. No Device Admin: Play's Malware policy
- * forbids using it to block uninstalling. Bypassable by safe mode on
- * phones whose power menu we can't see, which the UI says.
+ * forbids using it to block uninstalling. Bypassable by safe mode and
+ * factory reset, which it leaves alone (Play's Accessibility policy); the
+ * UI says so.
  *
  * It is opened only with the household's guardian PIN — and refused,
  * not waved through, when this device has no PIN (a cleared app must not

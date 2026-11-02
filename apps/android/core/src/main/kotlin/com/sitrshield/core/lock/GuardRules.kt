@@ -14,10 +14,17 @@ package com.sitrshield.core.lock
  *  - any Settings / installer / Play / app-manager screen that names Sitr:
  *    its app info (force stop, clear data, uninstall), the VPN list, the
  *    accessibility list, the uninstall prompt;
- *  - Developer options (adb), factory reset, the Private DNS hostname
- *    dialog, and the "reboot to safe mode" prompt;
+ *  - Developer options (adb), the Private DNS hostname dialog, and the
+ *    mobile network reset, which clears always-on VPN and disconnects
+ *    Sitr (checked on Android 15). Matched by the reset screen's own
+ *    sentences, so the Reset options list itself stays open;
  *  - the Users page: a new user or guest has no Sitr, and a VPN only
  *    filters the user that started it.
+ *
+ * Factory reset and the safe-mode prompt are left alone on purpose: they
+ * are Android's own recovery tools, Play's Accessibility policy forbids
+ * working around platform security controls, and both can be reached
+ * with the hardware keys anyway.
  *
  * ponytail: matches English UI text and the common OEM package names; a
  * phone in another language or an unlisted OEM settings app gets only the
@@ -41,9 +48,6 @@ object GuardRules {
         "com.coloros.safecenter",
     )
 
-    /** The power menu's safe-mode confirmation is drawn by these. */
-    private val SYSTEM_DIALOGS = setOf("android", "com.android.systemui")
-
     /** Row titles only the network hub page carries. */
     private val NETWORK_HUB = listOf("Network & internet", "Airplane mode", "Hotspot & tethering")
 
@@ -55,24 +59,23 @@ object GuardRules {
         // ponytail: Android 15+ private space is a profile the VPN doesn't
         // cover; untested on a device (the test phone has none).
         "private space",
-        "factory reset",
-        "erase all data",
         "private dns provider hostname",
         "hostname of dns provider",
+        // Mobile network reset (Android 15: page and confirmation) and the
+        // older single network reset; not the Reset options list.
+        "reset all mobile network settings",
+        "reset all network settings",
     )
 
     /** Whether any window of [packageName] can be closed; nothing else is read. */
     fun watches(packageName: String): Boolean =
-        packageName == VPN_DIALOGS || packageName in SYSTEM_DIALOGS || packageName in WATCHED
+        packageName == VPN_DIALOGS || packageName in WATCHED
 
     fun shouldClose(packageName: String, texts: List<String>, appLabel: String): Boolean {
         if (packageName == VPN_DIALOGS) {
             // Only the connected VPN's manage dialog has "Disconnect", and
             // with always-on that VPN is Sitr. Consent requests pass.
             return texts.any { it.contains("disconnect", ignoreCase = true) }
-        }
-        if (packageName in SYSTEM_DIALOGS) {
-            return texts.any { it.contains("safe mode", ignoreCase = true) }
         }
         if (packageName !in WATCHED) return false
         // The network hub names the connected VPN in its VPN row, but it is
@@ -81,7 +84,10 @@ object GuardRules {
         // Whole-text match, so a search result's "Network & internet > VPN"
         // breadcrumb doesn't count.
         if (texts.any { t -> NETWORK_HUB.any { t.equals(it, ignoreCase = true) } }) return false
-        return texts.any { text ->
+        return texts.any { raw ->
+            // Reset options lists "Delete private space": removing that
+            // unfiltered profile is fine, and the list must stay open.
+            val text = raw.replace("delete private space", "", ignoreCase = true)
             text.contains(appLabel) ||
                 PROTECTED_PHRASES.any { text.contains(it, ignoreCase = true) }
         }

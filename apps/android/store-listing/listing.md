@@ -143,16 +143,17 @@ authorized by a parent or guardian through a parental control app"
 |---|---|
 | Why does your app need the Accessibility Services API? | **App functionality** only |
 | Do you collect and/or share personal or sensitive data using the accessibility capabilities? | **No** — window text is read in memory on the device and discarded; nothing leaves the phone. Must match Data safety and the privacy policy |
-| Video link | Unlisted YouTube link to `assets/video/sitr-accessibility-review.mp4` (gitignored; recorded 2026-10-18 on the Redmi A3 with the 0.2.0 code, labelled "Sitr" as in the release; 1:41, captions burned in; the app drawer cut out) |
+| Video link | Unlisted YouTube link to `assets/video/sitr-accessibility-review.mp4` (gitignored; re-recorded 2026-11-02 on the `sitr-video` emulator with the 0.2.1 build, whose disclosure no longer lists factory reset and safe mode; 1:59, captions burned in. The 0.2.0 video is kept as `sitr-accessibility-review-0.2.0.mp4`) |
 
 Description wording if asked: "Sitr is a parental control. When a guardian
 turns on the optional child lock (protected by the guardian PIN), a fixed,
 rule-based list of checks closes the screens that would switch Sitr off on
 the child's phone: Sitr's App info and uninstall prompt, its VPN and
 accessibility settings, the VPN disconnect dialog, Developer options,
-adding users, factory reset, the Private DNS dialog and the safe-mode
-prompt. It reads text only in Settings, app installers, the Play Store and
-system dialogs, only on the device, stores nothing and sends nothing. It
+adding users, the Private DNS dialog and the mobile network reset (which
+would clear always-on VPN). It leaves Android's own recovery tools, safe
+mode and factory reset, alone. It reads text only in Settings, app
+installers, the Play Store and system dialogs, only on the device, stores nothing and sends nothing. It
 does not act autonomously, does not read other apps, and does nothing until
 the lock is on."
 

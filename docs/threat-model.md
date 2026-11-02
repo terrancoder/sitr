@@ -73,7 +73,8 @@ turns the PIN into the boundary on a child's phone. It works on any
 phone: an accessibility service closes the screens that would switch
 Sitr off, uninstalling included (Device Admin isn't used: Play forbids it
 for blocking uninstall, and adb can still remove Sitr). It is bypassable —
-safe mode entered with the volume keys, settings in a language its
+safe mode and factory reset (left alone: they are Android's own
+recovery tools), settings in a language its
 phrase list doesn't know, a "cleaner" app that force-stops Sitr (which
 also stops filtering until Sitr is opened again) — and
 says so next to the toggle. The guard reads window text on the device

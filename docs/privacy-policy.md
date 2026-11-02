@@ -1,6 +1,6 @@
 # Sitr privacy policy
 
-*Effective: 2026-07-21; updated 2026-10-18. This policy covers the Sitr browser extension
+*Effective: 2026-07-21; updated 2026-11-02. This policy covers the Sitr browser extension
 (Chrome and Safari) and the Sitr apps for iOS, Android, and macOS. This file is the source of the published
 policy; the store listings, the Chrome data-safety form, the Google Play
 Data safety form, the Apple App Privacy labels, in-app text, website, and
@@ -55,7 +55,7 @@ without Sitr.
 Sitr's accessibility service reads the text of the window in front of you
 when it is Settings, an installer, the Play Store or a system dialog, on
 the device, to recognise the few screens that would switch Sitr off — its
-app info, VPN and accessibility settings, factory reset and the like — and
+app info, VPN and accessibility settings, the mobile network reset and the like — and
 closes them. That text is checked in memory and discarded at once; it is
 never stored, logged or transmitted. The guardian can switch it off at
 any time with the PIN.
