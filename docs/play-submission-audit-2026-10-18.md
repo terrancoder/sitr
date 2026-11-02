@@ -238,3 +238,15 @@ its disclosure text changed:
 
 `./gradlew clean build :app:bundleRelease` passes (67 tests, lint).
 The release notes in step 5 still apply unchanged.
+
+**Release, done 2026-11-02:** commit `8b48a29`, annotated tag
+`android-v0.2.1`, both pushed. The bundle rebuilt from the tag is
+byte-identical to the one checked above: SHA-256
+`fb588631998d816f928c14cbae519f5929bba618a31af188dc62b99cace15793`,
+upload-key signature verifies, 0.2.1. Mobile CI run 41450056192 (Android
+only, on the tag) built the unsigned APK twice with the same bytes
+(`3a02769e5402d4469e0d4f79e3380ca15d9c78f92bac85ea094a2c74b9a6a636`); all
+15 files that reach the phone match the bundle. The website change is
+committed (sitr-site `c964eac`) and pushed, but **not yet deployed**:
+run `npx wrangler pages deploy dist --branch=main` in `sitr-site` before
+submitting.
