@@ -41,6 +41,14 @@
   },
   {
     "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?coffeemeetsbagel\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
       "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?eharmony\\.com\\.?[:/]"
     },
     "action": {
@@ -81,6 +89,14 @@
   },
   {
     "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?gotinder\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
       "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?grindr\\.com\\.?[:/]"
     },
     "action": {
@@ -106,6 +122,14 @@
   {
     "trigger": {
       "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hinge\\.co\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?hingeaws\\.net\\.?[:/]"
     },
     "action": {
       "type": "block"

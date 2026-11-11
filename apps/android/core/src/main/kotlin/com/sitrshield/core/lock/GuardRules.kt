@@ -18,8 +18,13 @@ package com.sitrshield.core.lock
  *    mobile network reset, which clears always-on VPN and disconnects
  *    Sitr (checked on Android 15). Matched by the reset screen's own
  *    sentences, so the Reset options list itself stays open;
- *  - the Users page: a new user or guest has no Sitr, and a VPN only
- *    filters the user that started it.
+ *  - the Users page and private space setup: a new user, a guest or a
+ *    private space has no Sitr, and a VPN only filters the user that
+ *    started it.
+ *
+ * The phrase rules apply to the Settings app alone. In an installer or the
+ * Play Store only Sitr's own name counts: an unrelated store page that
+ * happens to mention "USB debugging" is not a way to switch Sitr off.
  *
  * Factory reset and the safe-mode prompt are left alone on purpose: they
  * are Android's own recovery tools, Play's Accessibility policy forbids
@@ -32,6 +37,7 @@ package com.sitrshield.core.lock
  */
 object GuardRules {
     private const val VPN_DIALOGS = "com.android.vpndialogs"
+    private const val SETTINGS = "com.android.settings"
 
     /** Where a screen naming Sitr is a way to switch it off. Never a launcher. */
     private val WATCHED = setOf(
@@ -67,6 +73,9 @@ object GuardRules {
         "reset all network settings",
     )
 
+    /** Every app whose windows the guard may read — the service asks Android for these alone. */
+    val packages: Set<String> get() = WATCHED + VPN_DIALOGS
+
     /** Whether any window of [packageName] can be closed; nothing else is read. */
     fun watches(packageName: String): Boolean =
         packageName == VPN_DIALOGS || packageName in WATCHED
@@ -84,12 +93,13 @@ object GuardRules {
         // Whole-text match, so a search result's "Network & internet > VPN"
         // breadcrumb doesn't count.
         if (texts.any { t -> NETWORK_HUB.any { t.equals(it, ignoreCase = true) } }) return false
+        val phrases = packageName == SETTINGS
         return texts.any { raw ->
             // Reset options lists "Delete private space": removing that
             // unfiltered profile is fine, and the list must stay open.
             val text = raw.replace("delete private space", "", ignoreCase = true)
             text.contains(appLabel) ||
-                PROTECTED_PHRASES.any { text.contains(it, ignoreCase = true) }
+                (phrases && PROTECTED_PHRASES.any { text.contains(it, ignoreCase = true) })
         }
     }
 }

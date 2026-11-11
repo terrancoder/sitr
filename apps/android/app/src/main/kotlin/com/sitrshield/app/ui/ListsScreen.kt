@@ -37,7 +37,9 @@ fun ListsScreen(ctx: UiCtx) {
     Spacer(Modifier.height(4.dp))
     Text(
         "These lists apply on this device only and never leave it. " +
-            "Household lists are managed on the Sitr Family screen.",
+            "Household lists are managed on the Sitr Family screen. " +
+            "A site you always allow opens even when a category blocks " +
+            "it — adult sites included.",
         style = MaterialTheme.typography.bodyMedium,
     )
     Spacer(Modifier.height(12.dp))
@@ -105,6 +107,10 @@ fun DomainListEditor(
             modifier = Modifier.weight(1f),
         )
         TextButton(onClick = {
+            if (input.isBlank()) {
+                error = "Type a domain, for example example.com"
+                return@TextButton
+            }
             when (val normalized = DomainInput.normalize(input)) {
                 is SitrResult.Err -> error = normalized.message
                 is SitrResult.Ok -> onAdd(normalized.value) { input = "" }

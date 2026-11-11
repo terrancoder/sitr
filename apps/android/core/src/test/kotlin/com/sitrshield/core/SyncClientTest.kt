@@ -26,6 +26,7 @@ class SyncClientTest {
         val method: String,
         val url: String,
         val headers: Map<String, String>,
+        val body: ByteArray?,
     )
 
     private class ScriptedTransport(steps: List<Any>) : SyncTransport {
@@ -39,7 +40,7 @@ class SyncClientTest {
             headers: Map<String, String>,
             body: ByteArray?,
         ): SyncHttpResponse {
-            recorded.add(Recorded(method, url, headers))
+            recorded.add(Recorded(method, url, headers, body))
             return when (val step = queue.removeFirstOrNull() ?: fail("script exhausted")) {
                 "offline" -> throw IOException("offline")
                 is SyncHttpResponse -> step
@@ -208,5 +209,35 @@ class SyncClientTest {
         )
         assertEquals(SyncStatus.State.OK, outcome.status.state)
         assertEquals(1, transport.recorded.size)
+    }
+
+    @Test
+    fun unenrollPushesTheLatestStateWithoutThisDevice() {
+        val remote = state(rev = 5).copy(devices = listOf("device-a", "me"))
+        val transport = ScriptedTransport(
+            listOf(
+                respond(200, "\"5\"", sealed(remote)), // round 1: already in sync
+                respond(200, "\"5\"", sealed(remote)), // round 2: pull
+                respond(200, "\"6\""),                 // round 2: push
+            )
+        )
+        val outcome = client(transport).unenroll(
+            SyncInput(secret, remote, maxSeenRev = 5, deviceId = "me")
+        )
+
+        assertEquals(SyncStatus.State.OK, outcome.status.state)
+        assertEquals(listOf("device-a"), outcome.state.devices)
+        val pushed = Household.openState(transport.recorded.last().body!!, keys.encKey).getOrNull()!!
+        assertEquals(listOf("device-a"), pushed.devices)
+        assertEquals(6, pushed.rev)
+    }
+
+    @Test
+    fun joinStateAtEpochZeroLosesToANeverEditedHousehold() {
+        // A household created and never edited is still rev 1. The joining
+        // device's empty state must not win the merge and replace it.
+        val created = state(rev = 1).copy(devices = listOf("creator"))
+        val joiner = Household.emptyState("joiner", 0.0)
+        assertEquals(created, Household.merge(joiner, created))
     }
 }

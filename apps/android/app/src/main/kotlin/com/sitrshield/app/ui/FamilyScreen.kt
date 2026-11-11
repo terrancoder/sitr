@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -94,12 +95,18 @@ private fun NoHousehold(ctx: UiCtx) {
             when (val joined = ctx.actions.joinHousehold(
                 code, if (joinAsChild) "child" else "guardian",
             )) {
-                is SitrResult.Err -> error = joined.message
+                is SitrResult.Err -> error = joined.message.sentence()
                 is SitrResult.Ok -> {}
             }
         },
         Modifier.fillMaxWidth(),
     ) { Text("Join") }
+    if (joinAsChild) {
+        Text(
+            "Joining as a child device clears this phone's own \"Always allow\" list.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
 
     Spacer(Modifier.height(16.dp))
     Text("Create a household", style = MaterialTheme.typography.titleMedium)
@@ -117,7 +124,7 @@ private fun NoHousehold(ctx: UiCtx) {
     Button(
         onClick = {
             when (val created = ctx.actions.createHousehold(token)) {
-                is SitrResult.Err -> error = created.message
+                is SitrResult.Err -> error = created.message.sentence()
                 is SitrResult.Ok -> {}
             }
         },
@@ -155,7 +162,20 @@ private fun InHousehold(ctx: UiCtx) {
     )
     OutlinedButton(onClick = { SyncWorker.kick(ctx.app) }) { Text("Sync now") }
 
-    if (isGuardian) {
+    // Joined but never synced: this phone doesn't have the household's
+    // PIN and lists yet, so there is nothing here it may change.
+    val waiting = Household.isJoinPlaceholder(household)
+    if (waiting) {
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Waiting for the first sync with your household. Connect to the " +
+                "internet and tap Sync now. The household's PIN and lists " +
+                "appear here after that.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+
+    if (isGuardian && !waiting) {
         Spacer(Modifier.height(12.dp))
         Text("Pairing", style = MaterialTheme.typography.titleMedium)
         if (revealedCode == null) {
@@ -229,7 +249,7 @@ private fun InHousehold(ctx: UiCtx) {
                             }
                             hashing = false
                             when (created) {
-                                is SitrResult.Err -> message = created.message
+                                is SitrResult.Err -> message = created.message.sentence()
                                 is SitrResult.Ok -> {
                                     ctx.actions.setPin(created.value)
                                     newPin = ""
@@ -256,7 +276,7 @@ private fun InHousehold(ctx: UiCtx) {
                     "Allow $domain on every household device",
                 ) {
                     when (val added = ctx.actions.addHouseholdDomain(allow = true, domain = domain)) {
-                        is SitrResult.Err -> message = added.message
+                        is SitrResult.Err -> message = added.message.sentence()
                         is SitrResult.Ok -> done()
                     }
                 }
@@ -274,7 +294,7 @@ private fun InHousehold(ctx: UiCtx) {
             onAdd = { domain, done ->
                 ctx.attempt(MutationKind.ADD_HOUSEHOLD_RULE, "") {
                     when (val added = ctx.actions.addHouseholdDomain(allow = false, domain = domain)) {
-                        is SitrResult.Err -> message = added.message
+                        is SitrResult.Err -> message = added.message.sentence()
                         is SitrResult.Ok -> done()
                     }
                 }
@@ -288,14 +308,42 @@ private fun InHousehold(ctx: UiCtx) {
     }
 
     Spacer(Modifier.height(12.dp))
+    var confirmLeave by remember { mutableStateOf(false) }
     OutlinedButton(onClick = {
-        ctx.attempt(MutationKind.LEAVE_HOUSEHOLD, "Leave the household") {
-            ctx.actions.leaveHousehold()
+        if (ctx.settings.childLock) {
+            message = "Turn off the child lock before you leave the household."
+        } else {
+            ctx.attempt(MutationKind.LEAVE_HOUSEHOLD, "Leave the household") {
+                // The PIN dialog is the confirmation when there is a PIN.
+                if (household.pin == null) confirmLeave = true else ctx.actions.leaveHousehold()
+            }
         }
     }) { Text("Leave household") }
+    if (confirmLeave) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            title = { Text("Leave this household?") },
+            text = {
+                Text(
+                    "This phone forgets the household. If no other device has the " +
+                        "pairing code, the household can't be joined again.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmLeave = false
+                    ctx.actions.leaveHousehold()
+                }) { Text("Leave") }
+            },
+            dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Cancel") } },
+        )
+    }
 
     message?.let {
         Spacer(Modifier.height(8.dp))
         Text(it, style = MaterialTheme.typography.bodyMedium)
     }
 }
+
+/** Core messages are lower-case fragments (shared with the other ports); show them as sentences. */
+private fun String.sentence() = replaceFirstChar { it.uppercase() }

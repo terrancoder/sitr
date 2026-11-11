@@ -66,7 +66,9 @@ fun OnboardingScreen(ctx: UiCtx) {
                         "Sitr's VPN is DNS-only: the tunnel carries nothing but DNS " +
                         "lookups, decided on this device. Allowed lookups go to the " +
                         "DNS server your network already uses — never to us; there is " +
-                        "no Sitr server involved and no traffic inspection. This is " +
+                        "no Sitr server involved and no traffic inspection. Those lookups " +
+                        "travel unencrypted, so Android's automatic encrypted DNS is " +
+                        "not used while Sitr is on. This is " +
                         "documented, with its limits, in the public threat model.",
                     style = MaterialTheme.typography.bodyMedium,
                 )

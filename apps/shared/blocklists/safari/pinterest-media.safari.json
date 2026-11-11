@@ -1,0 +1,18 @@
+[
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?i\\.pinimg\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?v1\\.pinimg\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  }
+]

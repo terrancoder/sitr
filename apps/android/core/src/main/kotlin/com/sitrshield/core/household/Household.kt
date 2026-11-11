@@ -169,6 +169,14 @@ object Household {
         return if (a.updatedBy > b.updatedBy) a else b
     }
 
+    /**
+     * The stand-in a device holds between joining and its first sync
+     * (emptyState at time 0): no PIN, no lists. It must not be edited —
+     * each edit raised its rev, and once that passed the real household's
+     * the merge replaced the household's PIN and lists with the joiner's.
+     */
+    fun isJoinPlaceholder(s: HouseholdState): Boolean = s.rev == 1 && s.updatedAt == 0.0
+
     /** A new revision authored by this device. */
     fun bumpRev(s: HouseholdState, deviceId: String, now: Double): HouseholdState =
         s.copy(rev = s.rev + 1, updatedAt = now, updatedBy = deviceId)

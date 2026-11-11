@@ -51,7 +51,10 @@ fun SettingsScreen(ctx: UiCtx) {
                 "The Android filter reads DNS lookup names on this device to " +
                 "decide block/allow/rewrite; those names are never sent " +
                 "anywhere, and allowed lookups go to the DNS server your " +
-                "network already uses.\n\n" +
+                "network already uses. They travel unencrypted, so Android's " +
+                "automatic encrypted DNS (Private DNS) is not used while Sitr " +
+                "is on, and your network operator can see the names, as it " +
+                "could without Private DNS.\n\n" +
                 "If you use Sitr Family, the only network request is an " +
                 "end-to-end encrypted settings blob to sync.sitrshield.com — " +
                 "unreadable by the server, tied to no account or email. " +
@@ -78,8 +81,21 @@ fun SettingsScreen(ctx: UiCtx) {
                 "Honestly stated: without the child lock, a determined user " +
                 "can uninstall Sitr or turn the VPN off, and the guardian PIN " +
                 "is friction, not security. On a child's phone in Sitr Family, " +
-                "the child lock (Home → Child lock) makes the PIN the only way " +
-                "to switch protection off.",
+                "the child lock (Home → Child lock) keeps protection on until " +
+                "the guardian PIN opens it. Keep the pairing code as secret as " +
+                "the PIN: whoever has it is a member of the household and can " +
+                "change it.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.height(12.dp))
+        // Points at the one filter that can see pictures; Sitr can't check
+        // whether it is on, so this stays plain advice, never a status.
+        Text("Also turn on", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Sitr can't see pictures inside apps. Google Messages can blur nude " +
+                "photos and videos on your child's phone: in Family Link, open " +
+                "your child → Controls → Contacts, Calls + Texts → Sensitive " +
+                "content warnings. It is on by default for supervised children.",
             style = MaterialTheme.typography.bodyMedium,
         )
         Spacer(Modifier.height(12.dp))

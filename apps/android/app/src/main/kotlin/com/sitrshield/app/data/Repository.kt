@@ -30,8 +30,9 @@ data class Settings(
     val disabledCategories: List<String> = emptyList(),
     /** Strict Search — off by default; see StrictSearchHosts. */
     val strictSearch: Boolean = false,
-    /** Images and video off on X — off by default; see X_MEDIA_HOSTS. */
-    val xMedia: Boolean = false,
+    /** Sites whose images and video are off ("x", "reddit", …) — none by
+     *  default; see SITE_MEDIA_HOSTS in the compiler. */
+    val mediaOff: Set<String> = emptySet(),
     /** Guard mode armed by a guardian (ChildLock); opened only by the PIN. */
     val childLock: Boolean = false,
     /** UI appearance: "system" | "light" | "dark" (ui.Appearance). */
@@ -80,7 +81,9 @@ class Repository(context: Context) {
             onboarded = prefs.getBoolean("onboarded", false),
             filterEnabled = prefs.getBoolean("filterEnabled", false),
             strictSearch = prefs.getBoolean("strictSearch", false),
-            xMedia = prefs.getBoolean("xMedia", false),
+            // Up to 0.2.1 this was one "xMedia" boolean.
+            mediaOff = prefs.getStringSet("mediaOff", emptySet())!! +
+                (if (prefs.getBoolean("xMedia", false)) setOf("x") else emptySet()),
             childLock = prefs.getBoolean("childLock", false),
             appearance = prefs.getString("appearance", null)
                 ?.takeIf { it in setOf("system", "light", "dark") } ?: "system",
@@ -102,7 +105,8 @@ class Repository(context: Context) {
             .putBoolean("onboarded", next.onboarded)
             .putBoolean("filterEnabled", next.filterEnabled)
             .putBoolean("strictSearch", next.strictSearch)
-            .putBoolean("xMedia", next.xMedia)
+            .putStringSet("mediaOff", next.mediaOff)
+            .remove("xMedia")
             .putBoolean("childLock", next.childLock)
             .putString("appearance", next.appearance)
             .putStringSet("disabledCategories", next.disabledCategories.toSet())

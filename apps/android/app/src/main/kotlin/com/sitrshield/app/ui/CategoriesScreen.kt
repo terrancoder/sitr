@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.sitrshield.app.Screen
+import com.sitrshield.app.SitrApp
 import com.sitrshield.app.UiCtx
 import com.sitrshield.core.categories.Categories
 import com.sitrshield.core.gate.MutationKind
@@ -131,7 +132,12 @@ fun CategoriesScreen(ctx: UiCtx) {
                 ?.let { " (" + it.joinToString(", ") + ")" } ?: "") +
             ". This blocks the servers they load result images from, so " +
             "explicit pictures do not appear. Image results on those " +
-            "engines will look broken — that is this setting working.",
+            "engines will look broken — that is this setting working." +
+            // Mojeek serves its pages and its images from one host, so the
+            // honest wording is "all of Mojeek", not "its images".
+            (if ("www.mojeek.com" in ctx.app.strictSearchHosts.hosts)
+                " Mojeek loads its pages and images from the same server, so " +
+                    "this blocks Mojeek completely." else ""),
         style = MaterialTheme.typography.bodySmall,
     )
     Spacer(Modifier.height(6.dp))
@@ -151,38 +157,53 @@ fun CategoriesScreen(ctx: UiCtx) {
     Text("Social media", style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(4.dp))
 
-    val xMediaAvailable = ctx.app.xMediaHosts.isNotEmpty()
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            "Images and video off on X",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
-        )
-        Switch(
-            checked = ctx.settings.xMedia && xMediaAvailable,
-            enabled = xMediaAvailable,
-            onCheckedChange = { on ->
-                val set = {
-                    ctx.app.update { it.copy(xMedia = on) }
-                }
-                if (on) ctx.attempt(MutationKind.ENABLE_CATEGORY, "") { set() }
-                else ctx.attempt(MutationKind.DISABLE_CATEGORY, "Turn on images and video on X") { set() }
-            },
-        )
+    for ((key, label) in SitrApp.MEDIA_SITES) {
+        val available = key in ctx.app.mediaHosts
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                "Images and video off on $label",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(
+                checked = key in ctx.settings.mediaOff && available,
+                enabled = available,
+                onCheckedChange = { on ->
+                    val set = {
+                        ctx.app.update {
+                            it.copy(mediaOff = if (on) it.mediaOff + key else it.mediaOff - key)
+                        }
+                    }
+                    if (on) ctx.attempt(MutationKind.ENABLE_CATEGORY, "") { set() }
+                    else ctx.attempt(MutationKind.DISABLE_CATEGORY, "Turn on images and video on $label") { set() }
+                },
+            )
+        }
     }
     // Same honesty rule as Strict Search: say it blocks everything, not
     // "explicit content", and point at the one filter that does know.
     Text(
-        "Blocks every picture and video on X, in the app and the website — " +
-            "Sitr cannot tell which ones are explicit. Posts and text still " +
-            "load.\n\nTo hide only media X marks as sensitive, use X's own " +
-            "setting: Settings and privacy → Privacy and safety → Content " +
-            "you see.",
+        "Each switch blocks every picture and video on that site, in its app " +
+            "and its website — Sitr cannot tell which ones are explicit. Posts " +
+            "and text still load.\n\nTo hide only media X marks as sensitive, " +
+            "use X's own setting: Settings and privacy → Privacy and safety → " +
+            "Content you see.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.secondary,
+    )
+    Spacer(Modifier.height(6.dp))
+    // Facebook, Instagram and TikTok ban nudity and are built around their
+    // media, so they get no switch (threat-model T12) — say where to go.
+    Text(
+        "Facebook, Instagram and TikTok aren't filtered inside their apps: Sitr " +
+            "only sees site names. Use Instagram Teen Accounts, TikTok Family " +
+            "Pairing, or app limits in Google Family Link. Their websites can be " +
+            "blocked in Allow & block lists.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.secondary,
     )

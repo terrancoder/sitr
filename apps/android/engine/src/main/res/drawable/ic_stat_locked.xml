@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar icon, protection ACTIVE: a closed padlock that fills the
+     24dp box. Android draws status-bar icons as a one-colour silhouette,
+     so locked/unlocked must differ by SHAPE; colour shows in the shade. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Shackle, closed: both legs reach the body. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6.5,10.5 V7 A5.5,5.5 0 0 1 17.5,7 V10.5 H14.7 V7 A2.7,2.7 0 0 0 9.3,7 V10.5 Z" />
+    <!-- Body with a keyhole cut out. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M5,10 H19 Q21,10 21,12 V21 Q21,23 19,23 H5 Q3,23 3,21 V12 Q3,10 5,10 Z M12,13.6 A1.9,1.9 0 0 0 11,17.1 V19.6 H13 V17.1 A1.9,1.9 0 0 0 12,13.6 Z" />
+</vector>

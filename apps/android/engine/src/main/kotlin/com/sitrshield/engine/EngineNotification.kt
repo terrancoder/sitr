@@ -16,7 +16,14 @@ import androidx.core.app.NotificationCompat
  * never mentions sync — sync state can't touch protection status.
  */
 object EngineNotification {
-    const val CHANNEL_ID = "sitr.protection"
+    /**
+     * DEFAULT importance, silenced: Android hides LOW ("silent") channels'
+     * icons from the status bar, so on the old "sitr.protection" (LOW)
+     * channel a protected phone showed no Sitr icon at all. Importance is
+     * fixed once a channel exists, hence the new id.
+     */
+    const val CHANNEL_ID = "sitr.status"
+    private const val LEGACY_CHANNEL_ID = "sitr.protection"
 
     /**
      * Red states get their own channel: a channel's importance is fixed
@@ -31,14 +38,17 @@ object EngineNotification {
 
     fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
+        manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
                 "Protection status",
-                NotificationManager.IMPORTANCE_LOW,
+                NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
-                description = "Whether Sitr's filtering is provably active"
+                description = "The padlock in the status bar while Sitr's filtering is active"
                 setShowBadge(false)
+                setSound(null, null)
+                enableVibration(false)
             }
         )
         manager.createNotificationChannel(
@@ -66,7 +76,13 @@ object EngineNotification {
             NotificationManager.IMPORTANCE_NONE
     }
 
-    private fun builder(context: Context, channel: String): NotificationCompat.Builder {
+    /**
+     * Locked = protected, open padlock with "!" = not protected. The status
+     * bar shows only the silhouette (Android paints it one colour), so the
+     * two shapes carry the state there; the green/red colour shows in the
+     * notification shade and on the app's home card.
+     */
+    private fun builder(context: Context, channel: String, icon: Int): NotificationCompat.Builder {
         val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
         val contentIntent = launch?.let {
             PendingIntent.getActivity(
@@ -75,16 +91,17 @@ object EngineNotification {
             )
         }
         return NotificationCompat.Builder(context, channel)
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setSmallIcon(icon)
             .setContentIntent(contentIntent)
     }
 
     fun active(context: Context): Notification =
-        builder(context, CHANNEL_ID)
+        builder(context, CHANNEL_ID, R.drawable.ic_stat_locked)
             .setOnlyAlertOnce(true)
             .setContentTitle("Sitr — protection active")
             .setContentText("Filtering on this device. Nothing leaves it.")
             .setColor(GREEN)
+            .setColorized(true) // honoured: this one belongs to the foreground service
             .setOngoing(true)
             .build()
 
@@ -95,7 +112,7 @@ object EngineNotification {
      * change, so it cannot repeat.
      */
     fun inactive(context: Context, reason: Protection.Reason): Notification =
-        builder(context, ALERT_CHANNEL_ID)
+        builder(context, ALERT_CHANNEL_ID, R.drawable.ic_stat_unlocked)
             .setContentTitle("Sitr — PROTECTION INACTIVE")
             .setContentText(describe(reason))
             .setStyle(NotificationCompat.BigTextStyle().bigText(describe(reason)))
@@ -114,6 +131,11 @@ object EngineNotification {
             "The blocklist failed verification. Reinstall the app."
         Protection.Reason.NO_UPSTREAMS ->
             "The network offered no DNS server. Check the connection."
+    }
+
+    /** The user switched protection off on purpose: no warning is due. */
+    fun cancel(context: Context) {
+        context.getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
     }
 
     fun post(context: Context, notification: Notification) {

@@ -83,12 +83,15 @@ fun ChildLockScreen(ctx: UiCtx) {
                 LockRow("Always-on VPN", alwaysOn)
                 Text(
                     "The screens that would switch Sitr off are closed: its app " +
-                        "info, uninstalling, its VPN and accessibility settings, the " +
-                        "VPN disconnect dialog, Developer options, adding users and " +
-                        "the mobile network reset. " +
+                        "info and other settings pages that show Sitr's name, " +
+                        "uninstalling, its VPN and accessibility settings, the " +
+                        "VPN disconnect dialog, Developer options, adding users, " +
+                        "setting up a private space, the Private DNS dialog and the " +
+                        "mobile network reset. " +
                         "Not covered: safe mode and factory reset (Android's own " +
                         "recovery tools), settings shown in a language " +
-                        "other than English except those that name Sitr, and phone " +
+                        "other than English except those that name Sitr, a browser's " +
+                        "own \"Secure DNS\", apps that use their own DNS server, and phone " +
                         "\"cleaner\" tools that force-stop apps — Android then " +
                         "switches the guard off until a guardian turns it back on, " +
                         "and filtering stops until Sitr is opened again. " +
@@ -142,9 +145,11 @@ private const val GUARD_DISCLOSURE =
     "Sitr's child lock uses Android's Accessibility service. While a guardian " +
         "has the lock on, Sitr reads the text of the window in front of you when " +
         "it is Settings, an app installer, the Play Store or a system dialog, to " +
-        "recognise the screens that would switch Sitr off — its app info, " +
-        "uninstalling, its VPN and accessibility settings, the VPN disconnect dialog, " +
-        "Developer options, adding users and the mobile network reset — and " +
+        "recognise the screens that would switch Sitr off — its app info and " +
+        "other settings pages that show Sitr's name, uninstalling, its VPN and " +
+        "accessibility settings, the VPN disconnect dialog, Developer options, " +
+        "adding users, setting up a private space, the Private DNS dialog and the " +
+        "mobile network reset — and " +
         "closes them. The text is checked on this phone and discarded at once: " +
         "nothing is stored, and nothing is sent anywhere. Sitr doesn't read other " +
         "apps, and the lock opens only with the guardian PIN."

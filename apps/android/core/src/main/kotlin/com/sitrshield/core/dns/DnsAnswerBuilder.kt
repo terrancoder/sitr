@@ -14,7 +14,8 @@ import java.net.InetAddress
  * valid.
  */
 object DnsAnswerBuilder {
-    const val BLOCKED_TTL = 300L
+    /** Short, so removing a block (or adding an allow) applies within a minute. */
+    const val BLOCKED_TTL = 60L
 
     class ResourceRecord(
         val name: String,

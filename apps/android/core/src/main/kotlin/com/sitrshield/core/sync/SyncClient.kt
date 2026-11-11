@@ -127,10 +127,39 @@ class SyncClient(
             return SitrResult.Err(OFFLINE)
         }
         if (response.status == 409) return SitrResult.Err(CONFLICT)
+        if (response.status == 402) {
+            return SitrResult.Err(
+                "the sync server did not accept the Sitr Family token; " +
+                    "this household is only on this phone"
+            )
+        }
         if (response.status !in 200..299) {
             return SitrResult.Err("server responded ${response.status}")
         }
         return SitrResult.Ok(parseEtag(response.etagHeader) ?: 0L)
+    }
+
+    /**
+     * Leaving a household: take this device out of the shared device list
+     * so its fair-use place is freed. A normal round first (adopt the
+     * latest state), then the same state without this device as a new
+     * revision. Best effort — offline or an error leaves the place taken.
+     */
+    fun unenroll(input: SyncInput): SyncOutcome {
+        var outcome = syncOnce(input)
+        repeat(2) {
+            if (outcome.status.state != SyncStatus.State.OK ||
+                input.deviceId !in outcome.state.devices
+            ) return outcome
+            val without = outcome.state.copy(devices = outcome.state.devices - input.deviceId)
+            outcome = syncOnce(
+                input.copy(
+                    local = Household.bumpRev(without, input.deviceId, now()),
+                    maxSeenRev = outcome.maxSeenRev,
+                )
+            )
+        }
+        return outcome
     }
 
     /**

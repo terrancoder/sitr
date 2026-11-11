@@ -33,8 +33,17 @@ class SitrApp : Application() {
     private var categorySets: Map<String, DomainSet> = emptyMap()
     private var safeSearchMap: SafeSearchMap = SafeSearchMap(emptyList())
     var strictSearchHosts: StrictSearchHosts = StrictSearchHosts.EMPTY
-    var xMediaHosts: Set<String> = emptySet()
+    /** Media hosts per site key (MEDIA_SITES); a site whose list failed is absent. */
+    var mediaHosts: Map<String, Set<String>> = emptyMap()
         private set
+
+    companion object {
+        /** The "images and video off" sites, in display order: key to label. */
+        val MEDIA_SITES = listOf(
+            "x" to "X", "reddit" to "Reddit", "tumblr" to "Tumblr",
+            "pinterest" to "Pinterest", "imgur" to "Imgur",
+        )
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -88,11 +97,15 @@ class SitrApp : Application() {
             strictSearchHosts = StrictSearchHosts.parse(
                 assets.open("strict-search-hosts.json").readBytes().decodeToString()
             ).getOrNull() ?: StrictSearchHosts.EMPTY
-            // Optional too: a bad artifact leaves the X media toggle unavailable.
-            xMediaHosts = DomainSet.load(
-                assets.open("x-media.domains").readBytes(),
-                checksums.optString("x-media.domains").ifEmpty { "missing" },
-            ).getOrNull()?.domains ?: emptySet()
+            // Optional too: a missing or bad list leaves only that site's
+            // switch unavailable, never the filter.
+            mediaHosts = MEDIA_SITES.mapNotNull { (key, _) ->
+                val name = "$key-media.domains"
+                runCatching {
+                    DomainSet.load(assets.open(name).readBytes(), checksums.optString(name).ifEmpty { "missing" })
+                        .getOrNull()?.domains?.takeIf { it.isNotEmpty() }
+                }.getOrNull()?.let { key to it }
+            }.toMap()
 
             categorySets = sets
             safeSearchMap = map
@@ -150,7 +163,7 @@ class SitrApp : Application() {
             // Strict Search folds into the same static layer, so a user
             // allow rule can still override it like any other block.
             if (settings.strictSearch) addAll(strictSearchHosts.hosts)
-            if (settings.xMedia) addAll(xMediaHosts)
+            for (site in settings.mediaOff) mediaHosts[site]?.let { addAll(it) }
         }
         EngineController.apply(
             DecisionSnapshot(

@@ -6,9 +6,8 @@ package com.sitrshield.core.dns
  * Queries are parsed strictly: exactly one question, no compression
  * pointers in the qname (queries never legitimately have them), label and
  * name length limits enforced. A malformed or non-standard packet parses
- * to null and the engine forwards it untouched — the filter fails OPEN for
- * packets it cannot understand and CLOSED only for names it decided to
- * block.
+ * to null and the engine drops it: forwarding what the filter cannot read
+ * let a blocked name through.
  */
 class DnsQuery(
     val id: Int,
@@ -63,7 +62,7 @@ object DnsMessage {
             }
             offset += 1 + len
         }
-        if (name.isEmpty()) return null
+        // An empty name is the root (". NS"): legitimate, and nothing to block.
         if (offset + 4 > payload.size) return null
         val qtype = u16(payload, offset)
         val qclass = u16(payload, offset + 2)
@@ -116,6 +115,46 @@ object DnsMessage {
     /** RCODE of a response (0 = NOERROR, 2 = SERVFAIL, 3 = NXDOMAIN). */
     fun rcode(message: ByteArray): Int =
         if (message.size > 3) message[3].toInt() and 0x0f else -1
+
+    /**
+     * Copy of [message] with every record TTL lowered to at most [max]
+     * seconds (the EDNS OPT record's TTL field is flags, left alone). The
+     * phone's resolver caches each answer for its TTL, so without this a
+     * new block or allow rule waited out the upstream TTL (15 min on some
+     * CDNs). Anything unparseable comes back unchanged.
+     * ponytail: costs more upstream queries for long-TTL names; the 60 s
+     * DnsCache in front absorbs most of them.
+     */
+    fun capTtls(message: ByteArray, max: Long): ByteArray {
+        if (message.size < 12) return message
+        val out = message.copyOf()
+        var p = 12
+        fun skipName(): Boolean {
+            while (p < out.size) {
+                val len = out[p].toInt() and 0xff
+                when {
+                    len == 0 -> { p += 1; return true }
+                    len and 0xc0 == 0xc0 -> { p += 2; return p <= out.size }
+                    else -> p += 1 + len
+                }
+            }
+            return false
+        }
+        repeat(u16(out, 4)) { if (!skipName() || p + 4 > out.size) return message; p += 4 }
+        val records = u16(out, 6) + u16(out, 8) + u16(out, 10)
+        repeat(records) {
+            if (!skipName() || p + 10 > out.size) return message
+            val type = u16(out, p)
+            if (type != 41) {
+                val ttl = ((out[p + 4].toLong() and 0xff) shl 24) or ((out[p + 5].toLong() and 0xff) shl 16) or
+                    ((out[p + 6].toLong() and 0xff) shl 8) or (out[p + 7].toLong() and 0xff)
+                if (ttl > max) for (i in 0..3) out[p + 4 + i] = (max shr (24 - 8 * i)).toByte()
+            }
+            p += 10 + u16(out, p + 8)
+            if (p > out.size) return message
+        }
+        return out
+    }
 
     internal fun u16(bytes: ByteArray, offset: Int): Int =
         ((bytes[offset].toInt() and 0xff) shl 8) or (bytes[offset + 1].toInt() and 0xff)

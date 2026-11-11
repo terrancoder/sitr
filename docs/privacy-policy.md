@@ -49,14 +49,16 @@ transmitted, logged, or stored; the decision happens in memory and the
 name is discarded. Allowed queries are forwarded to the resolver your
 device's network already uses — never to a Sitr resolver or any
 third-party resolver — so your DNS traffic goes where it would have gone
-without Sitr.
+without Sitr. Sitr sends those lookups without encryption, so Android's automatic encrypted DNS (Private DNS) is not used while Sitr is on, and your network operator can see the names it could already see without Private DNS.
 
 **Android child lock (optional).** If a guardian turns on the child lock,
 Sitr's accessibility service reads the text of the window in front of you
 when it is Settings, an installer, the Play Store or a system dialog, on
-the device, to recognise the few screens that would switch Sitr off — its
-app info, VPN and accessibility settings, the mobile network reset and the like — and
-closes them. That text is checked in memory and discarded at once; it is
+the device, to recognise the screens that would switch Sitr off — its
+app info and other settings pages that show Sitr's name, uninstalling, its
+VPN and accessibility settings, the VPN disconnect dialog, Developer
+options, adding users, setting up a private space, the Private DNS dialog
+and the mobile network reset — and closes them. That text is checked in memory and discarded at once; it is
 never stored, logged or transmitted. The guardian can switch it off at
 any time with the PIN.
 

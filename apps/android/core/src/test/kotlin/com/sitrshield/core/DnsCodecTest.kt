@@ -17,6 +17,20 @@ import kotlin.test.assertTrue
  * codec is checked against the wire format, not against itself.
  */
 class DnsCodecTest {
+    /** A query that doesn't parse is dropped, not forwarded — so these must keep parsing. */
+    @Test
+    fun unusualButLegitimateQueriesStillParse() {
+        assertEquals("_dmarc.example.com", DnsMessage.parseQuery(query("_dmarc.example.com", 16))!!.qname)
+        assertEquals("_sip._tcp.example.com", DnsMessage.parseQuery(query("_sip._tcp.example.com", 33))!!.qname)
+        // AD and CD bits, as a DNSSEC-aware stub sets them.
+        assertNotNull(DnsMessage.parseQuery(query("a.example", 1, flags = 0x0130)))
+        // A label byte above 0x7f.
+        assertNotNull(DnsMessage.parseQuery(query("xa.example", 1).also { it[13] = 0xE9.toByte() }))
+        // The root name: ". NS".
+        val root = byteArrayOf(0x12, 0x34, 0x01, 0x00, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1)
+        assertEquals("", DnsMessage.parseQuery(root)!!.qname)
+    }
+
     /** Hand-build a DNS query payload for `name` with the given qtype. */
     private fun query(
         name: String,
@@ -87,13 +101,13 @@ class DnsCodecTest {
         assertTrue(
             response.copyOfRange(12, questionEnd).contentEquals(q.questionBytes)
         )
-        // Answer: full name, type A, class IN, TTL 300, rdlength 4, 0.0.0.0.
+        // Answer: full name, type A, class IN, TTL 60, rdlength 4, 0.0.0.0.
         val nameLen = DnsMessage.encodeName("blocked.example").size
         var at = questionEnd + nameLen
         assertEquals(DnsMessage.TYPE_A, DnsMessage.u16(response, at)); at += 2
         assertEquals(DnsMessage.CLASS_IN, DnsMessage.u16(response, at)); at += 2
         assertEquals(0, DnsMessage.u16(response, at)); at += 2 // TTL high
-        assertEquals(300, DnsMessage.u16(response, at)); at += 2 // TTL low
+        assertEquals(60, DnsMessage.u16(response, at)); at += 2 // TTL low
         assertEquals(4, DnsMessage.u16(response, at)); at += 2
         assertTrue(response.copyOfRange(at, at + 4).contentEquals(ByteArray(4)))
     }
@@ -317,5 +331,29 @@ class DnsCodecTest {
         assertTrue(DnsMessage.isTruncated(reply))
         assertEquals(2, DnsMessage.rcode(reply))
         assertFalse(DnsMessage.isTruncated(query("example.com", DnsMessage.TYPE_A)))
+    }
+
+    @Test
+    fun capTtlsLowersRecordTtlsAndLeavesOptAlone() {
+        fun u16(v: Int) = listOf((v shr 8).toByte(), v.toByte())
+        fun u32(v: Long) = listOf((v shr 24).toByte(), (v shr 16).toByte(), (v shr 8).toByte(), v.toByte())
+        val qname = listOf<Byte>(7) + "example".toByteArray().toList() + listOf<Byte>(3) +
+            "com".toByteArray().toList() + listOf<Byte>(0)
+        val msg = (u16(0x1234) + u16(0x8180) + u16(1) + u16(2) + u16(0) + u16(1) +
+            qname + u16(1) + u16(1) +
+            listOf(0xc0.toByte(), 12) + u16(1) + u16(1) + u32(3600) + u16(4) + listOf<Byte>(1, 2, 3, 4) +
+            listOf(0xc0.toByte(), 12) + u16(1) + u16(1) + u32(30) + u16(4) + listOf<Byte>(5, 6, 7, 8) +
+            listOf<Byte>(0) + u16(41) + u16(4096) + u32(0x00ff8000) + u16(0)).toByteArray()
+
+        val capped = DnsMessage.capTtls(msg, 60)
+        fun ttlAt(off: Int) = java.nio.ByteBuffer.wrap(capped, off, 4).int.toLong() and 0xffffffffL
+        val first = 12 + qname.size + 4 + 2 + 4
+        assertEquals(60L, ttlAt(first))                // 3600 -> 60
+        assertEquals(30L, ttlAt(first + 16))           // already short
+        assertEquals(0x00ff8000L, ttlAt(first + 31)) // OPT flags untouched
+        assertEquals(msg.size, capped.size)
+        // Truncated garbage comes back unchanged, never throws.
+        val cut = msg.copyOf(msg.size - 3)
+        assertTrue(DnsMessage.capTtls(cut, 60).contentEquals(cut))
     }
 }

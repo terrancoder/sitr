@@ -66,6 +66,10 @@ class GuardRulesTest {
         assertFalse(decide("com.android.settings", "Reset options Delete private space Erase all data (factory reset)"))
         assertFalse(decide("com.android.settings", "Erase all data", "Erase all data"))
         assertFalse(decide("android", "Reboot to safe mode"))
+        // Phrases count in Settings only: a store page about a debugging tool stays open.
+        assertFalse(decide("com.android.vending", "ADB helper", "Turn on USB debugging to use this app"))
+        assertTrue(decide("com.android.vending", "Sitr", "Uninstall"))
+        assertTrue("com.android.vpndialogs" in GuardRules.packages && "com.android.systemui" !in GuardRules.packages)
         // Any other app.
         assertFalse(decide("com.twitter.android", "Sitr", "factory reset"))
     }

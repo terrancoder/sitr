@@ -1,6 +1,7 @@
 package com.sitrshield.app
 
 import com.sitrshield.app.data.Settings
+import com.sitrshield.app.sync.SyncHttp
 import com.sitrshield.app.sync.SyncWorker
 import com.sitrshield.core.SitrResult
 import com.sitrshield.core.gate.Gate
@@ -13,8 +14,11 @@ import com.sitrshield.core.household.HouseholdState
 import com.sitrshield.core.pin.Pin
 import com.sitrshield.core.pin.PinRecord
 import com.sitrshield.core.sync.PairingCode
+import com.sitrshield.core.sync.SyncClient
 import com.sitrshield.core.sync.SyncCrypto
+import com.sitrshield.core.sync.SyncInput
 import com.sitrshield.core.sync.SyncStatus
+import kotlin.concurrent.thread
 
 /**
  * Every settings mutation, gate-checked through the ported authority
@@ -24,6 +28,10 @@ import com.sitrshield.core.sync.SyncStatus
  * calls the action.
  */
 class HouseholdActions(private val app: SitrApp) {
+    private companion object {
+        const val LOCKED = "turn off the child lock first"
+    }
+
     private fun now() = System.currentTimeMillis().toDouble()
 
     private fun settings(): Settings = app.repository.current()
@@ -45,8 +53,11 @@ class HouseholdActions(private val app: SitrApp) {
 
     /** Household creation — Android carries the neutral token field. */
     fun createHousehold(entitlementToken: String?): SitrResult<Unit> {
+        // A locked phone must not get a new household, and with it a new PIN.
+        if (settings().childLock) return SitrResult.Err(LOCKED)
         val token = entitlementToken?.trim()?.ifEmpty { null }
-        if (token != null && !token.startsWith("sitr-ent-v1.")) {
+        // The token goes out as an HTTP header: nothing but its own alphabet.
+        if (token != null && !Regex("sitr-ent-v1\\.[A-Za-z0-9._-]+").matches(token)) {
             return SitrResult.Err("that doesn't look like a Sitr Family token")
         }
         app.secretStore.save(SyncCrypto.generateRootSecret())
@@ -63,6 +74,7 @@ class HouseholdActions(private val app: SitrApp) {
     }
 
     fun joinHousehold(code: String, role: String): SitrResult<Unit> {
+        if (settings().childLock) return SitrResult.Err(LOCKED)
         val secret = when (val decoded = PairingCode.decode(code)) {
             is SitrResult.Err -> return decoded
             is SitrResult.Ok -> decoded.value
@@ -70,8 +82,14 @@ class HouseholdActions(private val app: SitrApp) {
         app.secretStore.save(secret)
         app.update(kickSync = true) { s ->
             s.copy(
-                household = Household.emptyState(s.deviceId, now()),
+                // Authored at epoch 0 (as the extension does), so the real
+                // household always wins the first merge. With `now` it beat
+                // a never-edited rev-1 household and overwrote its devices.
+                household = Household.emptyState(s.deviceId, 0.0),
                 role = role,
+                // A child device keeps no allow rules of its own: they
+                // outrank every category and no guardian screen shows them.
+                userAllow = if (role == "child") emptyList() else s.userAllow,
                 maxSeenRev = 0,
                 syncStatus = SyncStatus.NEVER_SYNCED,
             )
@@ -84,10 +102,24 @@ class HouseholdActions(private val app: SitrApp) {
         app.secretStore.load()?.let { PairingCode.encode(it) }
 
     fun leaveHousehold() {
+        val before = settings()
+        // Leaving takes the PIN with it; the lock would have no key left.
+        if (before.childLock) return
+        val secret = app.secretStore.load()
         // Secret first: a sync still on the network checks for it before
         // writing, so its late result cannot bring the household back.
         app.secretStore.clear()
         SyncWorker.cancel(app)
+        // Free this device's fair-use place, off the main thread, with the
+        // secret held only in memory. Offline, the place stays taken.
+        val household = before.household
+        if (secret != null && household != null) {
+            thread(name = "sitr-unenroll") {
+                SyncClient(SyncHttp(), ::now).unenroll(
+                    SyncInput(secret, household, before.maxSeenRev, before.deviceId, before.entitlementToken)
+                )
+            }
+        }
         app.update {
             it.copy(
                 household = null,
@@ -171,6 +203,8 @@ class HouseholdActions(private val app: SitrApp) {
     private fun mutateHousehold(transform: (HouseholdState) -> HouseholdState) {
         app.update(kickSync = true) { s ->
             val household = s.household ?: return@update s
+            // Not before the first sync: see Household.isJoinPlaceholder.
+            if (Household.isJoinPlaceholder(household)) return@update s
             s.copy(household = Household.bumpRev(transform(household), s.deviceId, now()))
         }
     }

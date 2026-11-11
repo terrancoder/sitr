@@ -27,7 +27,8 @@ data class PinRecord(
 
 data class PinAttempts(
     val count: Int,
-    /** Epoch ms until which verification is refused. 0 = not locked. */
+    /** Time (ms, on the caller's clock — see LockoutClock) until which
+     *  verification is refused. 0 = not locked. */
     val lockedUntil: Double,
 )
 
@@ -47,7 +48,7 @@ object Pin {
 
     private const val FREE_ATTEMPTS = 4
     private const val BASE_DELAY_MS = 30_000.0
-    private const val MAX_DELAY_MS = 15 * 60_000.0
+    const val MAX_DELAY_MS = 15 * 60_000.0
 
     fun isValidInput(pin: String): SitrResult<Unit> {
         if (pin.length < MIN_LENGTH || pin.length > MAX_LENGTH) {

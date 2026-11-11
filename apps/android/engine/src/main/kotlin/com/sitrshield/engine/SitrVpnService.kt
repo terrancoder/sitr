@@ -61,6 +61,8 @@ class SitrVpnService : VpnService() {
         if (intent?.action == ACTION_STOP) {
             EngineController.updateFacts { it.copy(tunActive = false) }
             shutdown()
+            // Also clears a red warning left behind by an earlier revoke.
+            EngineNotification.cancel(this)
             stopSelf()
             return START_NOT_STICKY
         }

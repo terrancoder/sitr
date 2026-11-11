@@ -30,7 +30,8 @@ for it:
 • Filtering happens on your device, by DNS. Sitr looks at the hostname your
   apps ask for, decides in memory, and discards it. Nothing is logged or sent.
 • Allowed lookups go to the DNS server your network already uses — never to
-  a Sitr server or any third-party resolver.
+  a Sitr server or any third-party resolver. They travel unencrypted, so
+  Android's automatic encrypted DNS is not used while Sitr is on.
 • The blocklist is identical for every user and published openly, so we have
   no way to see which sites you visit — and you can see and contest every rule.
 • No account, no analytics, no crash reporting, no ads, no third-party SDKs.
@@ -51,6 +52,9 @@ public threat model.
 • Blocks adult content, gambling, and dating sites (gambling and dating are
   optional categories you can toggle)
 • Forces SafeSearch on Google, Bing, and DuckDuckGo, and YouTube Restricted Mode
+• Optional switches to turn off all images and video on X, Reddit, Tumblr,
+  Pinterest and Imgur, in their apps and websites (Sitr can't tell which
+  pictures are explicit, so it's all of a site's media or none)
 • Per-site allow and block lists, stored only on your phone
 • Optional guardian PIN so settings can't be loosened casually
 • Optional Sitr Family household: shares lists across devices, end-to-end
@@ -143,14 +147,15 @@ authorized by a parent or guardian through a parental control app"
 |---|---|
 | Why does your app need the Accessibility Services API? | **App functionality** only |
 | Do you collect and/or share personal or sensitive data using the accessibility capabilities? | **No** — window text is read in memory on the device and discarded; nothing leaves the phone. Must match Data safety and the privacy policy |
-| Video link | Unlisted YouTube link to `assets/video/sitr-accessibility-review.mp4` (gitignored; re-recorded 2026-11-02 on the `sitr-video` emulator with the 0.2.1 build, whose disclosure no longer lists factory reset and safe mode; 1:59, captions burned in. The 0.2.0 video is kept as `sitr-accessibility-review-0.2.0.mp4`) |
+| Video link | Unlisted YouTube link to `assets/video/sitr-accessibility-review.mp4` (gitignored; re-recorded 2026-11-11 on the `sitr-video` emulator with the 0.2.2 release build, whose disclosure names the Private DNS dialog, private space setup and the other settings pages that show Sitr's name; 1:47, captions burned in. Script, step times and captions are in `build/review-video/a11y-0.2.2/`. Older videos are kept as `sitr-accessibility-review-0.2.1.mp4` and `-0.2.0.mp4`) |
 
 Description wording if asked: "Sitr is a parental control. When a guardian
 turns on the optional child lock (protected by the guardian PIN), a fixed,
 rule-based list of checks closes the screens that would switch Sitr off on
-the child's phone: Sitr's App info and uninstall prompt, its VPN and
-accessibility settings, the VPN disconnect dialog, Developer options,
-adding users, the Private DNS dialog and the mobile network reset (which
+the child's phone: Sitr's App info and other settings pages that show
+Sitr's name, its uninstall prompt, its VPN and accessibility settings, the
+VPN disconnect dialog, Developer options, adding users, setting up a
+private space, the Private DNS dialog and the mobile network reset (which
 would clear always-on VPN). It leaves Android's own recovery tools, safe
 mode and factory reset, alone. It reads text only in Settings, app
 installers, the Play Store and system dialogs, only on the device, stores nothing and sends nothing. It

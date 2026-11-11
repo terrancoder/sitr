@@ -53,8 +53,10 @@ The Android app filters by answering DNS queries locally inside a
 VpnService. The engine inspects DNS query names **on-device only** to
 decide block / allow / rewrite. Allowed queries are forwarded to the
 network's own resolvers — the ones the device would use anyway — never to
-a Sitr resolver or any third-party resolver. Query names are never sent
-to Sitr or anyone else, never logged, and never stored. This is a broader
+a Sitr resolver or any third-party resolver. They are forwarded
+unencrypted (plain UDP), so Android's automatic encrypted DNS is not used
+while Sitr runs. Query names are never sent to Sitr or anyone else, never
+logged, and never stored. This is a broader
 technical capability than the extension's DNR engine (where the browser
 matches rules and extension code never sees a hostname); see
 [threat-model.md](threat-model.md) T9 for the analysis.

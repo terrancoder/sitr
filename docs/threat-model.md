@@ -80,7 +80,16 @@ also stops filtering until Sitr is opened again) — and
 says so next to the toggle. The guard reads window text on the device
 and discards it; it is opt-in by a guardian, behind a disclosure, and
 stores and sends nothing. The exit takes the guardian PIN and are refused outright when no PIN exists,
-so a cleared app can never be an unlocked one. Without the child lock,
+so a cleared app can never be an unlocked one. One limit is structural:
+**the pairing code is household membership**. Every device derives the
+same keys from it, "child" is a local role, and the merge takes the
+highest revision without asking who wrote it. The apps refuse household
+edits on a device that has joined but not yet synced (so a joiner cannot
+out-revise a household it has never seen) and ask for the PIN afterwards,
+but a modified client that holds the code can still replace the household
+state, PIN included. A guardian must keep the pairing code as secret as
+the PIN. Closing this needs loosening changes to be signed with a key only
+the PIN holder can derive — a sync-protocol change, not yet made. Without the child lock,
 an unmanaged Android phone still can't stop uninstall, and managed
 devices (EMM or Family Link) remain the alternative.
 
@@ -105,10 +114,17 @@ principle; allowed queries are forwarded only to the network's own
 resolvers, so no network path exists from the engine to anywhere else;
 the one-HTTP-call-site rule and data-flow.md remain the enforcement
 surface; and the code is open source with a byte-reproducible unsigned
-build. The bypass surface is disclosed, never hidden: strict Private DNS
+build. A privacy cost is disclosed too: forwarded queries leave in plain
+UDP (the engine resets Private-DNS :853 probes so Android falls back to
+cleartext), so Android's automatic encrypted DNS is lost while Sitr runs
+and the network operator can read the names it could already read
+without Private DNS. The bypass surface is disclosed, never hidden: strict Private DNS
 (a user-set DoT hostname) bypasses the filter — detected and surfaced as
 a red protection status with guidance; a browser's own DoH ("Secure
-DNS") cannot be intercepted; and Android's "block connections without
+DNS") cannot be intercepted (Sitr answers Firefox's canary name so its
+default DoH stays off, which does nothing for a user who switches it on);
+an app that sends its lookups to its own DNS server is not filtered,
+because only the system resolver's addresses are routed into the tunnel; and Android's "block connections without
 VPN" lockdown is unsupported by design, because DNS-only routes would
 break all other traffic. Android runs one VPN at a time, so **another
 VPN app** (a privacy VPN, or one a child installs) silently replaces
@@ -209,18 +225,29 @@ Android's DNS engine categorically cannot see resource types; iOS could
 express the greylist via content-blocker `resource-type` triggers, but
 does not today — the asymmetry is stated in-app rather than papered over.
 
-The apps do have one narrower lever: **images and video off on X**
-(optional, off by default). X serves media from its own hosts
-(`pbs.twimg.com`, `video.twimg.com`, `ton.twimg.com`), so blocking those
-hosts — by DNS on Android, by content-blocker rule on iOS — removes all
-of X's pictures and video while posts still load. It is all-or-nothing
+The apps do have a narrower lever: **images and video off, per site**,
+for the greylist's sites — X, Reddit, Tumblr, Pinterest and Imgur
+(optional, each off by default). Each site serves media from hosts of
+its own (X: `pbs`, `video`, `ton.twimg.com`; Reddit: `i`, `v`,
+`preview.redd.it`, `thumbs.redditmedia.com`; Tumblr: `media.tumblr.com`;
+Pinterest: `i`, `v1.pinimg.com`; Imgur: `i.imgur.com`; full lists in
+`tools/compiler/src/greylist.ts`), so blocking those hosts — by DNS on
+Android, by content-blocker rule on iOS — removes the site's pictures and
+video while posts still load. A host that also serves the site's scripts
+or styles is never listed (a unit test checks each site's script host). It is all-or-nothing
 for the same reason as above: X marks sensitive media only inside its API
 responses, never in these URLs, so nothing outside the X app can pick
 out just the explicit items. The in-app text says so and points to X's
 own sensitive-content setting, the only filter that does know. On iOS it
 reaches Safari only, not the X app. Media X has already cached on the
 device stays visible, and a blocked host's earlier DNS answer can outlive
-the toggle by up to the record's TTL.
+the toggle by up to the record's TTL (Sitr caps answer TTLs at 60 s).
+
+Facebook, Instagram and TikTok get no switch, deliberately: they prohibit
+nudity and moderate for it (greylist criterion 1), and Instagram and
+TikTok are built around their media, so withholding it breaks them
+rather than degrading them (criterion 3). The apps say this and point to
+those platforms' own teen controls and the OS's app limits instead.
 
 ### T13: Safari Web Extension (macOS) platform limits
 The macOS build runs the extension codebase inside Safari, which

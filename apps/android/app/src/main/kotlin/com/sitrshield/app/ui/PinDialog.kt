@@ -1,6 +1,7 @@
 package com.sitrshield.app.ui
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -16,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.sitrshield.core.SitrResult
+import com.sitrshield.core.pin.LockoutClock
 import com.sitrshield.core.pin.Pin
 import com.sitrshield.core.pin.PinAttempts
 import kotlinx.coroutines.Dispatchers
@@ -31,12 +33,29 @@ import kotlinx.coroutines.withContext
 object PinAttemptsStore {
     private const val PREFS = "sitr-pin-attempts"
 
-    fun load(context: Context): PinAttempts {
+    /**
+     * The attempts so far and "now" on the lockout clock (LockoutClock:
+     * uptime carried across reboots, never the settable wall clock).
+     */
+    fun load(context: Context): Pair<PinAttempts, Double> {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        return PinAttempts(
-            count = prefs.getInt("count", 0),
-            lockedUntil = prefs.getLong("lockedUntil", 0).toDouble(),
+        // Up to 0.2.1 the deadline was wall-clock time; keep what is left of it.
+        val wallClockDeadline = !prefs.contains("clockUptime")
+        val uptime = SystemClock.elapsedRealtime()
+        val base = LockoutClock.nextBase(
+            prefs.getLong("clockBase", 0), prefs.getLong("clockUptime", 0), uptime,
         )
+        val now = (base + uptime).toDouble()
+        var lockedUntil = prefs.getLong("lockedUntil", 0).toDouble()
+        if (wallClockDeadline && lockedUntil > 0) {
+            lockedUntil = now + (lockedUntil - System.currentTimeMillis()).coerceAtLeast(0.0)
+        }
+        val attempts = LockoutClock.clamp(PinAttempts(prefs.getInt("count", 0), lockedUntil), now)
+        prefs.edit()
+            .putLong("clockBase", base).putLong("clockUptime", uptime)
+            .putLong("lockedUntil", attempts.lockedUntil.toLong())
+            .commit()
+        return attempts to now
     }
 
     fun save(context: Context, attempts: PinAttempts) {
@@ -91,8 +110,7 @@ fun PinDialog(
             TextButton(
                 enabled = !checking,
                 onClick = {
-                    val now = System.currentTimeMillis().toDouble()
-                    val attempts = PinAttemptsStore.load(context)
+                    val (attempts, now) = PinAttemptsStore.load(context)
                     when (Pin.isLockedOut(attempts, now)) {
                         is SitrResult.Err -> {
                             val seconds =

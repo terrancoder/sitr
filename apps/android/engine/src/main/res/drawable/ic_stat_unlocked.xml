@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar icon, protection INACTIVE: an open padlock with "!" — a
+     different silhouette from ic_stat_locked, readable at a glance. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Shackle, open: lifted, the left leg stops short of the body. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6.5,6.5 V5.5 A5.5,5.5 0 0 1 17.5,5.5 V10.5 H14.7 V5.5 A2.7,2.7 0 0 0 9.3,5.5 V6.5 Z" />
+    <!-- Body with "!" cut out. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M5,10 H19 Q21,10 21,12 V21 Q21,23 19,23 H5 Q3,23 3,21 V12 Q3,10 5,10 Z M10.9,12.6 H13.1 V18 H10.9 Z M10.9,19.2 H13.1 V21.2 H10.9 Z" />
+</vector>

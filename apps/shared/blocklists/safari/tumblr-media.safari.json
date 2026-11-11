@@ -1,0 +1,18 @@
+[
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?media\\.tumblr\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?vt\\.tumblr\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  }
+]

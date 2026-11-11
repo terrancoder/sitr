@@ -132,14 +132,26 @@ class ArtifactsTest {
     }
 
     @Test
-    fun xMediaHostsLoadVerifiedAndSpareTheSitesScripts() {
-        val set = DomainSet.load(
-            File(dir, "x-media.domains").readBytes(), checksums().getString("x-media.domains"),
-        ).getOrNull() ?: error("x-media.domains must load")
-        assertTrue("pbs.twimg.com" in set.domains)
-        assertTrue("video.twimg.com" in set.domains)
-        // abs.twimg.com serves X's own JS/CSS; blocking it breaks the site.
-        assertTrue("abs.twimg.com" !in set.domains)
+    fun siteMediaHostsLoadVerifiedAndSpareTheSitesScripts() {
+        // site -> (a media host it must block, the host serving its own JS/CSS)
+        val sites = mapOf(
+            "x" to ("pbs.twimg.com" to "abs.twimg.com"),
+            "reddit" to ("i.redd.it" to "www.redditstatic.com"),
+            "tumblr" to ("64.media.tumblr.com" to "assets.tumblr.com"),
+            "pinterest" to ("i.pinimg.com" to "s.pinimg.com"),
+            "imgur" to ("i.imgur.com" to "s.imgur.com"),
+        )
+        for ((site, hosts) in sites) {
+            val (media, scripts) = hosts
+            val name = "$site-media.domains"
+            val set = DomainSet.load(File(dir, name).readBytes(), checksums().getString(name))
+                .getOrNull() ?: error("$name must load")
+            // Android matches a listed domain and every subdomain of it.
+            fun blocks(host: String) = set.domains.any { host == it || host.endsWith(".$it") }
+            assertTrue(blocks(media), "$name must block $media")
+            // Blocking a site's scripts would break it, not just its images.
+            assertTrue(!blocks(scripts), "$name must not block $scripts")
+        }
     }
 
     @Test

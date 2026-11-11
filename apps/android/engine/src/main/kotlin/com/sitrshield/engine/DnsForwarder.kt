@@ -16,8 +16,10 @@ import java.util.concurrent.ConcurrentHashMap
  * the resolver's bounded executors so the loop never blocks.
  *
  * Decision order per query (NameAction):
- *  1. unparseable / non-IN → forward raw (fail OPEN for what we can't
- *     read; the filter fails CLOSED only for names it decided to block)
+ *  1. unparseable / non-IN → dropped. No stub resolver sends these, and
+ *     forwarding what the filter cannot read let a blocked name through
+ *     (a compressed qname is answered upstream)
+ *  1b. the DNS-over-HTTPS canary → NODATA, so Firefox leaves its own DoH off
  *  2. the DecisionSnapshot ladder → blocked answer
  *  3. SafeSearch host → NODATA for HTTPS/SVCB, CNAME rewrite for A/AAAA
  *  4. forward
@@ -33,9 +35,10 @@ class DnsForwarder(
     private val targetCache = ConcurrentHashMap<String, ResolvedTarget>()
 
     fun handle(datagram: UdpDatagram) {
-        val query = DnsMessage.parseQuery(datagram.payload)
-        if (query == null || query.qclass != DnsMessage.CLASS_IN) {
-            forwardRaw(datagram, null)
+        val query = DnsMessage.parseQuery(datagram.payload) ?: return
+        if (query.qclass != DnsMessage.CLASS_IN) return
+        if (query.qname == DOH_CANARY) {
+            writeReply(datagram, DnsAnswerBuilder.nodata(query))
             return
         }
 
@@ -76,16 +79,16 @@ class DnsForwarder(
         }
     }
 
-    private fun forwardRaw(datagram: UdpDatagram, query: DnsQuery?) {
+    private fun forwardRaw(datagram: UdpDatagram, query: DnsQuery) {
         upstream.executor.execute {
             guarded {
                 val response = upstream.forward(datagram.payload) {
-                    DnsMessage.isReplyTo(datagram.payload, query?.questionBytes, it)
-                } ?: return@guarded
+                    DnsMessage.isReplyTo(datagram.payload, query.questionBytes, it)
+                }?.let { DnsMessage.capTtls(it, DnsAnswerBuilder.BLOCKED_TTL) } ?: return@guarded
                 // Cache only complete, settled answers: a truncated reply or
                 // a server failure should be asked again, not pinned for 60 s.
                 val rcode = DnsMessage.rcode(response)
-                if (query != null && !DnsMessage.isTruncated(response) &&
+                if (!DnsMessage.isTruncated(response) &&
                     (rcode == 0 || rcode == 3)
                 ) {
                     cache.put(query.qname, query.qtype, response, now())
@@ -131,6 +134,11 @@ class DnsForwarder(
             targetCache[rule.target] = ResolvedTarget(addresses, now() + 5 * 60_000)
         }
         return addresses
+    }
+
+    private companion object {
+        /** support.mozilla.org/kb/canary-domain-use-application-dnsnet */
+        const val DOH_CANARY = "use-application-dns.net"
     }
 
     fun clearCaches() {

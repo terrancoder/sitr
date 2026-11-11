@@ -25,6 +25,14 @@ class GuardService : AccessibilityService() {
         rootInActiveWindow?.packageName?.toString()?.let { check(it, null) }
     }
 
+    /** From here on Android delivers only the watched apps' window events. */
+    override fun onServiceConnected() {
+        serviceInfo?.let {
+            it.packageNames = GuardRules.packages.toTypedArray()
+            serviceInfo = it
+        }
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString() ?: return
         check(pkg, event.text)

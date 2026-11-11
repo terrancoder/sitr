@@ -6,12 +6,15 @@ reset. The phone must be in a Sitr Family household with a guardian PIN
 set, because the PIN is the only way to open the lock again.
 
 Sitr's accessibility guard closes the screens that would switch Sitr
-off: its app info, its VPN
+off: its app info and other settings pages that show Sitr's name, its VPN
 settings, the accessibility page, Developer options, the mobile network
 reset (it clears always-on VPN), the uninstall prompt, the Private DNS
-dialog, the VPN disconnect dialog and
-the Users page (a new user or guest has no Sitr, and a VPN
-filters only the user that started it). Wi-Fi and the "Network & internet" page stay usable.
+dialog, the VPN disconnect dialog,
+the Users page and private space setup (a new user, a guest or a private
+space has no Sitr, and a VPN filters only the user that started it). The
+phrase rules apply to the Settings app only; in an installer or the Play
+Store only Sitr's own name counts, and Android delivers the guard no
+window events from any other app. Wi-Fi and the "Network & internet" page stay usable.
 Other VPN apps can't take Sitr's place because Sitr is the always-on VPN:
 Android itself refuses them, so their permission prompts are left alone.
 
@@ -22,6 +25,8 @@ What it does not cover, as the app says next to the toggle:
   both can also be reached with the hardware keys;
 - settings shown in a language other than English, except screens that
   name Sitr;
+- a browser's own "Secure DNS" and apps that use their own DNS server:
+  those lookups never reach Sitr;
 - phone "cleaner" apps that force-stop Sitr. Android then switches the
   guard off until a guardian turns it back on (Home shows it red), and
   filtering stops until Sitr is opened again: always-on VPN does not

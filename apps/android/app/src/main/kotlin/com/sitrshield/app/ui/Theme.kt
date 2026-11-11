@@ -1,12 +1,18 @@
 package com.sitrshield.app.ui
 
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.compose.LocalActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 
 /**
  * sitrshield.com design tokens, verbatim (site CSS custom properties).
@@ -118,6 +124,15 @@ fun SitrTheme(appearance: String = Appearance.SYSTEM, content: @Composable () ->
         Appearance.LIGHT -> false
         Appearance.DARK -> true
         else -> isSystemInDarkTheme()
+    }
+    // System bars follow the APP's appearance, not the phone's: without
+    // this a Light app on a dark phone had white status icons on cream,
+    // and the navigation bar kept a grey scrim.
+    val activity = LocalActivity.current as? ComponentActivity
+    LaunchedEffect(darkTheme) {
+        val style = if (darkTheme) SystemBarStyle.dark(Color.Transparent.toArgb())
+        else SystemBarStyle.light(Color.Transparent.toArgb(), Color.Transparent.toArgb())
+        activity?.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
     }
     MaterialTheme(
         colorScheme = if (darkTheme) Dark else Light,

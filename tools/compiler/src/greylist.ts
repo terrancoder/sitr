@@ -38,15 +38,32 @@ export const MEDIA_FILTER_PRIORITY = 1;
 export const MEDIA_RESOURCE_TYPES = ["image", "media"];
 
 /**
- * X's media servers, for the apps' "images and video off on X" setting.
- * The extension matches by initiator (x.com, above); the Android DNS
- * engine and the iOS content blocker can't see initiators, so they block
- * the hosts X serves pictures (pbs), video (video) and DM media (ton)
- * from. Not abs.twimg.com — that is the site's own scripts and styles.
- * X labels sensitive media only inside its API responses, never in these
- * URLs, so this is all of X's media or none of it (threat-model T12).
+ * Media servers per greylist site, for the apps' per-site "images and
+ * video off on <site>" settings. The extension matches by initiator
+ * (hosts.txt, above); the Android DNS engine and the iOS content blocker
+ * can't see initiators, so they block the hosts each site serves its
+ * pictures and video from — and NEVER a host that also serves the site's
+ * scripts, styles or API (Android blocks whole hostnames):
+ *  - x: pbs (pictures), video, ton (DM media); not abs.twimg.com (scripts).
+ *  - reddit: i/v/preview/external-preview.redd.it, thumbs.redditmedia.com;
+ *    not bare redd.it (short links) or www.redditstatic.com (scripts).
+ *  - tumblr: media.tumblr.com (NN./va.), vt.tumblr.com (video); not
+ *    assets.tumblr.com (scripts mixed with media).
+ *  - pinterest: i.pinimg.com (pictures), v1.pinimg.com (video); not
+ *    s.pinimg.com (scripts and styles).
+ *  - imgur: i.imgur.com; not s.imgur.com (scripts) or api.imgur.com.
+ * Request hosts recorded in Brave on 2026-11-08 (Reddit from its known
+ * media hosts; reddit.com refused the recording machine). None of these
+ * URLs says which picture is explicit, so each switch is all of a site's
+ * media or none of it (threat-model T12).
  */
-export const X_MEDIA_HOSTS = ["pbs.twimg.com", "ton.twimg.com", "video.twimg.com"];
+export const SITE_MEDIA_HOSTS: Record<string, string[]> = {
+  x: ["pbs.twimg.com", "ton.twimg.com", "video.twimg.com"],
+  reddit: ["external-preview.redd.it", "i.redd.it", "preview.redd.it", "thumbs.redditmedia.com", "v.redd.it"],
+  tumblr: ["media.tumblr.com", "vt.tumblr.com"],
+  pinterest: ["i.pinimg.com", "v1.pinimg.com"],
+  imgur: ["i.imgur.com"],
+};
 
 /** Compile the greylist hosts into initiator-scoped block rules. */
 export function compileGreylistRuleset(

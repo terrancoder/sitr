@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -24,7 +26,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.sitrshield.app.Screen
 import com.sitrshield.app.UiCtx
@@ -34,6 +38,7 @@ import com.sitrshield.engine.EngineController
 import com.sitrshield.engine.EngineNotification
 import com.sitrshield.engine.Protection
 import com.sitrshield.engine.SitrVpnService
+import com.sitrshield.engine.R as EngineR
 
 /**
  * The status home — the in-app twin of the notification badge. Green
@@ -46,7 +51,9 @@ fun HomeScreen(ctx: UiCtx) {
     val context = LocalContext.current
     val facts by EngineController.facts.collectAsState()
     val protection = EngineController.protection(facts)
-    val enabled = ctx.settings.filterEnabled
+    // Android starts an always-on VPN by itself; a running filter is on
+    // whatever the switch last said.
+    val enabled = ctx.settings.filterEnabled || facts.tunActive
 
     val consentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -67,6 +74,13 @@ fun HomeScreen(ctx: UiCtx) {
         }
     }
 
+    fun turnOff() {
+        ctx.attempt(MutationKind.DISABLE_CATEGORY, "Turn off protection") {
+            ctx.app.update { it.copy(filterEnabled = false) }
+            SitrVpnService.stop(context)
+        }
+    }
+
     Text("Sitr", style = MaterialTheme.typography.headlineMedium)
     Spacer(Modifier.height(12.dp))
 
@@ -74,10 +88,7 @@ fun HomeScreen(ctx: UiCtx) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             when {
                 !enabled -> {
-                    Text(
-                        "Filtering is off",
-                        style = MaterialTheme.typography.titleLarge,
-                    )
+                    StatusTitle("Filtering is off", locked = false, MaterialTheme.colorScheme.onSurface)
                     Text(
                         "Turn on protection to block adult, gambling and dating " +
                             "sites and enforce SafeSearch — entirely on this device.",
@@ -86,11 +97,7 @@ fun HomeScreen(ctx: UiCtx) {
                     Button(onClick = ::turnOn) { Text("Turn on protection") }
                 }
                 protection is Protection.Active -> {
-                    Text(
-                        "Protection active",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                    StatusTitle("Protection active", locked = true, MaterialTheme.colorScheme.primary)
                     Text(
                         "Filtering on this device. Nothing leaves it.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -101,24 +108,20 @@ fun HomeScreen(ctx: UiCtx) {
                     // device, PIN when one is set. (The gate table has no
                     // kind of its own for it — the extension it is shared
                     // with has no global off switch.)
-                    OutlinedButton(onClick = {
-                        ctx.attempt(MutationKind.DISABLE_CATEGORY, "Turn off protection") {
-                            ctx.app.update { it.copy(filterEnabled = false) }
-                            SitrVpnService.stop(context)
-                        }
-                    }) { Text("Turn off") }
+                    OutlinedButton(onClick = ::turnOff) { Text("Turn off") }
                 }
                 protection is Protection.Inactive -> {
-                    Text(
-                        "PROTECTION INACTIVE",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = ProtectionRed,
-                    )
+                    StatusTitle("PROTECTION INACTIVE", locked = false, ProtectionRed)
                     Text(
                         EngineNotification.describe(protection.reason),
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    Button(onClick = ::turnOn) { Text("Re-enable") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = ::turnOn) { Text("Re-enable") }
+                        // Someone who moved to another VPN on purpose must
+                        // be able to say so — same gate as the green state.
+                        OutlinedButton(onClick = ::turnOff) { Text("Turn off") }
+                    }
                 }
             }
         }
@@ -206,6 +209,20 @@ fun HomeScreen(ctx: UiCtx) {
             onClick = { ctx.navigate(Screen.SETTINGS) },
             Modifier.fillMaxWidth(),
         ) { Text("About & privacy") }
+    }
+}
+
+/** The status title with the same padlock the status bar shows, in colour. */
+@Composable
+private fun StatusTitle(text: String, locked: Boolean, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(
+            painterResource(if (locked) EngineR.drawable.ic_stat_locked else EngineR.drawable.ic_stat_unlocked),
+            contentDescription = null, // the title says it
+            tint = color,
+            modifier = Modifier.size(32.dp),
+        )
+        Text(text, style = MaterialTheme.typography.titleLarge, color = color)
     }
 }
 
