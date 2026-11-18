@@ -41,6 +41,18 @@ import {
 } from "../../../extension/dist/lib/gate.js";
 import { EMPTY_MANAGED_POLICY } from "../../../extension/dist/lib/managed.js";
 import {
+  DELAY_MINUTES,
+  JOIN_HOUSEHOLD_WAITS_AS,
+  SHORTEN_DELAY_GATED_AS,
+  WINDOW_MS,
+  delayChangeAction,
+  evaluate,
+  needsWait,
+  type DelayAction,
+  type DelayPhase,
+  type DelayRequest,
+} from "../../../extension/dist/lib/delay.js";
+import {
   backoffAfterFailure,
   hashPin,
   sanitizePinRecord,
@@ -467,6 +479,139 @@ function genGate(): object {
   };
 }
 
+/*
+ * delay.json — "wait before loosening" (extension/src/lib/delay.ts).
+ *
+ * Shape (all times are integer milliseconds <= 2^53-1; minutes are integers):
+ * {
+ *   "version": 1, "note": string,
+ *   "delayMinutesAllowed": [0, 5, 30, 60, 360, 1440],   // 0 = off
+ *   "windowMs": 600000,
+ *   "shortenDelayGatedAs": "disableCategory",  // gate row used for shortenDelay
+ *   "joinHouseholdWaitsAs": "disableCategory", // needsWait row used for joining
+ *   "evaluate": [{ "name": string, "delayMinutes": int,
+ *                  "request": { "at": int } | null, "now": int,
+ *                  "result": { "phase": "off"|"idle"|"waiting"|"open",
+ *                              "remainingMs": int,
+ *                              "request": { "at": int } | null } }],
+ *   "needsWait": [{ "action": <MutationKind> | "shortenDelay",
+ *                   "phase": <phase>, "needsWait": bool }],
+ *   "delayChange": [{ "fromMinutes": int, "toMinutes": int,
+ *                     "action": "shortenDelay" | null,  // null = free
+ *                     "phase": <phase of the CURRENT (from) setting>,
+ *                     "needsWait": bool }]
+ * }
+ * evaluate: persist result.request whenever it differs from the input
+ * (restarted after the clock went back, or cleared). Compute with
+ * elapsed = now - at, never at + delay. Caller rules not expressible as
+ * cases: starting and cancelling a request never wait; any change to the
+ * delay setting clears the stored request; the order is gate (refused stays
+ * refused) -> needsWait -> PIN if the gate asked for one -> needsWait again
+ * after a correct PIN. Joining a household is never refused (not by the
+ * managed lock, not by a role): it waits as joinHouseholdWaitsAs, then asks
+ * for this device's own PIN when one is set, then re-checks the wait.
+ */
+function genDelay(): object {
+  const T = 1_700_000_000_000;
+  const MAX = Number.MAX_SAFE_INTEGER;
+  const W = WINDOW_MS;
+  const evaluateCases = [];
+  for (const minutes of DELAY_MINUTES) {
+    const d = minutes * 60_000;
+    const clock: Array<[string, DelayRequest | null, number]> = [
+      ["no request", null, T],
+      ["just requested", { at: T }, T],
+      ["one ms before the wait ends", { at: T }, T + d - 1],
+      ["exactly at the end of the wait", { at: T }, T + d],
+      ["inside the window", { at: T }, T + d + W / 2],
+      ["one ms before the window closes", { at: T }, T + d + W - 1],
+      ["exactly at the window close", { at: T }, T + d + W],
+      ["long after (30 days)", { at: T }, T + d + W + 30 * 86_400_000],
+      ["clock one ms backwards", { at: T }, T - 1],
+      ["clock far backwards (to zero)", { at: T }, 0],
+      ["monotonic clock at zero, just requested", { at: 0 }, 0],
+      ["huge: requested at zero, now at max", { at: 0 }, MAX],
+      ["huge: requested one ms before max", { at: MAX - 1 }, MAX],
+      ["huge: requested at max, clock back to zero", { at: MAX }, 0],
+    ];
+    for (const [name, request, now] of clock) {
+      evaluateCases.push({
+        name: `${minutes} min: ${name}`,
+        delayMinutes: minutes,
+        request,
+        now,
+        result: evaluate(minutes, request, now),
+      });
+    }
+  }
+  // Self-check the defining properties against the generated table.
+  for (const c of evaluateCases) {
+    const r = c.result;
+    if (c.delayMinutes === 0) assert.equal(r.phase, "off", c.name);
+    if (c.delayMinutes > 0 && c.request !== null && c.now < c.request.at) {
+      assert.equal(r.phase, "waiting", c.name);
+      assert.deepEqual(r.request, { at: c.now }, c.name);
+    }
+    if (r.phase === "open") {
+      assert.ok(c.request !== null && c.now - c.request.at >= c.delayMinutes * 60_000, c.name);
+    }
+  }
+
+  const kinds: DelayAction[] = [
+    "disableCategory",
+    "removeDeviceBlockRule",
+    "addDeviceAllowRule",
+    "removeHouseholdRule",
+    "leaveHousehold",
+    "loosenMediaMode",
+    "addImageAllowRule",
+    "enableCategory",
+    "addDeviceBlockRule",
+    "removeDeviceAllowRule",
+    "addHouseholdRule",
+    "changePin",
+    "tightenMediaMode",
+    "removeImageAllowRule",
+    "shortenDelay",
+  ];
+  const phases: DelayPhase[] = ["off", "idle", "waiting", "open"];
+  const needsWaitCases = [];
+  for (const action of kinds) {
+    for (const phase of phases) {
+      needsWaitCases.push({ action, phase, needsWait: needsWait(action, phase) });
+    }
+  }
+  assert.equal(needsWaitCases.filter((c) => c.needsWait).length, 8 * 2);
+
+  const delayChange = [];
+  for (const from of DELAY_MINUTES) {
+    for (const to of DELAY_MINUTES) {
+      if (from === to) continue;
+      const action = delayChangeAction(from, to);
+      for (const phase of from === 0 ? (["off"] as const) : (["idle", "waiting", "open"] as const)) {
+        delayChange.push({
+          fromMinutes: from,
+          toMinutes: to,
+          action,
+          phase,
+          needsWait: action !== null && needsWait(action, phase),
+        });
+      }
+    }
+  }
+  return {
+    version: 1,
+    note: "generated — edit tools/conformance, run npm run fixtures. Shape documented above genDelay() in tools/conformance/src/generate.ts. A misbehaving clock may open the window late, never early.",
+    delayMinutesAllowed: [...DELAY_MINUTES],
+    windowMs: WINDOW_MS,
+    shortenDelayGatedAs: SHORTEN_DELAY_GATED_AS,
+    joinHouseholdWaitsAs: JOIN_HOUSEHOLD_WAITS_AS,
+    evaluate: evaluateCases,
+    needsWait: needsWaitCases,
+    delayChange,
+  };
+}
+
 async function genSanitize(): Promise<object> {
   const good = await canonicalState();
   const inputs: Array<[string, unknown]> = [
@@ -637,6 +782,7 @@ const files = new Map<string, object>([
   ["crc16.json", genCrc16()],
   ["merge.json", await genMerge()],
   ["gate.json", genGate()],
+  ["delay.json", genDelay()],
   ["sanitize.json", await genSanitize()],
   ["pin.json", await genPin()],
   ["entitlement.json", genEntitlement()],

@@ -6,9 +6,10 @@ import UniformTypeIdentifiers
 /// The app regenerates `blockerList.json` in the shared App Group
 /// container (engine-first apply in BlockerController) and calls
 /// SFContentBlockerManager.reloadContentBlocker; this handler serves that
-/// file, falling back to the bundled compiler-emitted default (every
-/// category on, no dynamic rules) so the blocker protects from first
-/// launch, before the app has ever run.
+/// file, falling back to the bundled compiler-emitted default so the
+/// blocker protects before the app has ever run. That default holds the
+/// hand-curated tier only (~500 rules, no imported lists, no dynamic
+/// rules): a stopgap until the app's first apply writes the full list.
 class ContentBlockerRequestHandler: NSObject, NSExtensionRequestHandling {
     static let appGroup = "group.com.sitrshield.sitr"
 

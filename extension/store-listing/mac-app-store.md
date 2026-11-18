@@ -49,8 +49,12 @@ word for it:
   Restricted Mode
 • Optional media filtering: hide images and media on a public list of
   mixed-content sites (greylist), or everywhere except sites you allow
+• Optional, off by default: a list of gore and extremist hate sites. It is
+  old and incomplete, and says so
 • Per-site allow and block lists — loosening ones is gated by the
   optional guardian PIN
+• Optional "Wait before loosening": a change that loosens protection waits
+  5 minutes to 24 hours before it can be made
 • Sitr Family: join a household from a pairing code to share family
   settings across devices — synced only as an end-to-end-encrypted blob
   our server cannot read
@@ -58,8 +62,12 @@ word for it:
 **Honest limits**
 
 A determined user can disable the extension — Sitr is a protection for
-people who want it, not a warden. If protection is not provably active,
-Sitr shows red and says so.
+people who want it, not a warden; the wait before loosening slows changes
+inside Sitr only and relies on the Mac's clock. If protection is not
+provably active, Sitr shows red and says so. Most of the blocklist comes
+from public lists checked by domain name, so some entries will be wrong;
+the "Report a site" links open a public GitHub issue form or your mail
+app, and Sitr itself sends nothing.
 
 ## Keywords (100 chars max)
 
@@ -94,7 +102,7 @@ full-channel device and include:
 
 ## Copyright
 
-© 2026 Dooplin Apps. Source available under MPL-2.0.
+© 2026 Dooplin Apps. Source available under MPL-2.0; blocklist data under CC BY-SA 4.0.
 
 ## Support / Marketing URLs
 

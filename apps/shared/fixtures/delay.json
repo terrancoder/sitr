@@ -1,0 +1,2061 @@
+{
+  "version": 1,
+  "note": "generated — edit tools/conformance, run npm run fixtures. Shape documented above genDelay() in tools/conformance/src/generate.ts. A misbehaving clock may open the window late, never early.",
+  "delayMinutesAllowed": [
+    0,
+    5,
+    30,
+    60,
+    360,
+    1440
+  ],
+  "windowMs": 600000,
+  "shortenDelayGatedAs": "disableCategory",
+  "joinHouseholdWaitsAs": "disableCategory",
+  "evaluate": [
+    {
+      "name": "0 min: no request",
+      "delayMinutes": 0,
+      "request": null,
+      "now": 1700000000000,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: just requested",
+      "delayMinutes": 0,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000000000,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: one ms before the wait ends",
+      "delayMinutes": 0,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1699999999999,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: exactly at the end of the wait",
+      "delayMinutes": 0,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000000000,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: inside the window",
+      "delayMinutes": 0,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000300000,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: one ms before the window closes",
+      "delayMinutes": 0,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000599999,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: exactly at the window close",
+      "delayMinutes": 0,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000600000,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: long after (30 days)",
+      "delayMinutes": 0,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1702592600000,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: clock one ms backwards",
+      "delayMinutes": 0,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1699999999999,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: clock far backwards (to zero)",
+      "delayMinutes": 0,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 0,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: monotonic clock at zero, just requested",
+      "delayMinutes": 0,
+      "request": {
+        "at": 0
+      },
+      "now": 0,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: huge: requested at zero, now at max",
+      "delayMinutes": 0,
+      "request": {
+        "at": 0
+      },
+      "now": 9007199254740991,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: huge: requested one ms before max",
+      "delayMinutes": 0,
+      "request": {
+        "at": 9007199254740990
+      },
+      "now": 9007199254740991,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "0 min: huge: requested at max, clock back to zero",
+      "delayMinutes": 0,
+      "request": {
+        "at": 9007199254740991
+      },
+      "now": 0,
+      "result": {
+        "phase": "off",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "5 min: no request",
+      "delayMinutes": 5,
+      "request": null,
+      "now": 1700000000000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "5 min: just requested",
+      "delayMinutes": 5,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000000000,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 300000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "5 min: one ms before the wait ends",
+      "delayMinutes": 5,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000299999,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 1,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "5 min: exactly at the end of the wait",
+      "delayMinutes": 5,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000300000,
+      "result": {
+        "phase": "open",
+        "remainingMs": 600000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "5 min: inside the window",
+      "delayMinutes": 5,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000600000,
+      "result": {
+        "phase": "open",
+        "remainingMs": 300000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "5 min: one ms before the window closes",
+      "delayMinutes": 5,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000899999,
+      "result": {
+        "phase": "open",
+        "remainingMs": 1,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "5 min: exactly at the window close",
+      "delayMinutes": 5,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000900000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "5 min: long after (30 days)",
+      "delayMinutes": 5,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1702592900000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "5 min: clock one ms backwards",
+      "delayMinutes": 5,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1699999999999,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 300000,
+        "request": {
+          "at": 1699999999999
+        }
+      }
+    },
+    {
+      "name": "5 min: clock far backwards (to zero)",
+      "delayMinutes": 5,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 300000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "5 min: monotonic clock at zero, just requested",
+      "delayMinutes": 5,
+      "request": {
+        "at": 0
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 300000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "5 min: huge: requested at zero, now at max",
+      "delayMinutes": 5,
+      "request": {
+        "at": 0
+      },
+      "now": 9007199254740991,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "5 min: huge: requested one ms before max",
+      "delayMinutes": 5,
+      "request": {
+        "at": 9007199254740990
+      },
+      "now": 9007199254740991,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 299999,
+        "request": {
+          "at": 9007199254740990
+        }
+      }
+    },
+    {
+      "name": "5 min: huge: requested at max, clock back to zero",
+      "delayMinutes": 5,
+      "request": {
+        "at": 9007199254740991
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 300000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "30 min: no request",
+      "delayMinutes": 30,
+      "request": null,
+      "now": 1700000000000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "30 min: just requested",
+      "delayMinutes": 30,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000000000,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 1800000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "30 min: one ms before the wait ends",
+      "delayMinutes": 30,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700001799999,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 1,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "30 min: exactly at the end of the wait",
+      "delayMinutes": 30,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700001800000,
+      "result": {
+        "phase": "open",
+        "remainingMs": 600000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "30 min: inside the window",
+      "delayMinutes": 30,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700002100000,
+      "result": {
+        "phase": "open",
+        "remainingMs": 300000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "30 min: one ms before the window closes",
+      "delayMinutes": 30,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700002399999,
+      "result": {
+        "phase": "open",
+        "remainingMs": 1,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "30 min: exactly at the window close",
+      "delayMinutes": 30,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700002400000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "30 min: long after (30 days)",
+      "delayMinutes": 30,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1702594400000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "30 min: clock one ms backwards",
+      "delayMinutes": 30,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1699999999999,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 1800000,
+        "request": {
+          "at": 1699999999999
+        }
+      }
+    },
+    {
+      "name": "30 min: clock far backwards (to zero)",
+      "delayMinutes": 30,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 1800000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "30 min: monotonic clock at zero, just requested",
+      "delayMinutes": 30,
+      "request": {
+        "at": 0
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 1800000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "30 min: huge: requested at zero, now at max",
+      "delayMinutes": 30,
+      "request": {
+        "at": 0
+      },
+      "now": 9007199254740991,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "30 min: huge: requested one ms before max",
+      "delayMinutes": 30,
+      "request": {
+        "at": 9007199254740990
+      },
+      "now": 9007199254740991,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 1799999,
+        "request": {
+          "at": 9007199254740990
+        }
+      }
+    },
+    {
+      "name": "30 min: huge: requested at max, clock back to zero",
+      "delayMinutes": 30,
+      "request": {
+        "at": 9007199254740991
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 1800000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "60 min: no request",
+      "delayMinutes": 60,
+      "request": null,
+      "now": 1700000000000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "60 min: just requested",
+      "delayMinutes": 60,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000000000,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 3600000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "60 min: one ms before the wait ends",
+      "delayMinutes": 60,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700003599999,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 1,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "60 min: exactly at the end of the wait",
+      "delayMinutes": 60,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700003600000,
+      "result": {
+        "phase": "open",
+        "remainingMs": 600000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "60 min: inside the window",
+      "delayMinutes": 60,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700003900000,
+      "result": {
+        "phase": "open",
+        "remainingMs": 300000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "60 min: one ms before the window closes",
+      "delayMinutes": 60,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700004199999,
+      "result": {
+        "phase": "open",
+        "remainingMs": 1,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "60 min: exactly at the window close",
+      "delayMinutes": 60,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700004200000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "60 min: long after (30 days)",
+      "delayMinutes": 60,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1702596200000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "60 min: clock one ms backwards",
+      "delayMinutes": 60,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1699999999999,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 3600000,
+        "request": {
+          "at": 1699999999999
+        }
+      }
+    },
+    {
+      "name": "60 min: clock far backwards (to zero)",
+      "delayMinutes": 60,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 3600000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "60 min: monotonic clock at zero, just requested",
+      "delayMinutes": 60,
+      "request": {
+        "at": 0
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 3600000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "60 min: huge: requested at zero, now at max",
+      "delayMinutes": 60,
+      "request": {
+        "at": 0
+      },
+      "now": 9007199254740991,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "60 min: huge: requested one ms before max",
+      "delayMinutes": 60,
+      "request": {
+        "at": 9007199254740990
+      },
+      "now": 9007199254740991,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 3599999,
+        "request": {
+          "at": 9007199254740990
+        }
+      }
+    },
+    {
+      "name": "60 min: huge: requested at max, clock back to zero",
+      "delayMinutes": 60,
+      "request": {
+        "at": 9007199254740991
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 3600000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "360 min: no request",
+      "delayMinutes": 360,
+      "request": null,
+      "now": 1700000000000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "360 min: just requested",
+      "delayMinutes": 360,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000000000,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 21600000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "360 min: one ms before the wait ends",
+      "delayMinutes": 360,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700021599999,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 1,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "360 min: exactly at the end of the wait",
+      "delayMinutes": 360,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700021600000,
+      "result": {
+        "phase": "open",
+        "remainingMs": 600000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "360 min: inside the window",
+      "delayMinutes": 360,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700021900000,
+      "result": {
+        "phase": "open",
+        "remainingMs": 300000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "360 min: one ms before the window closes",
+      "delayMinutes": 360,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700022199999,
+      "result": {
+        "phase": "open",
+        "remainingMs": 1,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "360 min: exactly at the window close",
+      "delayMinutes": 360,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700022200000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "360 min: long after (30 days)",
+      "delayMinutes": 360,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1702614200000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "360 min: clock one ms backwards",
+      "delayMinutes": 360,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1699999999999,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 21600000,
+        "request": {
+          "at": 1699999999999
+        }
+      }
+    },
+    {
+      "name": "360 min: clock far backwards (to zero)",
+      "delayMinutes": 360,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 21600000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "360 min: monotonic clock at zero, just requested",
+      "delayMinutes": 360,
+      "request": {
+        "at": 0
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 21600000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "360 min: huge: requested at zero, now at max",
+      "delayMinutes": 360,
+      "request": {
+        "at": 0
+      },
+      "now": 9007199254740991,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "360 min: huge: requested one ms before max",
+      "delayMinutes": 360,
+      "request": {
+        "at": 9007199254740990
+      },
+      "now": 9007199254740991,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 21599999,
+        "request": {
+          "at": 9007199254740990
+        }
+      }
+    },
+    {
+      "name": "360 min: huge: requested at max, clock back to zero",
+      "delayMinutes": 360,
+      "request": {
+        "at": 9007199254740991
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 21600000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "1440 min: no request",
+      "delayMinutes": 1440,
+      "request": null,
+      "now": 1700000000000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "1440 min: just requested",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700000000000,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 86400000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "1440 min: one ms before the wait ends",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700086399999,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 1,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "1440 min: exactly at the end of the wait",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700086400000,
+      "result": {
+        "phase": "open",
+        "remainingMs": 600000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "1440 min: inside the window",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700086700000,
+      "result": {
+        "phase": "open",
+        "remainingMs": 300000,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "1440 min: one ms before the window closes",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700086999999,
+      "result": {
+        "phase": "open",
+        "remainingMs": 1,
+        "request": {
+          "at": 1700000000000
+        }
+      }
+    },
+    {
+      "name": "1440 min: exactly at the window close",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1700087000000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "1440 min: long after (30 days)",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1702679000000,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "1440 min: clock one ms backwards",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 1699999999999,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 86400000,
+        "request": {
+          "at": 1699999999999
+        }
+      }
+    },
+    {
+      "name": "1440 min: clock far backwards (to zero)",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 1700000000000
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 86400000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "1440 min: monotonic clock at zero, just requested",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 0
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 86400000,
+        "request": {
+          "at": 0
+        }
+      }
+    },
+    {
+      "name": "1440 min: huge: requested at zero, now at max",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 0
+      },
+      "now": 9007199254740991,
+      "result": {
+        "phase": "idle",
+        "remainingMs": 0,
+        "request": null
+      }
+    },
+    {
+      "name": "1440 min: huge: requested one ms before max",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 9007199254740990
+      },
+      "now": 9007199254740991,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 86399999,
+        "request": {
+          "at": 9007199254740990
+        }
+      }
+    },
+    {
+      "name": "1440 min: huge: requested at max, clock back to zero",
+      "delayMinutes": 1440,
+      "request": {
+        "at": 9007199254740991
+      },
+      "now": 0,
+      "result": {
+        "phase": "waiting",
+        "remainingMs": 86400000,
+        "request": {
+          "at": 0
+        }
+      }
+    }
+  ],
+  "needsWait": [
+    {
+      "action": "disableCategory",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "disableCategory",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "action": "disableCategory",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "action": "disableCategory",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "removeDeviceBlockRule",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "removeDeviceBlockRule",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "action": "removeDeviceBlockRule",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "action": "removeDeviceBlockRule",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "addDeviceAllowRule",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "addDeviceAllowRule",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "action": "addDeviceAllowRule",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "action": "addDeviceAllowRule",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "removeHouseholdRule",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "removeHouseholdRule",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "action": "removeHouseholdRule",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "action": "removeHouseholdRule",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "leaveHousehold",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "leaveHousehold",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "action": "leaveHousehold",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "action": "leaveHousehold",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "loosenMediaMode",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "loosenMediaMode",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "action": "loosenMediaMode",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "action": "loosenMediaMode",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "addImageAllowRule",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "addImageAllowRule",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "action": "addImageAllowRule",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "action": "addImageAllowRule",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "enableCategory",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "enableCategory",
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "action": "enableCategory",
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "action": "enableCategory",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "addDeviceBlockRule",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "addDeviceBlockRule",
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "action": "addDeviceBlockRule",
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "action": "addDeviceBlockRule",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "removeDeviceAllowRule",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "removeDeviceAllowRule",
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "action": "removeDeviceAllowRule",
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "action": "removeDeviceAllowRule",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "addHouseholdRule",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "addHouseholdRule",
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "action": "addHouseholdRule",
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "action": "addHouseholdRule",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "changePin",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "changePin",
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "action": "changePin",
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "action": "changePin",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "tightenMediaMode",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "tightenMediaMode",
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "action": "tightenMediaMode",
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "action": "tightenMediaMode",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "removeImageAllowRule",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "removeImageAllowRule",
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "action": "removeImageAllowRule",
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "action": "removeImageAllowRule",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "action": "shortenDelay",
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    }
+  ],
+  "delayChange": [
+    {
+      "fromMinutes": 0,
+      "toMinutes": 5,
+      "action": null,
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 0,
+      "toMinutes": 30,
+      "action": null,
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 0,
+      "toMinutes": 60,
+      "action": null,
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 0,
+      "toMinutes": 360,
+      "action": null,
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 0,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "off",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 30,
+      "action": null,
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 30,
+      "action": null,
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 30,
+      "action": null,
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 60,
+      "action": null,
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 60,
+      "action": null,
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 60,
+      "action": null,
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 360,
+      "action": null,
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 360,
+      "action": null,
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 360,
+      "action": null,
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 5,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 5,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 5,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 5,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 60,
+      "action": null,
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 60,
+      "action": null,
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 60,
+      "action": null,
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 360,
+      "action": null,
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 360,
+      "action": null,
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 360,
+      "action": null,
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 30,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 5,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 5,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 5,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 30,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 30,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 30,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 360,
+      "action": null,
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 360,
+      "action": null,
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 360,
+      "action": null,
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 60,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 5,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 5,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 5,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 30,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 30,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 30,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 60,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 60,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 60,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "idle",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "waiting",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 360,
+      "toMinutes": 1440,
+      "action": null,
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 0,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 5,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 5,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 5,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 30,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 30,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 30,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 60,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 60,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 60,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 360,
+      "action": "shortenDelay",
+      "phase": "idle",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 360,
+      "action": "shortenDelay",
+      "phase": "waiting",
+      "needsWait": true
+    },
+    {
+      "fromMinutes": 1440,
+      "toMinutes": 360,
+      "action": "shortenDelay",
+      "phase": "open",
+      "needsWait": false
+    }
+  ]
+}

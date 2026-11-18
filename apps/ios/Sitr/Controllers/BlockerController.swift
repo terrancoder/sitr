@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import os
 import SafariServices
 import SitrCore
 
@@ -11,6 +12,7 @@ import SitrCore
 /// engine doesn't have.
 enum BlockerController {
     static let blockerIdentifier = "com.sitrshield.sitr.blocker"
+    static let blockerOffReason = "the Safari blocker is switched off"
 
     /// Writing the rules file IS the apply; asking Safari to reload is a
     /// separate step that fails when the user hasn't enabled the blocker in
@@ -73,21 +75,46 @@ enum BlockerController {
         return .success(rules)
     }
 
+    /// The fragments the settings enable — ONE definition shared by
+    /// apply and expectedChecksum so the freshness check can't drift.
+    /// An optional list switched on whose fragment is no longer bundled
+    /// (dropped in a later version) is skipped, not a failed apply; one
+    /// that is bundled but fails verification still fails visibly.
+    static func enabledFragments(
+        disabledCategories: [String], mediaOff: Set<String>, optionalOn: Set<String>
+    ) -> [String] {
+        ["adult"]
+            + (disabledCategories.contains("sitr_gambling") ? [] : ["gambling"])
+            + (disabledCategories.contains("sitr_dating") ? [] : ["dating"])
+            + mediaOff.sorted().map { "\($0)-media" }
+            + optionalOn.sorted().filter {
+                Bundle.main.url(
+                    forResource: "\($0).safari", withExtension: "json", subdirectory: "safari") != nil
+            }
+    }
+
+    /// Whether an optional list's fragment is bundled AND verifies — the
+    /// UI offers a switch only for those.
+    static func fragmentAvailable(_ name: String) -> Bool {
+        if case .success = loadFragments(categories: [name]) { return true }
+        return false
+    }
+
     /// The full apply pipeline. Runs the reload via Safari and reports the
     /// checksum of what is now enforced.
     static func apply(
         disabledCategories: [String],
+        mediaOff: Set<String>,
+        optionalOn: Set<String>,
         userAllow: [String],
         userBlock: [String],
         householdAllow: [String],
         householdBlock: [String]
     ) async -> Result<ApplyOutcome, ApplyError> {
-        let enabled = ["adult"]
-            + (disabledCategories.contains("sitr_gambling") ? [] : ["gambling"])
-            + (disabledCategories.contains("sitr_dating") ? [] : ["dating"])
-
+        let names = enabledFragments(
+            disabledCategories: disabledCategories, mediaOff: mediaOff, optionalOn: optionalOn)
         let fragments: [SafariRule]
-        switch loadFragments(categories: enabled) {
+        switch loadFragments(categories: names) {
         case .failure(let e): return .failure(e)
         case .success(let loaded): fragments = loaded
         }
@@ -107,6 +134,8 @@ enum BlockerController {
         let json = SafariRules.serialize(rules)
         let checksum = SHA256.hash(data: json).map { String(format: "%02x", $0) }
             .joined()
+        remember(
+            memoKey(names, userAllow, userBlock, householdAllow, householdBlock), .success(checksum))
 
         guard let container = Storage.groupContainer else {
             return .failure(.write("app group container unavailable"))
@@ -134,7 +163,7 @@ enum BlockerController {
         // whatever it compiled last — recording a checksum here showed
         // green over rules that were not in force.
         guard await StatusModel.isBlockerEnabled() == true else {
-            return .success(.pendingReload(reason: "the Safari blocker is switched off"))
+            return .success(.pendingReload(reason: blockerOffReason))
         }
         return .success(.applied(checksum: checksum))
     }
@@ -144,15 +173,30 @@ enum BlockerController {
     static func apply(_ s: AppSettings) async -> Result<ApplyOutcome, ApplyError> {
         await apply(
             disabledCategories: s.household?.disabledCategories ?? s.disabledCategories,
+            mediaOff: s.mediaOff,
+            optionalOn: s.optionalOn,
             userAllow: s.userAllow,
             userBlock: s.userBlock,
             householdAllow: s.household?.allowDomains ?? [],
             householdBlock: s.household?.blockDomains ?? [])
     }
 
-    static func expectedChecksum(_ s: AppSettings) -> String? {
+    /// Everything in `s` that shapes the rules; two settings with the same
+    /// key produce the same blocker list.
+    static func ruleInputsKey(_ s: AppSettings) -> String {
+        memoKey(
+            enabledFragments(
+                disabledCategories: s.household?.disabledCategories ?? s.disabledCategories,
+                mediaOff: s.mediaOff, optionalOn: s.optionalOn),
+            s.userAllow, s.userBlock, s.household?.allowDomains ?? [],
+            s.household?.blockDomains ?? [])
+    }
+
+    static func expectedChecksum(_ s: AppSettings) -> Result<String, ApplyError> {
         expectedChecksum(
             disabledCategories: s.household?.disabledCategories ?? s.disabledCategories,
+            mediaOff: s.mediaOff,
+            optionalOn: s.optionalOn,
             userAllow: s.userAllow,
             userBlock: s.userBlock,
             householdAllow: s.household?.allowDomains ?? [],
@@ -160,26 +204,55 @@ enum BlockerController {
     }
 
     /// The checksum the CURRENT settings should produce — compared with
-    /// the persisted applied checksum for the freshness half of status.
+    /// the persisted applied checksum for the freshness half of status. A
+    /// failure carries the reason (a fragment that fails verification, or
+    /// rules over the cap) so status can say which.
     static func expectedChecksum(
         disabledCategories: [String],
+        mediaOff: Set<String>,
+        optionalOn: Set<String>,
         userAllow: [String],
         userBlock: [String],
         householdAllow: [String],
         householdBlock: [String]
-    ) -> String? {
-        let enabled = ["adult"]
-            + (disabledCategories.contains("sitr_gambling") ? [] : ["gambling"])
-            + (disabledCategories.contains("sitr_dating") ? [] : ["dating"])
-        guard case .success(let fragments) = loadFragments(categories: enabled),
-            case .success(let rules) = SafariRules.build(
+    ) -> Result<String, ApplyError> {
+        let names = enabledFragments(
+            disabledCategories: disabledCategories, mediaOff: mediaOff, optionalOn: optionalOn)
+        let key = memoKey(names, userAllow, userBlock, householdAllow, householdBlock)
+        if let hit = memo.withLock({ $0 }), hit.key == key { return hit.value }
+        let result = loadFragments(categories: names).flatMap { fragments in
+            SafariRules.build(
                 staticRules: fragments,
                 userBlock: userBlock,
                 userAllow: userAllow,
                 householdBlock: householdBlock,
-                householdAllow: householdAllow)
-        else { return nil }
-        return SHA256.hash(data: SafariRules.serialize(rules))
-            .map { String(format: "%02x", $0) }.joined()
+                householdAllow: householdAllow
+            )
+            .mapError { ApplyError.fragments($0.message) }
+            .map {
+                SHA256.hash(data: SafariRules.serialize($0))
+                    .map { String(format: "%02x", $0) }.joined()
+            }
+        }
+        remember(key, result)
+        return result
+    }
+
+    // MARK: - Memo
+    // Parsing ~100k bundled rules and serializing them takes a few hundred
+    // ms, and one toggle asked for the same checksum three times on the
+    // main actor (precheck, apply, status). The bundle cannot change while
+    // the app runs, so the inputs fully determine the answer.
+    // ponytail: one entry; a status check for other settings evicts it.
+
+    private static let memo = OSAllocatedUnfairLock<(key: String, value: Result<String, ApplyError>)?>(
+        initialState: nil)
+
+    private static func memoKey(_ parts: [String]...) -> String {
+        parts.map { $0.joined(separator: ",") }.joined(separator: "|")
+    }
+
+    private static func remember(_ key: String, _ value: Result<String, ApplyError>) {
+        memo.withLock { $0 = (key, value) }
     }
 }

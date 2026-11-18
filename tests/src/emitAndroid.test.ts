@@ -14,6 +14,13 @@ test("golden: domain list serializes one per line with trailing newline", () => 
   );
 });
 
+test("domain list output is sorted and de-duplicated whatever the input order", () => {
+  assert.equal(
+    serializeDomainList(["v.redd.it", "i.redd.it", "v.redd.it"]),
+    "i.redd.it\nv.redd.it\n",
+  );
+});
+
 test("deterministic: same input twice gives identical output", () => {
   const domains = ["a.example", "m.example", "z.example"];
   assert.equal(serializeDomainList(domains), serializeDomainList(domains));

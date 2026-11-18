@@ -1,0 +1,146 @@
+# Sitr optional list: doh (public DNS-over-HTTPS / DNS-over-TLS endpoints)
+# OFF by default. Android only for now (declared in ../lists.json).
+# Policy: ../../policy/doh-hosts-policy.md
+#
+# Full hostnames of encrypted-DNS endpoints, NOT registrable domains:
+# cloudflare-dns.com is right because the whole domain is the DNS service;
+# google.com or opendns.com would be wrong. A listed name also covers its
+# subdomains, so variants under a listed name are named in the comments
+# instead of repeated (the compiler drops redundant subdomains).
+# Every name resolved on 2026-11-18. Reference for which endpoints exist:
+# the curl project's "DNS over HTTPS" wiki page (hostnames only).
+
+# Google Public DNS (dns64.dns.google is covered)
+dns.google
+dns.google.com
+8888.google
+
+# Cloudflare 1.1.1.1 (covers mozilla., chrome., security., family.,
+# 1dot1dot1dot1. and dns64.cloudflare-dns.com)
+cloudflare-dns.com
+one.one.one.one
+
+# Quad9
+dns.quad9.net
+dns9.quad9.net
+dns10.quad9.net
+dns11.quad9.net
+dns12.quad9.net
+
+# Cisco OpenDNS / Umbrella
+doh.opendns.com
+doh.familyshield.opendns.com
+dns.umbrella.com
+doh.umbrella.com
+
+# AdGuard DNS (adguard-dns.com itself redirects to the product site, so
+# only the resolver hosts are listed)
+dns.adguard-dns.com
+unfiltered.adguard-dns.com
+family.adguard-dns.com
+dns.adguard.com
+dns-family.adguard.com
+dns-unfiltered.adguard.com
+
+# NextDNS (covers per-profile <id>.dns.nextdns.io and firefox.dns.nextdns.io)
+dns.nextdns.io
+
+# CleanBrowsing
+doh.cleanbrowsing.org
+family-filter-dns.cleanbrowsing.org
+adult-filter-dns.cleanbrowsing.org
+security-filter-dns.cleanbrowsing.org
+
+# Mullvad DNS (covers adblock., base., extended., family., all.dns.mullvad.net)
+dns.mullvad.net
+
+# DNS.SB
+doh.dns.sb
+dot.sb
+
+# Control D
+dns.controld.com
+freedns.controld.com
+
+# LibreDNS
+doh.libredns.gr
+dot.libredns.gr
+
+# Alibaba AliDNS
+dns.alidns.com
+
+# Tencent DNSPod (doh.pub and dot.pub are the service's own domains)
+doh.pub
+dot.pub
+
+# Qihoo 360
+doh.360.cn
+dot.360.cn
+
+# CIRA Canadian Shield
+private.canadianshield.cira.ca
+protected.canadianshield.cira.ca
+family.canadianshield.cira.ca
+
+# DNS4EU
+unfiltered.joindns4.eu
+protective.joindns4.eu
+child.joindns4.eu
+noads.joindns4.eu
+child-noads.joindns4.eu
+
+# Wikimedia DNS (the whole domain is the service)
+wikimedia-dns.org
+
+# Foundation for Applied Privacy
+doh.applied-privacy.net
+
+# Digitale Gesellschaft (Switzerland)
+dns.digitale-gesellschaft.ch
+
+# SWITCH (Switzerland)
+dns.switch.ch
+
+# dnsforge.de (the whole domain is the service; covers clean., hard.)
+dnsforge.de
+
+# RESTENA (Luxembourg)
+dnspub.restena.lu
+
+# CZ.NIC ODVR
+odvr.nic.cz
+
+# Blokada
+dns.blokada.org
+
+# RethinkDNS
+sky.rethinkdns.com
+max.rethinkdns.com
+
+# Hurricane Electric
+ordns.he.net
+
+# UncensoredDNS
+anycast.uncensoreddns.org
+unicast.uncensoreddns.org
+
+# IIJ (Japan)
+public.dns.iij.jp
+
+# Tiarap
+doh.tiar.app
+
+# Comcast Xfinity (a Firefox trusted resolver)
+doh.xfinity.com
+
+# TWNIC Quad101 (Taiwan)
+dns.twnic.tw
+
+# Yandex DNS (DoT)
+common.dot.dns.yandex.net
+
+# Freifunk München
+doh.ffmuc.net
+
+# Andrews & Arnold (UK)
+dns.aa.net.uk

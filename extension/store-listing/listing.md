@@ -40,12 +40,19 @@ word for it:
 
 **What it does**
 
-• Blocks adult content, gambling, and dating sites (gambling and dating are
-  optional categories you can toggle)
+• Blocks adult content, gambling, and dating sites — about 100,000 domains
+  from a public list (gambling and dating are optional categories you can
+  toggle)
+• Optional, off by default: a list of gore and extremist hate sites. It is
+  old and incomplete, and says so
 • Forces SafeSearch on Google, Bing, and DuckDuckGo
 • Forces YouTube Restricted Mode
 • Per-site allow and block lists — stored only in your browser (optional
   Family household lists sync end-to-end encrypted, unreadable to us)
+• Optional "Wait before loosening": a change that loosens protection waits
+  5 minutes to 24 hours before it can be made. It slows changes inside
+  Sitr only; it can't stop the extension being disabled, and it relies on
+  your computer's clock
 • Shows an explicit red "Protection INACTIVE" warning if filtering ever
   stops working, instead of silently pretending
 
@@ -54,9 +61,13 @@ word for it:
 No account. No server that sees your traffic. No history collection. No
 "anonymized" usage data. The optional Family plan stores exactly one thing
 on our server: an end-to-end-encrypted household-settings blob we cannot
-decrypt — household preferences, never browsing. If a rule wrongly blocks a
-legitimate site, add a local exception instantly and file a public appeal —
-every blocking decision is documented and contestable.
+decrypt — household preferences, never browsing. Most of the list comes
+from public blocklists, named with their licences in the repository, and
+was checked by domain name rather than site by site, so some entries will
+be wrong. If a rule wrongly blocks a legitimate site, add a local exception
+instantly and report it from the options page: the link opens a public
+GitHub issue form (or your mail app), and Sitr itself sends nothing. Every
+rule is public and contestable.
 
 Source code, blocklist, and appeals: https://github.com/terrancoder/sitr
 

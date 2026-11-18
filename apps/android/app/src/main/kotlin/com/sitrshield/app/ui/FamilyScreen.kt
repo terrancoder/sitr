@@ -92,11 +92,13 @@ private fun NoHousehold(ctx: UiCtx) {
     }
     Button(
         onClick = {
-            when (val joined = ctx.actions.joinHousehold(
-                code, if (joinAsChild) "child" else "guardian",
-            )) {
-                is SitrResult.Err -> error = joined.message.sentence()
-                is SitrResult.Ok -> {}
+            ctx.attemptJoin {
+                when (val joined = ctx.actions.joinHousehold(
+                    code, if (joinAsChild) "child" else "guardian",
+                )) {
+                    is SitrResult.Err -> error = joined.message.sentence()
+                    is SitrResult.Ok -> {}
+                }
             }
         },
         Modifier.fillMaxWidth(),
@@ -332,7 +334,10 @@ private fun InHousehold(ctx: UiCtx) {
             confirmButton = {
                 TextButton(onClick = {
                     confirmLeave = false
-                    ctx.actions.leaveHousehold()
+                    // Again: the dialog can sit open past the wait's window.
+                    ctx.attempt(MutationKind.LEAVE_HOUSEHOLD, "Leave the household") {
+                        ctx.actions.leaveHousehold()
+                    }
                 }) { Text("Leave") }
             },
             dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Cancel") } },

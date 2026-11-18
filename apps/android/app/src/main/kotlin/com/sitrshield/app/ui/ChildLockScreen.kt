@@ -89,9 +89,13 @@ fun ChildLockScreen(ctx: UiCtx) {
                         "setting up a private space, the Private DNS dialog and the " +
                         "mobile network reset. " +
                         "Not covered: safe mode and factory reset (Android's own " +
-                        "recovery tools), settings shown in a language " +
-                        "other than English except those that name Sitr, a browser's " +
-                        "own \"Secure DNS\", apps that use their own DNS server, and phone " +
+                        "recovery tools), settings in a language other than " +
+                        "English, Bengali, Arabic, Turkish or Malay, or worded " +
+                        "differently by the phone maker, except those that name " +
+                        "Sitr, a browser's " +
+                        "own \"Secure DNS\" (the encrypted-DNS switch in Filter " +
+                        "categories covers well-known providers only), apps that use " +
+                        "their own DNS server, and phone " +
                         "\"cleaner\" tools that force-stop apps — Android then " +
                         "switches the guard off until a guardian turns it back on, " +
                         "and filtering stops until Sitr is opened again. " +

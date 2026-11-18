@@ -1,0 +1,964 @@
+# Sitr never-block list
+# Same format as sources/<category>/domains.txt: one name per line, `#` comments.
+#
+# The compiler FAILS if any entry in any category or optional list would
+# block one of these names: an entry E blocks a name N when N == E or N ends
+# with "." + E (every platform matches a listed entry and all its
+# subdomains). The import tool drops such upstream entries and counts them.
+#
+# This is a backstop against over-broad entries, not a statement that these
+# sites are endorsed. It protects each name and nothing more: listing
+# google.com stops an entry for google.com (or for com), but it does not stop
+# a separate entry for a hostname under it. Hosts that must keep working on
+# their own (the SafeSearch targets) are listed individually for that reason.
+#
+# Shared hosting suffixes that are in the Public Suffix List (github.io,
+# blogspot.com, vercel.app, ...) are already refused by the public-suffix
+# guard and are not repeated here, except where a name belongs here on its
+# own merits (cloudfront.net, githubusercontent.com, nhs.uk happen to be in
+# both).
+#
+# Exempt by design: the per-site media lists and the opt-in lists that
+# declare "neverBlockExempt" in ../optional/lists.json. Even there, only an
+# entry that is a strict subdomain of a never-block name is allowed; an apex
+# such as google.com still fails. See tools/compiler/src/guards.ts.
+
+# ---------------------------------------------------------------------------
+# Search engines Sitr enforces SafeSearch or Strict Search on, and the
+# enforcement hosts themselves (blocking one would switch SafeSearch off)
+# ---------------------------------------------------------------------------
+google.com
+www.google.com
+forcesafesearch.google.com
+bing.com
+www.bing.com
+strict.bing.com
+duckduckgo.com
+www.duckduckgo.com
+start.duckduckgo.com
+safe.duckduckgo.com
+youtube.com
+www.youtube.com
+m.youtube.com
+restrict.youtube.com
+restrictmoderate.youtube.com
+youtube-nocookie.com
+www.youtube-nocookie.com
+youtubei.googleapis.com
+youtube.googleapis.com
+brave.com
+search.brave.com
+startpage.com
+mojeek.com
+yandex.com
+yandex.ru
+yahoo.com
+ecosia.org
+qwant.com
+baidu.com
+naver.com
+
+# ---------------------------------------------------------------------------
+# Media-greylist platforms and other general-purpose social platforms
+# (fail the primary-purpose test; see sources/adult/domains.txt header)
+# ---------------------------------------------------------------------------
+x.com
+twitter.com
+twimg.com
+reddit.com
+redd.it
+redditmedia.com
+redditstatic.com
+tumblr.com
+pinterest.com
+pinimg.com
+imgur.com
+facebook.com
+fbcdn.net
+instagram.com
+cdninstagram.com
+threads.net
+tiktok.com
+tiktokcdn.com
+linkedin.com
+snapchat.com
+discord.com
+discord.gg
+discordapp.com
+twitch.tv
+bsky.app
+quora.com
+vk.com
+pixiv.net
+deviantart.com
+4chan.org
+furaffinity.net
+inkbunny.net
+
+# ---------------------------------------------------------------------------
+# Sitr itself
+# ---------------------------------------------------------------------------
+sitrshield.com
+sync.sitrshield.com
+
+# ---------------------------------------------------------------------------
+# Developer and code hosting
+# ---------------------------------------------------------------------------
+github.com
+githubusercontent.com
+gitlab.com
+npmjs.com
+stackoverflow.com
+
+# ---------------------------------------------------------------------------
+# App stores and operating-system vendors
+# ---------------------------------------------------------------------------
+apple.com
+icloud.com
+mzstatic.com
+gstatic.com
+googleapis.com
+googleusercontent.com
+googlevideo.com
+ytimg.com
+android.com
+microsoft.com
+windows.com
+windowsupdate.com
+live.com
+office.com
+microsoftonline.com
+mozilla.org
+mozilla.net
+firefox.com
+samsung.com
+xiaomi.com
+huawei.com
+amazon.com
+opera.com
+
+# ---------------------------------------------------------------------------
+# CDNs and clouds whose apex must never be listed (one customer's content
+# sits next to everyone else's)
+# ---------------------------------------------------------------------------
+cloudflare.com
+cloudflare.net
+cloudfront.net
+amazonaws.com
+akamai.net
+akamaihd.net
+akamaiedge.net
+edgekey.net
+edgesuite.net
+fastly.net
+fastly.com
+azureedge.net
+azure.com
+jsdelivr.net
+unpkg.com
+
+# ---------------------------------------------------------------------------
+# Shared hosting and publishing platforms NOT in the Public Suffix List
+# ---------------------------------------------------------------------------
+wordpress.com
+wordpress.org
+blogger.com
+medium.com
+substack.com
+wix.com
+weebly.com
+squarespace.com
+neocities.org
+fc2.com
+glitch.me
+itch.io
+dropbox.com
+mega.nz
+archive.org
+patreon.com
+gumroad.com
+ko-fi.com
+
+# ---------------------------------------------------------------------------
+# Reference, education and news (the inclusion policy excludes news and
+# education in every category)
+# ---------------------------------------------------------------------------
+wikipedia.org
+wikimedia.org
+wiktionary.org
+wikidata.org
+britannica.com
+khanacademy.org
+coursera.org
+edx.org
+arxiv.org
+jstor.org
+bbc.com
+bbc.co.uk
+reuters.com
+apnews.com
+avn.com
+xbiz.com
+
+# ---------------------------------------------------------------------------
+# Email
+# ---------------------------------------------------------------------------
+gmail.com
+outlook.com
+hotmail.com
+proton.me
+protonmail.com
+fastmail.com
+zoho.com
+aol.com
+gmx.net
+
+# ---------------------------------------------------------------------------
+# Payments (bank-neutral)
+# ---------------------------------------------------------------------------
+paypal.com
+stripe.com
+wise.com
+
+# ---------------------------------------------------------------------------
+# Messaging and calls
+# ---------------------------------------------------------------------------
+whatsapp.com
+whatsapp.net
+telegram.org
+t.me
+signal.org
+messenger.com
+viber.com
+line.me
+skype.com
+zoom.us
+slack.com
+
+# ---------------------------------------------------------------------------
+# Health, sex education and support (excluded by the adult policy), and
+# gambling-addiction help (excluded by the gambling policy)
+# ---------------------------------------------------------------------------
+plannedparenthood.org
+scarleteen.com
+ashasexualhealth.org
+bishuk.com
+nhs.uk
+webmd.com
+mayoclinic.org
+clevelandclinic.org
+who.int
+cdc.gov
+nih.gov
+ncbi.nlm.nih.gov
+medlineplus.gov
+kidshealth.org
+rainn.org
+thetrevorproject.org
+childline.org.uk
+samaritans.org
+988lifeline.org
+begambleaware.org
+gamcare.org.uk
+gamblersanonymous.org
+ncpgambling.org
+gamblingtherapy.org
+
+# ---------------------------------------------------------------------------
+# All-ages storefronts that also sell adult titles (excluded by the adult
+# policy)
+# ---------------------------------------------------------------------------
+steampowered.com
+steamcommunity.com
+dlsite.com
+dmm.co.jp
+
+# ===========================================================================
+# Widely used general-purpose services (added 2026-11-18). Upstream lists name
+# single pages, shops and blogs on these (jobs.booking.com, spaces.msn.com,
+# rencontres.lemonde.fr, an over-blog or free.fr page); the imported tier
+# refuses anything under a never-block name, so only a human, in the curated
+# tier, may list one of their subdomains. Registrable domains only, chosen
+# by hand from well-known names across regions.
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Travel, booking, airlines and ride-hailing
+# ---------------------------------------------------------------------------
+booking.com
+expedia.com
+hotels.com
+airbnb.com
+vrbo.com
+tripadvisor.com
+trivago.com
+kayak.com
+skyscanner.net
+priceline.com
+agoda.com
+trip.com
+hostelworld.com
+makemytrip.com
+goibibo.com
+cleartrip.com
+yatra.com
+irctc.co.in
+traveloka.com
+tiket.com
+wego.com
+almosafer.com
+emirates.com
+qatarairways.com
+etihad.com
+turkishairlines.com
+flypgs.com
+saudia.com
+flydubai.com
+airarabia.com
+airasia.com
+malaysiaairlines.com
+garuda-indonesia.com
+airindia.com
+goindigo.in
+biman-airlines.com
+lufthansa.com
+britishairways.com
+airfrance.com
+klm.com
+aa.com
+delta.com
+united.com
+ryanair.com
+easyjet.com
+uber.com
+lyft.com
+careem.com
+grab.com
+gojek.com
+olacabs.com
+
+# ---------------------------------------------------------------------------
+# News publishers and broadcasters
+# ---------------------------------------------------------------------------
+msn.com
+nytimes.com
+washingtonpost.com
+wsj.com
+usatoday.com
+latimes.com
+npr.org
+cnn.com
+foxnews.com
+nbcnews.com
+cbsnews.com
+go.com
+theatlantic.com
+newyorker.com
+time.com
+forbes.com
+bloomberg.com
+businessinsider.com
+huffpost.com
+politico.com
+axios.com
+vox.com
+theverge.com
+wired.com
+arstechnica.com
+techcrunch.com
+theguardian.com
+ft.com
+economist.com
+independent.co.uk
+telegraph.co.uk
+thetimes.co.uk
+dailymail.co.uk
+mirror.co.uk
+thesun.co.uk
+sky.com
+lemonde.fr
+lefigaro.fr
+liberation.fr
+francetvinfo.fr
+spiegel.de
+zeit.de
+faz.net
+sueddeutsche.de
+bild.de
+welt.de
+elpais.com
+elmundo.es
+corriere.it
+repubblica.it
+nos.nl
+dw.com
+france24.com
+euronews.com
+aljazeera.com
+aljazeera.net
+alarabiya.net
+thenationalnews.com
+gulfnews.com
+khaleejtimes.com
+arabnews.com
+middleeasteye.net
+hurriyet.com.tr
+milliyet.com.tr
+sabah.com.tr
+sozcu.com.tr
+haberturk.com
+ntv.com.tr
+cnnturk.com
+trtworld.com
+trt.net.tr
+aa.com.tr
+dawn.com
+geo.tv
+thenews.com.pk
+tribune.com.pk
+arynews.tv
+thehindu.com
+indiatimes.com
+hindustantimes.com
+ndtv.com
+indianexpress.com
+news18.com
+aajtak.in
+thedailystar.net
+prothomalo.com
+bdnews24.com
+jugantor.com
+kalerkantho.com
+dhakatribune.com
+kompas.com
+detik.com
+tempo.co
+tribunnews.com
+liputan6.com
+cnnindonesia.com
+okezone.com
+thestar.com.my
+nst.com.my
+malaysiakini.com
+bharian.com.my
+hmetro.com.my
+scmp.com
+straitstimes.com
+channelnewsasia.com
+japantimes.co.jp
+nikkei.com
+abc.net.au
+smh.com.au
+news.com.au
+cbc.ca
+theglobeandmail.com
+
+# ---------------------------------------------------------------------------
+# Portals, webmail and telecoms
+# ---------------------------------------------------------------------------
+yahoo.co.jp
+ymail.com
+rocketmail.com
+mail.com
+mail.ru
+rambler.ru
+daum.net
+qq.com
+163.com
+sina.com.cn
+sohu.com
+rediff.com
+rediffmail.com
+web.de
+gmx.de
+t-online.de
+orange.fr
+free.fr
+laposte.net
+libero.it
+seznam.cz
+onet.pl
+wp.pl
+interia.pl
+tutanota.com
+tuta.com
+jio.com
+airtel.in
+grameenphone.com
+jazz.com.pk
+telkomsel.com
+maxis.com.my
+turkcell.com.tr
+stc.com.sa
+etisalat.ae
+vodafone.com
+verizon.com
+att.com
+t-mobile.com
+
+# ---------------------------------------------------------------------------
+# Shopping and marketplaces
+# ---------------------------------------------------------------------------
+amazon.co.uk
+amazon.de
+amazon.fr
+amazon.it
+amazon.es
+amazon.ca
+amazon.com.au
+amazon.co.jp
+amazon.in
+amazon.ae
+amazon.sa
+amazon.com.tr
+amazon.eg
+ebay.com
+ebay.co.uk
+ebay.de
+etsy.com
+walmart.com
+target.com
+bestbuy.com
+ikea.com
+costco.com
+aliexpress.com
+alibaba.com
+taobao.com
+tmall.com
+jd.com
+temu.com
+shein.com
+rakuten.com
+rakuten.co.jp
+flipkart.com
+myntra.com
+meesho.com
+snapdeal.com
+daraz.pk
+daraz.com.bd
+daraz.lk
+bikroy.com
+noon.com
+namshi.com
+dubizzle.com
+opensooq.com
+haraj.com.sa
+trendyol.com
+hepsiburada.com
+n11.com
+sahibinden.com
+shopee.com
+shopee.co.id
+shopee.com.my
+shopee.ph
+shopee.sg
+lazada.com
+lazada.co.id
+lazada.com.my
+lazada.sg
+tokopedia.com
+bukalapak.com
+blibli.com
+carousell.com
+olx.com
+olx.in
+olx.com.pk
+mercadolibre.com
+mercadolivre.com.br
+craigslist.org
+gumtree.com
+shopify.com
+
+# ---------------------------------------------------------------------------
+# Banks, cards, payments and money transfer
+# ---------------------------------------------------------------------------
+visa.com
+mastercard.com
+americanexpress.com
+chase.com
+bankofamerica.com
+wellsfargo.com
+citi.com
+citibank.com
+hsbc.com
+hsbc.co.uk
+barclays.co.uk
+lloydsbank.com
+natwest.com
+santander.com
+db.com
+ing.com
+revolut.com
+monzo.com
+n26.com
+klarna.com
+payoneer.com
+westernunion.com
+moneygram.com
+remitly.com
+alipay.com
+paytm.com
+phonepe.com
+razorpay.com
+sbi.co.in
+hdfcbank.com
+icicibank.com
+axisbank.com
+kotak.com
+bkash.com
+nagad.com.bd
+bracbank.com
+easypaisa.com.pk
+jazzcash.com.pk
+hbl.com
+meezanbank.com
+alrajhibank.com.sa
+emiratesnbd.com
+adcb.com
+bankfab.com
+qnb.com
+kfh.com
+ziraatbank.com.tr
+isbank.com.tr
+garantibbva.com.tr
+akbank.com
+yapikredi.com.tr
+maybank2u.com.my
+maybank.com
+cimb.com
+cimbclicks.com.my
+publicbank.com.my
+rhbgroup.com
+bankislam.com
+touchngo.com.my
+bca.co.id
+klikbca.com
+bankmandiri.co.id
+bri.co.id
+bni.co.id
+dana.id
+ovo.id
+
+# ---------------------------------------------------------------------------
+# Universities and learning platforms
+# ---------------------------------------------------------------------------
+harvard.edu
+mit.edu
+stanford.edu
+berkeley.edu
+yale.edu
+princeton.edu
+columbia.edu
+cornell.edu
+upenn.edu
+umich.edu
+ucla.edu
+nyu.edu
+cmu.edu
+caltech.edu
+uchicago.edu
+utexas.edu
+washington.edu
+wisc.edu
+illinois.edu
+ox.ac.uk
+cam.ac.uk
+imperial.ac.uk
+ucl.ac.uk
+ed.ac.uk
+manchester.ac.uk
+kcl.ac.uk
+lse.ac.uk
+utoronto.ca
+mcgill.ca
+ubc.ca
+unimelb.edu.au
+sydney.edu.au
+anu.edu.au
+ethz.ch
+epfl.ch
+tum.de
+nus.edu.sg
+ntu.edu.sg
+u-tokyo.ac.jp
+tsinghua.edu.cn
+pku.edu.cn
+hku.hk
+iitb.ac.in
+iitd.ac.in
+iitm.ac.in
+iitk.ac.in
+iisc.ac.in
+du.ac.in
+jnu.ac.in
+du.ac.bd
+buet.ac.bd
+lums.edu.pk
+nust.edu.pk
+pu.edu.pk
+aku.edu
+ui.ac.id
+ugm.ac.id
+itb.ac.id
+unair.ac.id
+um.edu.my
+ukm.my
+upm.edu.my
+utm.my
+usm.my
+iium.edu.my
+metu.edu.tr
+boun.edu.tr
+itu.edu.tr
+hacettepe.edu.tr
+bilkent.edu.tr
+istanbul.edu.tr
+ksu.edu.sa
+kau.edu.sa
+kaust.edu.sa
+aucegypt.edu
+cu.edu.eg
+uaeu.ac.ae
+aub.edu.lb
+ju.edu.jo
+qu.edu.qa
+udemy.com
+duolingo.com
+quizlet.com
+chegg.com
+brainly.com
+academia.edu
+researchgate.net
+instructure.com
+moodle.org
+blackboard.com
+
+# ---------------------------------------------------------------------------
+# Government and international portals (single portals only: the government
+# suffixes themselves, such as go.id or gov.in, are left to the public-suffix
+# guard)
+# ---------------------------------------------------------------------------
+usa.gov
+irs.gov
+ssa.gov
+state.gov
+canada.ca
+europa.eu
+un.org
+worldbank.org
+imf.org
+india.gov.in
+mygov.in
+uidai.gov.in
+incometax.gov.in
+passportindia.gov.in
+nadra.gov.pk
+fbr.gov.pk
+bangladesh.gov.bd
+turkiye.gov.tr
+indonesia.go.id
+malaysia.gov.my
+u.ae
+absher.sa
+
+# ---------------------------------------------------------------------------
+# Developer, cloud, storage and work tools
+# ---------------------------------------------------------------------------
+bitbucket.org
+atlassian.com
+atlassian.net
+sourceforge.net
+stackexchange.com
+docker.com
+python.org
+pypi.org
+nodejs.org
+rust-lang.org
+go.dev
+kubernetes.io
+digitalocean.com
+linode.com
+heroku.com
+vercel.com
+netlify.com
+oracle.com
+ibm.com
+salesforce.com
+wasabisys.com
+backblazeb2.com
+b-cdn.net
+bunny.net
+replit.com
+codepen.io
+jsfiddle.net
+huggingface.co
+kaggle.com
+notion.so
+figma.com
+canva.com
+trello.com
+asana.com
+box.com
+wetransfer.com
+adobe.com
+
+# ---------------------------------------------------------------------------
+# Blog and site hosts (only a human, in the curated tier, may list one blog)
+# ---------------------------------------------------------------------------
+livejournal.com
+hatena.ne.jp
+ameblo.jp
+ameba.jp
+amebaownd.com
+note.com
+tistory.com
+wattpad.com
+typepad.com
+jimdo.com
+jimdosite.com
+strikingly.com
+mystrikingly.com
+site123.me
+ucoz.ru
+ucoz.net
+narod.ru
+tilda.ws
+over-blog.com
+hubpages.com
+wikidot.com
+fandom.com
+seesaa.net
+livedoor.jp
+goo.ne.jp
+exblog.jp
+telegra.ph
+teletype.in
+linktr.ee
+about.me
+webflow.com
+beehiiv.com
+ghost.org
+
+# ---------------------------------------------------------------------------
+# Streaming, video and music
+# ---------------------------------------------------------------------------
+netflix.com
+primevideo.com
+disneyplus.com
+hulu.com
+max.com
+peacocktv.com
+paramountplus.com
+crunchyroll.com
+plex.tv
+roku.com
+tubi.tv
+pluto.tv
+spotify.com
+deezer.com
+soundcloud.com
+bandcamp.com
+mixcloud.com
+anghami.com
+gaana.com
+jiosaavn.com
+wynk.in
+joox.com
+vimeo.com
+dailymotion.com
+bilibili.com
+iqiyi.com
+iq.com
+youku.com
+nicovideo.jp
+ok.ru
+rutube.ru
+dzen.ru
+rumble.com
+hotstar.com
+jiocinema.com
+zee5.com
+sonyliv.com
+shahid.net
+osnplus.com
+starzplay.com
+vidio.com
+viu.com
+blutv.com
+exxen.com
+puhutv.com
+tabii.com
+
+# ---------------------------------------------------------------------------
+# Maps and navigation
+# ---------------------------------------------------------------------------
+openstreetmap.org
+waze.com
+here.com
+mapquest.com
+2gis.ru
+citymapper.com
+moovitapp.com
+what3words.com
+
+# ---------------------------------------------------------------------------
+# App stores, device makers and software vendors
+# ---------------------------------------------------------------------------
+f-droid.org
+epicgames.com
+gog.com
+mi.com
+oppo.com
+vivo.com
+oneplus.com
+realme.com
+nokia.com
+lenovo.com
+dell.com
+hp.com
+intel.com
+nvidia.com
+amd.com
+
+# ---------------------------------------------------------------------------
+# Reference, science and books
+# ---------------------------------------------------------------------------
+wikihow.com
+dictionary.com
+merriam-webster.com
+cambridge.org
+oup.com
+springer.com
+nature.com
+sciencedirect.com
+elsevier.com
+wiley.com
+tandfonline.com
+sagepub.com
+ieee.org
+acm.org
+plos.org
+semanticscholar.org
+gutenberg.org
+openlibrary.org
+goodreads.com
+imdb.com
+weather.com
+accuweather.com
+timeanddate.com
+deepl.com
+reverso.net
+linguee.com
+
+# ---------------------------------------------------------------------------
+# Messaging and social (regional)
+# ---------------------------------------------------------------------------
+imo.im
+kakao.com
+wechat.com
+weibo.com
+zhihu.com
+douyin.com
+xiaohongshu.com
+nextdoor.com
+mastodon.social

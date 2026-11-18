@@ -59,11 +59,20 @@ export const STATIC_CATEGORY_PRIORITY = 5;
 /**
  * Each category gets a fixed, documented id range so rule ids are stable
  * across builds and categories never collide.
+ *
+ * 40_000 is the media greylist, 50_000 media-all (greylist.ts), 1_000
+ * SafeSearch. 60_000 and up are the opt-in lists under blocklist/optional/
+ * (off by default, never merged into a category). Ranges are 10_000 ids
+ * apart; at DOMAINS_PER_RULE that is room for 10 million domains per list,
+ * far past the 150,000-rule ceiling Safari puts on everything combined.
  */
 export const CATEGORY_ID_BASE: Record<string, number> = {
   adult: 10_000,
   gambling: 20_000,
   dating: 30_000,
+  drugs: 60_000,
+  violence: 70_000,
+  doh: 80_000,
 };
 
 /**

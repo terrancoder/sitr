@@ -36,7 +36,7 @@ for it:
   no way to see which sites you visit — and you can see and contest every rule.
 • No account, no analytics, no crash reporting, no ads, no third-party SDKs.
   Analytics aren't "off by default" — they don't exist in the code.
-• Open source with a reproducible build: anyone can rebuild the app and
+• Open source with a reproducible build: anyone can rebuild the unsigned app and
   compare it against the published checksum.
 
 **Why Android shows a VPN key icon**
@@ -49,18 +49,21 @@ public threat model.
 
 **What it does**
 
-• Blocks adult content, gambling, and dating sites (gambling and dating are
-  optional categories you can toggle)
+• Blocks adult content, gambling, and dating sites: about 100,000 domains
+  (gambling and dating can be switched off)
+• Optional lists, off by default: gore and hate sites (old and
+  incomplete); well-known encrypted-DNS services
 • Forces SafeSearch on Google, Bing, and DuckDuckGo, and YouTube Restricted Mode
 • Optional switches to turn off all images and video on X, Reddit, Tumblr,
   Pinterest and Imgur, in their apps and websites (Sitr can't tell which
   pictures are explicit, so it's all of a site's media or none)
 • Per-site allow and block lists, stored only on your phone
-• Optional guardian PIN so settings can't be loosened casually
+• Optional guardian PIN so settings can't be loosened casually, and an
+  optional wait (5 minutes to 24 hours) before loosening changes
 • Optional Sitr Family household: shares lists across devices, end-to-end
   encrypted, unreadable to us
 • Shows a red "protection inactive" warning if filtering ever stops —
-  another VPN takes over, Private DNS bypasses it — instead of pretending
+  another VPN takes over, Private DNS conflicts — instead of pretending
 • Optional child lock (Sitr Family): on a child's phone, protection can't be
   switched off without the guardian PIN. It uses Android's Accessibility
   service to close the screens that would turn Sitr off (its app info,
@@ -76,8 +79,15 @@ Family plan stores exactly one thing on our server: an
 end-to-end-encrypted household-settings blob we cannot decrypt — household
 preferences, never browsing.
 
-Honest limits: a user-set strict Private DNS hostname or a browser's own
-"Secure DNS" bypasses DNS filtering. Sitr detects the first and warns you.
+Honest limits: a fixed Private DNS hostname conflicts with Sitr; Sitr
+shows red and tells you to set it to Automatic or Off. A browser's own
+"Secure DNS" with a chosen provider bypasses filtering; the encrypted-DNS
+switch blocks well-known providers, so pages fail until Secure DNS is back
+on automatic (tested with Chrome on Android 15). Providers set by IP
+address or not listed still bypass. Most of the list comes from public
+lists checked by name, so some entries will be wrong: allow the site and
+use "Report a site" (a public GitHub form or your mail app; Sitr sends
+nothing).
 
 Source code, blocklist, and appeals: https://github.com/terrancoder/sitr
 
@@ -210,6 +220,11 @@ Same claims as docs/privacy-policy.md and the Chrome data-safety form.
   accessibility service, which reads foreground window text in memory to
   recognise screens that would disable Sitr, and discards it.
 - Independent security review: No.
+- Re-checked 2026-11-18 against the opt-in lists (violence, encrypted-DNS
+  hosts), the larger blocklist, "Wait before loosening" and the "Report a
+  site" links: no answer changes. The lists ship in the app, and their
+  switches and the wait are stored only on the phone; the report links open the browser or mail app and the app
+  sends nothing.
 
 ## Review notes (App content → App access / notes)
 

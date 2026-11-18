@@ -18,6 +18,7 @@ import com.sitrshield.app.Screen
 import com.sitrshield.app.SitrApp
 import com.sitrshield.app.UiCtx
 import com.sitrshield.core.categories.Categories
+import com.sitrshield.core.categories.OptionalLists
 import com.sitrshield.core.gate.MutationKind
 
 /**
@@ -121,6 +122,7 @@ fun CategoriesScreen(ctx: UiCtx) {
             },
         )
     }
+    if (!strictAvailable) ListUnavailable()
 
     // The disclosure is part of the feature, not decoration: the setting
     // must not be read as "hides everything about betting and adult
@@ -184,6 +186,7 @@ fun CategoriesScreen(ctx: UiCtx) {
                 },
             )
         }
+        if (!available) ListUnavailable()
     }
     // Same honesty rule as Strict Search: say it blocks everything, not
     // "explicit content", and point at the one filter that does know.
@@ -208,6 +211,60 @@ fun CategoriesScreen(ctx: UiCtx) {
         color = MaterialTheme.colorScheme.secondary,
     )
 
+    Spacer(Modifier.height(20.dp))
+    Text("Optional lists", style = MaterialTheme.typography.titleMedium)
+    Spacer(Modifier.height(4.dp))
+    // Device-local and off by default; gated like Strict Search.
+    for (list in OptionalLists.ALL) {
+        val available = list.id in ctx.app.optionalSets
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                list.title,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(
+                checked = list.id in ctx.settings.optionalLists && available,
+                enabled = available,
+                onCheckedChange = { on ->
+                    val set = {
+                        ctx.app.update {
+                            it.copy(
+                                optionalLists = if (on) it.optionalLists + list.id
+                                else it.optionalLists - list.id,
+                            )
+                        }
+                    }
+                    if (on) ctx.attempt(MutationKind.ENABLE_CATEGORY, "") { set() }
+                    else ctx.attempt(MutationKind.DISABLE_CATEGORY, "Turn off ${list.title}") { set() }
+                },
+            )
+        }
+        if (!available) ListUnavailable()
+        Text(
+            list.description,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.secondary,
+        )
+        Spacer(Modifier.height(6.dp))
+    }
+
     Spacer(Modifier.height(16.dp))
     TextButton(onClick = { ctx.navigate(Screen.HOME) }) { Text("Back") }
+}
+
+/** Under a switch whose list failed its checksum or is missing from the app. */
+@Composable
+private fun ListUnavailable() {
+    Text(
+        "Unavailable: this list failed its integrity check, so Sitr will " +
+            "not use it. Reinstalling Sitr restores it.",
+        style = MaterialTheme.typography.bodySmall,
+        color = ProtectionRed,
+    )
 }

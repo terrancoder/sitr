@@ -8,4 +8,19 @@ INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES
 INFOPLIST_KEY_CFBundleDisplayName = Sitr
 // Camera is used ONLY to scan a pairing QR code, on the user's tap.
 INFOPLIST_KEY_NSCameraUsageDescription = Sitr uses the camera only to scan a household pairing code.
+// Universal app: App Store validation (ITMS-90474) rejects an iPad build
+// that doesn't declare all four orientations.
+INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+// Export compliance: all crypto is Apple's own (CryptoKit AES-GCM/HKDF,
+// CommonCrypto PBKDF2, HTTPS) — nothing proprietary or third-party, so no
+// export documentation is required. Revisit if a crypto dependency is added.
+INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO
+INFOPLIST_KEY_LSApplicationCategoryType = public.app-category.utilities
 ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
+
+// Experimental DNS filter prototype: DEBUG ONLY. Debug signs with the
+// Network Extension entitlement and embeds SitrTunnel.appex; Release keeps
+// Sitr.entitlements and leaves the appex out, so Release is unchanged.
+CODE_SIGN_ENTITLEMENTS[config=Debug] = Sitr/SitrDebug.entitlements
+EXCLUDED_SOURCE_FILE_NAMES[config=Release] = SitrTunnel.appex

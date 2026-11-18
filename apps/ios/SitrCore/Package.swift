@@ -15,7 +15,10 @@ let package = Package(
         .library(name: "SitrCore", targets: ["SitrCore"])
     ],
     targets: [
-        .target(name: "SitrCore", swiftSettings: [.swiftLanguageMode(.v5)]),
+        .target(name: "SitrCore", dependencies: ["CResolv"], swiftSettings: [.swiftLanguageMode(.v5)]),
+        // libresolv shim for the DEBUG-only DNS tunnel prototype's
+        // resolver discovery (Dns/TunnelNet.swift). System library only.
+        .target(name: "CResolv"),
         .testTarget(
             name: "SitrCoreTests",
             dependencies: ["SitrCore"],

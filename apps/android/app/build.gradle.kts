@@ -3,6 +3,7 @@
 // apps/shared/blocklists/android directory as assets — apps never copy
 // artifacts, so CI's determinism diff covers exactly what ships.
 import java.util.Properties
+import java.util.zip.ZipFile
 
 plugins {
     alias(libs.plugins.android.application)
@@ -24,8 +25,8 @@ android {
         // (reproducibility, docs/mobile.md §Verifiability).
         // Play accepts an upload only with a code above the published one
         // (1); bump it for every upload. versionName is the label users see.
-        versionCode = 5
-        versionName = "0.2.2"
+        versionCode = 6
+        versionName = "0.3.0"
     }
 
     sourceSets["main"].assets.srcDirs("../../shared/blocklists/android")
@@ -91,6 +92,55 @@ android {
 kotlin {
     jvmToolchain(17)
 }
+
+// CC BY / CC BY-SA attribution must travel with the lists. The compiler
+// writes NOTICE.txt next to android/ and safari/ (17 MB), so the one file
+// is copied into a generated assets directory instead of widening the
+// assets source above. Same bytes every build: copyTo keeps no metadata
+// that reaches the APK (AGP zips assets with fixed timestamps).
+abstract class CopyNotice : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val notice: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val out = outputDir.get().asFile
+        out.deleteRecursively()
+        notice.get().asFile.copyTo(out.resolve("NOTICE.txt"))
+    }
+}
+
+val copyNotice = tasks.register<CopyNotice>("copyNotice") {
+    notice.set(rootProject.file("../shared/blocklists/NOTICE.txt"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyNotice, CopyNotice::outputDir)
+    }
+}
+
+// Part of `check` (so of `./gradlew build`): the debug APK carries the
+// notice and nothing from the Safari artifacts.
+val checkNoticeAsset = tasks.register("checkNoticeAsset") {
+    dependsOn("assembleDebug")
+    val apks = layout.buildDirectory.dir("outputs/apk/debug")
+    doLast {
+        val apk = apks.get().asFile.listFiles { f -> f.extension == "apk" }?.singleOrNull()
+            ?: throw GradleException("no debug APK in ${apks.get()}")
+        ZipFile(apk).use { zip ->
+            val names = zip.entries().asSequence().map { it.name }.toList()
+            if ("assets/NOTICE.txt" !in names) throw GradleException("assets/NOTICE.txt missing from $apk")
+            val safari = names.filter { ".safari." in it || "blockerList" in it }
+            if (safari.isNotEmpty()) throw GradleException("unexpected assets: $safari")
+        }
+    }
+}
+tasks.named("check") { dependsOn(checkNoticeAsset) }
 
 dependencies {
     implementation(project(":engine"))

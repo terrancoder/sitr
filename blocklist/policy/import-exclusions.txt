@@ -1,0 +1,234 @@
+# Sitr import exclusions
+# Same format as sources/<category>/domains.txt.
+#
+# Names accepted as false positives through the appeals process
+# (appeals-process.md). The import tool (tools/import) drops every
+# imported entry that equals, contains or sits under a name listed here,
+# and the compiler fails if an imported.txt still holds one (re-run the
+# import). Curated entries are removed from domains.txt directly instead.
+#
+# One name per line, with the appeal issue number in a trailing comment.
+#
+# Entries below were added at import review (2026-11-18), before the first
+# import shipped, not through an appeal. Each names the excluded kind from
+# inclusion-policy.md that it falls under, judged from the name alone.
+
+# --- adult: retail (sex toys, lingerie, condoms) is commerce, not adult content
+adameve.com  # retail: sex-toy and lingerie shop
+lovehoney.com  # retail: sex-toy and lingerie shop
+lovehoney.co  # retail: Lovehoney shop domain
+sextoys.com  # retail: sex-toy shop
+sextoy.com  # retail: sex-toy shop
+sextoy.com.br  # retail: sex-toy shop
+adulttoymegastore.com  # retail: sex-toy shop
+gogosextoys.com  # retail: sex-toy shop
+mycrazysextoys.com  # retail: sex-toy shop
+abangsextoys.com  # retail: sex-toy shop
+amazonsexshop.com  # retail: sex shop
+kamasutra-sex-shop.com  # retail: sex shop
+caballito-sexshop.com  # retail: sex shop
+vsexshop.ru  # retail: sex shop
+lovetoys.com.br  # retail: sex-toy shop
+condomfish.com  # retail: condom shop
+# --- adult: sex education, medical and health resources, news, education
+sexedtalk.com  # sex education
+sexedwithjulia.com  # sex education
+self-help-sexuality.com  # sex education / self-help
+grupomedicosanangel.com  # medical: a medical group
+gaystarnews.com  # news: LGBT news site
+glamourmagazine.co.uk  # news: mainstream magazine (Glamour UK media host)
+missioncollege.org  # education: a college (angelsupport.missioncollege.org)
+
+# --- gambling: addiction-recovery and help resources, health, unrelated
+actgamblingsupport.org.au  # recovery: problem-gambling support service
+gamblersinrecovery.com  # recovery resource
+gamblingaddictionhotline.org  # recovery: helpline
+houstongamblingproblem.com  # recovery: problem-gambling help
+ksproblemgambling.org  # recovery: Kansas problem-gambling help
+midlandsgamblingclinic.org  # recovery: gambling clinic
+mtproblemgambling.org  # recovery: Montana problem-gambling help
+operationresponsiblegambling.org  # recovery / responsible-gambling programme
+problemgamblingalberta.ca  # recovery: problem-gambling help
+problemgamblinghelpline.ca  # recovery: helpline
+quitgamblingprogram.com  # recovery programme
+responsiblegambling-cms.org.za  # recovery / responsible-gambling programme
+texasgamblingproblem.com  # recovery: problem-gambling help
+thegamblingclinic.com  # recovery: gambling clinic
+ambetterhealthplans.org  # health: health insurance, not gambling
+pediatrichealthcare.com  # health: paediatric care, not gambling
+thomasuniversityfootballcamps.com  # education: university sports camps, not gambling
+azfoundationforwomen.org  # charity, not gambling
+
+# --- dating: news, education, unrelated
+lgbti.org  # news: news.lgbti.org
+swarrnim.edu.in  # education: university
+lnu.edu.ua  # education: university (mediakit.lnu.edu.ua)
+psychologyjunkie.com  # personality-psychology blog, not dating
+personalitytests.com  # personality tests, not dating
+allaboutdatingscams.com  # consumer protection: dating-scam information
+datingscammerslist.info  # consumer protection: dating-scam information
+
+# --- violence: anti-hate, research and unrelated sites in UT1 "agressif"
+splcenter.org  # advocacy: Southern Poverty Law Center (anti-hate)
+nizkor.org  # education: Nizkor Project (rebuts Holocaust denial)
+newgrounds.com  # general animation and games portal
+freimaurer.org  # Freemasons association, not gore or hate
+federation-anarchiste.org  # political federation, not gore or hate
+milgear.fi  # retail: military surplus shop, not gore or hate
+
+# --- dating: matrimonial services. inclusion-policy.md lists matrimonial
+# services as undecided, so they are not blocked until the maintainer decides.
+121muslimdating.com  # matrimonial (undecided in policy)
+5marriagemandates.com  # matrimonial (undecided in policy)
+agence-matrimoniale-agen.com  # matrimonial (undecided in policy)
+agence-matrimoniale-rencontre-celibataire-dijon-cote-or.espace-rencontres.fr  # matrimonial (undecided in policy)
+agence-matrimoniale.ch  # matrimonial (undecided in policy)
+agenzie-matrimoniali.org  # matrimonial (undecided in policy)
+agenziematrimoniali.com  # matrimonial (undecided in policy)
+alena-marriage-agency.com  # matrimonial (undecided in policy)
+americanmuslimdating.com  # matrimonial (undecided in policy)
+arcadia-marriage-agency.com  # matrimonial (undecided in policy)
+azzawaj.com  # matrimonial (undecided in policy)
+bengalimatrimony.com  # matrimonial (undecided in policy)
+bethlehemmatrimonial.com  # matrimonial (undecided in policy)
+bharatmatrimony.com  # matrimonial (undecided in policy)
+blackmuslimdating.com  # matrimonial (undecided in policy)
+brahminmatrimony.com  # matrimonial (undecided in policy)
+chavaramatrimony.com  # matrimonial (undecided in policy)
+christianmatrimony.com  # matrimonial (undecided in policy)
+cinderella-matrimoniale.com  # matrimonial (undecided in policy)
+datetomarry.net  # matrimonial (undecided in policy)
+datingformarriage.com  # matrimonial (undecided in policy)
+datingtomarry.com  # matrimonial (undecided in policy)
+dilkarishta.com  # matrimonial (undecided in policy)
+divorceematrimony.com  # matrimonial (undecided in policy)
+doctorsmatrimony.com  # matrimonial (undecided in policy)
+dream-marriage.com  # matrimonial (undecided in policy)
+firozamatrimony.com  # matrimonial (undecided in policy)
+gaymuslimdating.com  # matrimonial (undecided in policy)
+islamicdating.com.au  # matrimonial (undecided in policy)
+islamicpassions.com  # matrimonial (undecided in policy)
+islamsite.org  # matrimonial (undecided in policy)
+jeevansathi.com  # matrimonial (undecided in policy)
+kannadamatrimony.com  # matrimonial (undecided in policy)
+kayasthamatrimony.com  # matrimonial (undecided in policy)
+keralamatrimony.com  # matrimonial (undecided in policy)
+keralamatrimony.net  # matrimonial (undecided in policy)
+loveislam.bizland.com  # matrimonial (undecided in policy)
+loveislam.net  # matrimonial (undecided in policy)
+m4marry.com  # matrimonial (undecided in policy)
+maheshwarimatrimony.com  # matrimonial (undecided in policy)
+mariannasmarriageagency.com  # matrimonial (undecided in policy)
+marriage-4u.com  # matrimonial (undecided in policy)
+marriage.albion.su  # matrimonial (undecided in policy)
+marriage.com  # matrimonial (undecided in policy)
+marriageagency-ludmila.com  # matrimonial (undecided in policy)
+marriagemindedpeoplemeet.com  # matrimonial (undecided in policy)
+marriageservices.org  # matrimonial (undecided in policy)
+marry-an-ugly-millionaire-online-dating-agency.com  # matrimonial (undecided in policy)
+matrimonialnetwork.com  # matrimonial (undecided in policy)
+matrimonials.com  # matrimonial (undecided in policy)
+modernmatrimonial.com  # matrimonial (undecided in policy)
+muslima.com  # matrimonial (undecided in policy)
+muslimdatingplanet.com  # matrimonial (undecided in policy)
+muslimsingles.app  # matrimonial (undecided in policy)
+muslimsingles.com.au  # matrimonial (undecided in policy)
+nairmatrimony.com  # matrimonial (undecided in policy)
+nayarishta.com  # matrimonial (undecided in policy)
+purematrimony.com  # matrimonial (undecided in policy)
+rishtapk.com  # matrimonial (undecided in policy)
+russian-girls-for-marriage.com  # matrimonial (undecided in policy)
+russian-women-marriage.com  # matrimonial (undecided in policy)
+shaadi.com  # matrimonial (undecided in policy)
+singlemuslim.com  # matrimonial (undecided in policy)
+tamilmatrimony.com  # matrimonial (undecided in policy)
+telugumatrimony.com  # matrimonial (undecided in policy)
+trulymuslim.com  # matrimonial (undecided in policy)
+youmemarriage.com  # matrimonial (undecided in policy)
+zawajdating.com  # matrimonial (undecided in policy)
+# --- dating: relationship and dating advice, coaching, scam warnings
+101christiandatingadvice.com  # advice or coaching, not a dating service
+adultdatingadvice.net  # advice or coaching, not a dating service
+blackdatingadvice.com  # advice or coaching, not a dating service
+datingadvice.com  # advice or coaching, not a dating service
+sexdatingadvice.com  # advice or coaching, not a dating service
+zadatingadvice.com  # advice or coaching, not a dating service
+thedatingdivas.com  # advice or coaching, not a dating service
+asiandatingcoach.ai  # advice or coaching, not a dating service
+gaygirldatingcoach.com  # advice or coaching, not a dating service
+introvertdatingcoach.com  # advice or coaching, not a dating service
+zendatingcoach.com  # advice or coaching, not a dating service
+coaching-love.fr  # advice or coaching, not a dating service
+singlescoach.app  # advice or coaching, not a dating service
+therelationshippsychics.com  # advice or coaching, not a dating service
+agencyscams.com  # consumer protection: dating-scam warnings
+africandatescam.com  # consumer protection: dating-scam warnings
+# --- gambling: news (the policy excludes news about gambling)
+pokernews.com  # news: gambling news site
+gamblingnewsinfo.com  # news: gambling news site
+casinonewsdaily.com  # news: gambling news site
+casinonewshub.com  # news: gambling news site
+casinonewsmedia.com  # news: gambling news site
+casinonlinenews.com  # news: gambling news site
+casinopronews.com  # news: gambling news site
+casinotimesnews.com  # news: gambling news site
+newsoncasinos.com  # news: gambling news site
+goldencasinonews.com  # news: gambling news site
+bestcasino-news.com  # news: gambling news site
+btccasinonews.com  # news: gambling news site
+casinobnews.info  # news: gambling news site
+casinonews.ge  # news: gambling news site
+casinoandnews.shop  # news: gambling news site
+casinonewspost.shop  # news: gambling news site
+scommesseequotenews.myblog.it  # news: gambling news site
+betnews.bet  # news: gambling news site
+slotv-news.club  # news: gambling news site
+# --- gambling: recovery and help resources, unions, charity, hotels, casual games
+addicted2gambling.com  # recovery resource
+imaddicttogambling.com  # recovery resource
+problemgamblerslawyer.com  # legal help for problem gamblers
+freegamblinghelpla.org  # recovery: helpline
+gamblinghelpohio.org  # recovery: helpline
+georgiagamblinghelp.org  # recovery: helpline
+cryptogamblinghelper.com  # help resource (doubtful)
+bingosupport.org  # help resource (doubtful)
+casinosaware.ca  # awareness resource (doubtful)
+casinosaware.com  # awareness resource (doubtful)
+casinoclinic.site  # help resource (doubtful)
+detroitcasinocouncil.org  # casino workers' union
+azcharitypoker.org  # charity
+mgmresorts.com  # hotel and resort company
+mgmhospitality.com  # hotel company
+mgmresortsfoundation.org  # casino charitable foundation
+harrahsfoundation.com  # casino charitable foundation
+pogo.com  # casual games, not gambling
+# --- gambling: unrelated sites the UT1 name rule kept through a short term
+#     (bet/pari/spin inside an ordinary word), review of 2026-11-18
+beton-lisse.be  # unrelated: concrete ("beton") contractor
+beton-ploeg.nl  # unrelated: concrete ("beton") contractor
+beton-plita.uz  # unrelated: concrete ("beton") slabs
+betta-autopflege.ch  # unrelated: car care
+bettle-pizza.ch  # unrelated: pizzeria
+baumdienst-betz.de  # unrelated: tree service (surname Betz)
+shoparia.com  # unrelated: shop name ("shop" + "aria")
+twitspin.ws  # unrelated: old Twitter photo-sharing service
+# --- adult: decided by the maintainer at import review
+museumofsex.com  # museum
+thechive.com  # general humour site
+changelingpress.com  # book publisher
+mtbshop.ru  # retail: bike shop
+gasngogeneralstores.com  # retail: general stores
+pollofelizexpress.com  # restaurant
+doctordrywaterproofing.com  # building services business
+# --- violence: decided by the maintainer at import review
+normanfinkelstein.com  # academic author
+buchanan.org  # political commentator
+jihadology.net  # research archive
+johnsack.com  # journalist and author
+modelguns-worldwide.com  # legal firearms/replica retail
+x-guns.com  # legal firearms/replica retail
+bitcheese.net  # file host
+mixtape.moe  # file host
+miscopy.com  # not evidently gore
+recipepes.com  # not evidently gore
+thepinsta.com  # not evidently gore

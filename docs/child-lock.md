@@ -23,10 +23,15 @@ What it does not cover, as the app says next to the toggle:
 - safe mode and factory reset. Both are Android's own recovery tools,
   and Google Play doesn't allow an accessibility service to block them;
   both can also be reached with the hardware keys;
-- settings shown in a language other than English, except screens that
-  name Sitr;
+- settings in a language other than English, Bengali, Arabic, Turkish or
+  Malay, and settings a phone maker words differently from Android
+  itself, except screens that name Sitr. The five languages are matched
+  as Android 15 and 16 word them (checked on an Android 15 emulator; the
+  Android 16 wording only in unit tests);
 - a browser's own "Secure DNS" and apps that use their own DNS server:
-  those lookups never reach Sitr;
+  those lookups never reach Sitr. The encrypted-DNS switch in Filter
+  categories covers well-known providers only
+  ([doh-hosts-policy.md](../blocklist/policy/doh-hosts-policy.md));
 - phone "cleaner" apps that force-stop Sitr. Android then switches the
   guard off until a guardian turns it back on (Home shows it red), and
   filtering stops until Sitr is opened again: always-on VPN does not

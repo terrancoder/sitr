@@ -3,7 +3,7 @@
 **A halal/family content filter whose privacy you can verify, not just trust.**
 
 Sitr is a Manifest V3 browser extension that blocks adult, gambling and dating
-sites and enforces SafeSearch (Google, Bing, DuckDuckGo) and YouTube
+sites (about 100,000 domains from a public list) and enforces SafeSearch (Google, Bing, DuckDuckGo) and YouTube
 Restricted Mode — entirely **on your device**, using the browser's
 `declarativeNetRequest` engine.
 
@@ -57,6 +57,29 @@ Developer mode → "Load unpacked") after a build.
 
 ## Contributing to the blocklist
 
+The list has two tiers per category: a hand-curated tier (`domains.txt`,
+evidence for each domain in its pull request) and an imported tier
+(`imported.txt`, about 100,000 names in all, written only by `tools/import`
+from public lists named in
+[`blocklist/imports/sources.json`](blocklist/imports/sources.json)).
+Imported entries were judged by domain name only, not site by site, so
+some will be wrong; the appeals process is how those get fixed.
+
 Read [`blocklist/policy/inclusion-policy.md`](blocklist/policy/inclusion-policy.md),
 then open a pull request editing the relevant `domains.txt`. Wrongly blocked?
-See the [appeals process](blocklist/policy/appeals-process.md).
+See the [appeals process](blocklist/policy/appeals-process.md). You can also
+use the issue forms: [ask to block a site](https://github.com/terrancoder/sitr/issues/new?template=block-request.yml)
+or [report a wrongly blocked site](https://github.com/terrancoder/sitr/issues/new?template=unblock-request.yml).
+The "Report a site" links in the extension and apps open these same forms,
+or your mail app; Sitr sends nothing itself. A GitHub issue is public.
+
+## Licence
+
+The code is licensed under the [Mozilla Public License 2.0](LICENSE). The
+blocklist data (everything under `blocklist/`) and the compiled list
+artifacts (`extension/rulesets/`, `apps/shared/blocklists/`) are licensed
+separately under [CC BY-SA 4.0](blocklist/LICENSE); the open lists they
+include are credited in
+[`blocklist/imports/ATTRIBUTION.md`](blocklist/imports/ATTRIBUTION.md). A
+generated `NOTICE.txt` with the same credits ships inside the packed
+extension and the iOS and Android apps.

@@ -70,6 +70,11 @@
         "id": "sitr_media_all",
         "enabled": false,
         "path": "rulesets/media-all.json"
+      },
+      {
+        "id": "sitr_violence",
+        "enabled": false,
+        "path": "rulesets/violence.json"
       }
     ]
   }

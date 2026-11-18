@@ -154,6 +154,17 @@ export function mergeStates(a: HouseholdState, b: HouseholdState): HouseholdStat
   return a.updatedBy > b.updatedBy ? a : b;
 }
 
+/**
+ * The stand-in a device holds after joining, until its first sync: rev 1
+ * authored at epoch 0 (see joinHousehold). It must not be edited — each
+ * edit raised its rev, and once that passed the real household's the merge
+ * replaced the household's PIN and lists with the joiner's. A household
+ * created on the device has a real updatedAt and stays editable.
+ */
+export function isJoinPlaceholder(s: HouseholdState): boolean {
+  return s.rev === 1 && s.updatedAt === 0;
+}
+
 /** A new revision authored by this device. */
 export function bumpRev(
   s: HouseholdState,

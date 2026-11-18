@@ -31,9 +31,15 @@ package com.sitrshield.core.lock
  * working around platform security controls, and both can be reached
  * with the hardware keys anyway.
  *
- * ponytail: matches English UI text and the common OEM package names; a
- * phone in another language or an unlisted OEM settings app gets only the
- * label and vpndialogs checks. Upgrade path: per-locale phrase tables.
+ * The phrases are Android's own wording (AOSP Settings, SettingsLib and
+ * VpnDialogs strings, Android 15 and 16) in English, Bengali, Arabic,
+ * Turkish and Malay. All five are checked whatever the phone's language;
+ * the resource name is next to each phrase so a reviewer can compare.
+ *
+ * ponytail: five languages as AOSP words them, and the common OEM package
+ * names. Another language, an OEM that rewords Settings (Xiaomi, Samsung)
+ * or an unlisted OEM settings app gets only the label and vpndialogs
+ * checks. Upgrade path: add a locale block from that build's strings.
  */
 object GuardRules {
     private const val VPN_DIALOGS = "com.android.vpndialogs"
@@ -54,24 +60,111 @@ object GuardRules {
         "com.coloros.safecenter",
     )
 
-    /** Row titles only the network hub page carries. */
-    private val NETWORK_HUB = listOf("Network & internet", "Airplane mode", "Hotspot & tethering")
+    /**
+     * Arabic marks AOSP uses inconsistently (الخاصة / الخاصّة in the same
+     * release, المطورين / المطوّرين between 15 and 16), tatweel, and the
+     * bidi marks that lead some Arabic strings. Stripped from both sides.
+     */
+    private val MARKS = Regex("[\u064B-\u065F\u0670\u0640\u200E\u200F]")
+
+    private fun normalise(text: String) = text.replace(MARKS, "")
+
+    /** Row titles only the network hub page carries (whole-text match). */
+    private val NETWORK_HUB = listOf(
+        // network_dashboard_title, airplane_mode, tether_settings_title_all
+        "Network & internet", "Airplane mode", "Hotspot & tethering", // en
+        "নেটওয়ার্ক ও ইন্টারনেট", "বিমান মোড", "হটস্পট এবং টিথারিং", // bn
+        "الشبكة والإنترنت", "وضع الطيران", "نقطة الاتصال والتوصيل", // ar
+        "Ağ ve internet", "Uçak modu", "Hotspot ve tethering", // tr
+        "Rangkaian dan Internet", "Mod pesawat", "Tempat liputan & penambatan", // ms
+    ).map(::normalise)
+
+    /** VpnDialogs `disconnect`: the button on the connected VPN's manage dialog. */
+    private val DISCONNECT = listOf(
+        "disconnect", // en
+        "সংযোগ বিচ্ছিন্ন", // bn
+        "قطع الاتصال", // ar
+        "bağlantıyı kes", // tr
+        "putuskan sambungan", // ms
+    ).map(::normalise)
+
+    /**
+     * Reset options lists "Delete private space": removing that unfiltered
+     * profile is fine, and the list must stay open. Cut before matching.
+     * reset_private_space_delete_title, private_space_delete_title/_header.
+     */
+    private val DELETE_PRIVATE_SPACE = listOf(
+        "delete private space", // en
+        "প্রাইভেট স্পেস মুছ", // bn: মুছুন, মুছবেন?
+        "حذف المساحة الخاصة", // ar
+        "özel alanı sil", "özel alan silinsin", // tr
+        "padamkan ruang persendirian", "padamkan ruang privasi", // ms (16, 15)
+    ).map(::normalise)
 
     private val PROTECTED_PHRASES = listOf(
-        "usb debugging",
-        "use developer options",
-        "add user",
-        "add guest",
+        // en
+        "usb debugging", // SettingsLib enable_adb, adb_warning_title
+        "use developer options", // developer_options_main_switch_title
+        "add user", // SettingsLib user_add_user, user_add_user_or_profile_menu
+        "add guest", // SettingsLib guest_new_guest
         // ponytail: Android 15+ private space is a profile the VPN doesn't
         // cover; untested on a device (the test phone has none).
-        "private space",
-        "private dns provider hostname",
-        "hostname of dns provider",
+        "private space", // private_space_title, private_space_setup_title
+        "private dns provider hostname", // SettingsLib private_dns_mode_provider
+        "hostname of dns provider", // SettingsLib private_dns_mode_provider_hostname_hint
         // Mobile network reset (Android 15: page and confirmation) and the
         // older single network reset; not the Reset options list.
-        "reset all mobile network settings",
-        "reset all network settings",
-    )
+        "reset all mobile network settings", // reset_mobile_network_settings_desc
+        "reset all network settings", // reset_network_final_desc(_esim)
+
+        // bn
+        "usb ডিবাগিং", // enable_adb, adb_warning_title
+        "ডেভেলপার বিকল্প ব্যবহার করুন", // developer_options_main_switch_title
+        "ব্যবহারকারীর অ্যাকাউন্ট যোগ করুন", // user_add_user
+        "ব্যবহারকারী অথবা প্রোফাইল যোগ করুন", // user_add_user_or_profile_menu
+        "অতিথি যোগ করুন", // guest_new_guest
+        "প্রাইভেট স্পেস", // private_space_title
+        "ডিএনএস প্রদানকারীর হোস্টনেম", // private_dns_mode_provider(_hostname_hint)
+        "সব মোবাইল নেটওয়ার্ক সেটিংস রিসেট", // reset_mobile_network_settings_desc
+        "সব নেটওয়ার্ক সেটিং", // reset_network_final_desc(_esim)
+
+        // ar
+        "تصحيح أخطاء usb", // enable_adb, adb_warning_title
+        "استخدام ميزة \"خيارات المطورين", // developer_options_main_switch_title (15)
+        "استخدام خيارات المطورين", // developer_options_main_switch_title (16)
+        "إضافة مستخدم", // user_add_user, user_add_user_or_profile_menu
+        "إضافة ضيف", // guest_new_guest
+        "مساحة الخاص", // private_space_title (المساحة / للمساحة الخاصة)
+        "مساحتك الخاص", // "your private space", e.g. private_space_unlock_description
+        "مساحة خاصة", // "a private space", e.g. private_space_error_screen_title
+        "اسم مضيف مزود", // private_dns_mode_provider
+        "اسم مضيف dns", // private_dns_mode_provider_hostname_hint
+        "إعادة ضبط كل إعدادات شبكة الجوال", // reset_mobile_network_settings_desc
+        "إعادة ضبط جميع إعدادات الشبكة", // reset_network_final_desc
+        "إعادة ضبط كل إعدادات الشبكة", // reset_network_final_desc_esim
+
+        // tr
+        "usb hata ayıklama", // enable_adb, adb_warning_title
+        "geliştirici seçeneklerini kullan", // developer_options_main_switch_title
+        "kullanıcı ekle", // user_add_user
+        "kullanıcı veya profil ekle", // user_add_user_or_profile_menu
+        "misafir ekle", // guest_new_guest
+        "özel alan", // private_space_title
+        "dns sağlayıcının ana makine adı", // private_dns_mode_provider(_hostname_hint)
+        "tüm mobil ağ ayarlarını sıfırla", // reset_mobile_network_settings_desc
+        "tüm ağ ayarları sıfırlansın", // reset_network_final_desc(_esim)
+
+        // ms
+        "penyahpepijatan usb", // enable_adb, adb_warning_title
+        "gunakan pilihan pembangun", // developer_options_main_switch_title
+        "tambah pengguna", // user_add_user, user_add_user_or_profile_menu
+        "tambah tetamu", // guest_new_guest
+        "ruang privasi", // private_space_title
+        "ruang persendirian", // private_space_delete_* and others (16)
+        "ruang peribadi", // private_space_error_screen_title and others
+        "nama hos penyedia dns", // private_dns_mode_provider(_hostname_hint)
+        "semula semua tetapan rangkaian", // reset_mobile_network_settings_desc, reset_network_final_desc(_esim)
+    ).map(::normalise)
 
     /** Every app whose windows the guard may read — the service asks Android for these alone. */
     val packages: Set<String> get() = WATCHED + VPN_DIALOGS
@@ -81,10 +174,11 @@ object GuardRules {
         packageName == VPN_DIALOGS || packageName in WATCHED
 
     fun shouldClose(packageName: String, texts: List<String>, appLabel: String): Boolean {
+        val norm = texts.map(::normalise)
         if (packageName == VPN_DIALOGS) {
             // Only the connected VPN's manage dialog has "Disconnect", and
             // with always-on that VPN is Sitr. Consent requests pass.
-            return texts.any { it.contains("disconnect", ignoreCase = true) }
+            return norm.any { t -> DISCONNECT.any { t.contains(it, ignoreCase = true) } }
         }
         if (packageName !in WATCHED) return false
         // The network hub names the connected VPN in its VPN row, but it is
@@ -92,12 +186,10 @@ object GuardRules {
         // Private DNS dialog behind it are separate windows and still close.
         // Whole-text match, so a search result's "Network & internet > VPN"
         // breadcrumb doesn't count.
-        if (texts.any { t -> NETWORK_HUB.any { t.equals(it, ignoreCase = true) } }) return false
+        if (norm.any { t -> NETWORK_HUB.any { t.equals(it, ignoreCase = true) } }) return false
         val phrases = packageName == SETTINGS
-        return texts.any { raw ->
-            // Reset options lists "Delete private space": removing that
-            // unfiltered profile is fine, and the list must stay open.
-            val text = raw.replace("delete private space", "", ignoreCase = true)
+        return norm.any { n ->
+            val text = DELETE_PRIVATE_SPACE.fold(n) { t, cut -> t.replace(cut, "", ignoreCase = true) }
             text.contains(appLabel) ||
                 (phrases && PROTECTED_PHRASES.any { text.contains(it, ignoreCase = true) })
         }

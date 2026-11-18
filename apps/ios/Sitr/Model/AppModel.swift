@@ -14,6 +14,9 @@ final class AppModel: ObservableObject {
     @Published var screenTimeStatus: ScreenTimeStatus = .off
     @Published var busy = false
     @Published var lastError: String?
+    /// Why the last Safari reload did not take — shown on the red status
+    /// card. Not persisted: the next apply attempt replaces it.
+    @Published var reloadError: String?
 
     /// Tail of the mutation chain — see `mutate`.
     private var pending: Task<Void, Never>?
@@ -26,14 +29,53 @@ final class AppModel: ObservableObject {
 
     // MARK: - Gate
 
-    func gate(_ kind: MutationKind) -> MutationVerdict {
-        Gate.gateMutation(
-            kind,
+    /// Gate first, then "wait before loosening", then the PIN.
+    func decide(_ action: DelayAction, phase: DelayPhase) -> MutationStep {
+        Delay.decide(
+            action,
             ctx: GateContext(
                 managedLockOptions: false,  // no managed layer on iOS v1
                 role: settings.role.flatMap(HouseholdRole.init(rawValue:)),
                 hasPin: settings.household?.pin != nil
-            ))
+            ),
+            phase: phase)
+    }
+
+    // MARK: - Wait before loosening
+
+    struct DelayState {
+        let minutes: Int
+        let phase: DelayPhase
+        let remainingMs: Int64
+    }
+
+    /// Evaluate on both clocks now; persist the request only when the
+    /// evaluation changed it (restarted or expired).
+    func delayState() -> DelayState {
+        let minutes = DelayStore.minutes
+        let stored = DelayStore.stamp
+        let ev = Delay.evaluate(delayMinutes: minutes, stamp: stored, now: DelayStore.now())
+        if ev.stamp != stored { DelayStore.stamp = ev.stamp }
+        return DelayState(minutes: minutes, phase: ev.phase, remainingMs: ev.remainingMs)
+    }
+
+    /// Starting or cancelling never waits.
+    func startDelayRequest() {
+        objectWillChange.send()
+        DelayStore.stamp = DelayStamp(DelayStore.now())
+    }
+
+    func cancelDelayRequest() {
+        objectWillChange.send()
+        DelayStore.stamp = nil
+    }
+
+    /// Any change to the setting clears the request: one made under an old
+    /// setting must never open the window early under a new one.
+    func setDelayMinutes(_ minutes: Int) {
+        objectWillChange.send()
+        DelayStore.minutes = Delay.sanitizeMinutes(minutes)
+        DelayStore.stamp = nil
     }
 
     /// PBKDF2 at 600,000 iterations: off the main actor, or the PIN sheet
@@ -73,8 +115,9 @@ final class AppModel: ObservableObject {
 
         // Rules Safari already holds need no reload: a sync that changed
         // only its own status would otherwise recompile them every time.
-        let expected = BlockerController.expectedChecksum(next)
-        if let expected, expected == settings.appliedRulesChecksum {
+        if case .success(let expected) = BlockerController.expectedChecksum(next),
+            expected == settings.appliedRulesChecksum
+        {
             var persisted = next
             persisted.appliedRulesChecksum = expected
             settings = persisted
@@ -82,14 +125,29 @@ final class AppModel: ObservableObject {
         } else {
             switch await BlockerController.apply(next) {
             case .failure(let error):
-                // Nothing was written — the settings must not claim otherwise.
-                lastError = describe(error)
+                if BlockerController.ruleInputsKey(next) == BlockerController.ruleInputsKey(settings) {
+                    // The change doesn't touch the rules (finishing
+                    // onboarding, a sync status): save it. Refusing it
+                    // trapped Finish in an alert loop when the list could
+                    // not be built; status shows the reason instead.
+                    var persisted = next
+                    persisted.appliedRulesChecksum = settings.appliedRulesChecksum
+                    settings = persisted
+                    SettingsStore.persist(persisted)
+                } else {
+                    // Nothing was written — the settings must not claim otherwise.
+                    lastError = describe(error)
+                }
             case .success(let outcome):
                 var persisted = next
                 switch outcome {
                 case .applied(let checksum):
                     persisted.appliedRulesChecksum = checksum
-                case .pendingReload:
+                    reloadError = nil
+                case .pendingReload(let reason):
+                    // Switched off is not a failed reload: status says
+                    // "Blocker is off", and turning it on should heal.
+                    reloadError = reason == BlockerController.blockerOffReason ? nil : reason
                     // Written but not live: record no checksum so the status
                     // stays red until a reload succeeds.
                     persisted.appliedRulesChecksum = nil
@@ -129,7 +187,9 @@ final class AppModel: ObservableObject {
         // lists. Re-applying is the whole fix, so do it instead of asking.
         // (`healing` keeps the two refreshes that overlap at launch from
         // both doing it.)
-        if blockerStatus == .stale, !healing {
+        // A reload that already failed is not retried on every foreground
+        // (on a 100k-rule list each try takes tens of seconds); "Fix" does.
+        if blockerStatus == .stale, !healing, reloadError == nil {
             healing = true
             await mutate { _ in }
             healing = false
@@ -183,9 +243,9 @@ final class AppModel: ObservableObject {
                 return
             }
             await mutate { next in
-                next.household = Household.emptyState(
-                    deviceId: next.deviceId,
-                    now: Date().timeIntervalSince1970 * 1000)
+                // Epoch 0 (as the extension does): the real household must
+                // win the first merge, even one still at rev 1.
+                next.household = Household.emptyState(deviceId: next.deviceId, now: 0)
                 next.role = asChild ? "child" : "guardian"
                 next.maxSeenRev = 0
                 next.syncStatus = .neverSynced
@@ -286,8 +346,15 @@ final class AppModel: ObservableObject {
     }
 
     private func mutateHousehold(_ transform: @escaping (inout HouseholdState) -> Void) async {
+        // Not before the first sync: see Household.isJoinPlaceholder.
+        if let household = settings.household, Household.isJoinPlaceholder(household) {
+            lastError = HouseholdView.waitingForFirstSync
+            return
+        }
         await mutate { next in
-            guard var household = next.household else { return }
+            guard var household = next.household,
+                !Household.isJoinPlaceholder(household)
+            else { return }
             transform(&household)
             next.household = Household.bumpRev(
                 household,

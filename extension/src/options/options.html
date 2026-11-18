@@ -99,8 +99,7 @@
 
   <h2>Always allow these sites</h2>
   <p class="note">Overrides the blocklist. Use for false positives — and please also
-    <a href="https://github.com/terrancoder/sitr/issues" target="_blank" rel="noopener">report them</a>
-    through the public blocklist's appeals process so everyone benefits.</p>
+    report them (below) so the public blocklist is fixed for everyone.</p>
   <form id="allow-form">
     <input type="text" id="allow-input" placeholder="example.com" />
     <button type="submit">Allow</button>
@@ -114,6 +113,30 @@
     <button type="submit">Block</button>
   </form>
   <ul id="block-list"></ul>
+
+  <h3>Report a site</h3>
+  <p class="note">
+    <a href="https://github.com/terrancoder/sitr/issues/new?template=block-request.yml" target="_blank" rel="noopener">Ask to block a site</a> ·
+    <a href="https://github.com/terrancoder/sitr/issues/new?template=unblock-request.yml" target="_blank" rel="noopener">Report a wrongly blocked site</a> ·
+    <a href="mailto:support@sitrshield.com?subject=Site%20report" target="_blank" rel="noopener">Email instead</a></p>
+  <p class="note">These open GitHub or your mail app. A GitHub report is public
+    and needs a GitHub account. Sitr itself sends nothing.</p>
+
+  <h2>Wait before loosening</h2>
+  <p class="note">When this is on, a change that loosens protection is held:
+    you ask for it, wait, and then have 10 minutes to make it. Changes that
+    tighten protection apply straight away. This slows down changes made
+    inside Sitr; it cannot stop someone disabling or removing the extension
+    in the browser, and changing the computer's clock defeats it. The wait
+    is local to this browser: changes made on another device in your
+    household arrive by sync and are not held. For a child's device, use a
+    household with a guardian PIN instead.</p>
+  <form id="delay-form">
+    <select id="delay-minutes" aria-label="Wait before loosening"></select>
+    <button id="delay-start" type="button">Start the wait</button>
+    <button id="delay-cancel" type="button">Cancel request</button>
+  </form>
+  <p id="delay-status" class="note" aria-live="polite"></p>
 
   <h2>Household</h2>
   <p class="note">Share allow/block lists and settings across your family's
@@ -168,6 +191,13 @@
     <h3 id="managed-allow-heading" class="locked" hidden>Allowed organization-wide</h3>
     <ul id="managed-allow-list"></ul>
   </section>
+
+  <footer>
+    <p class="note">Sitr's code is open source under the
+      <a href="https://www.mozilla.org/MPL/2.0/" target="_blank" rel="noopener">MPL-2.0</a>.</p>
+    <p class="note">The blocklist data is CC BY-SA 4.0, built from public lists
+      <a href="https://github.com/terrancoder/sitr/blob/main/blocklist/imports/ATTRIBUTION.md" target="_blank" rel="noopener">credited here</a>.</p>
+  </footer>
 
   <script type="module" src="../../dist/options/options.js"></script>
 </body>

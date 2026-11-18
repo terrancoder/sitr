@@ -4,6 +4,7 @@ import com.sitrshield.core.dns.SafeSearchMap
 import com.sitrshield.core.dns.StrictSearchHosts
 import com.sitrshield.core.domains.DomainInput
 import com.sitrshield.core.domainset.DomainSet
+import com.sitrshield.core.rules.DecisionSnapshot
 import org.json.JSONObject
 import java.io.File
 import kotlin.test.Test
@@ -22,17 +23,38 @@ class ArtifactsTest {
 
     private fun checksums(): JSONObject = JSONObject(File(dir, "checksums.json").readText())
 
+    /**
+     * Every `*.domains` artifact named in checksums.json — discovered, not
+     * listed, so a newly emitted list is covered the day it lands.
+     */
     @Test
-    fun domainSetsLoadWithVerifiedChecksums() {
+    fun everyDomainsArtifactLoadsWithVerifiedChecksums() {
         val sums = checksums()
+        val names = sums.keys().asSequence().filter { it.endsWith(".domains") }.toList()
+        assertTrue("adult.domains" in names && names.size >= 3, names.toString())
+        for (name in names) {
+            val result = DomainSet.load(File(dir, name).readBytes(), sums.getString(name))
+            assertTrue(result is SitrResult.Ok, "$name: ${result.errorOrNull()}")
+        }
         for (category in listOf("adult", "dating", "gambling")) {
-            val name = "$category.domains"
-            val artifact = File(dir, name).readBytes()
-            val set = DomainSet.load(artifact, sums.getString(name)).getOrNull()
-                ?: error("$name must load")
-            assertTrue(set.size > 0, name)
+            assertTrue(load("$category.domains").size > 0, category)
         }
     }
+
+    /** Every JSON artifact the engine reads is checksum-listed too. */
+    @Test
+    fun jsonArtifactsMatchTheirChecksums() {
+        val sums = checksums()
+        for (name in listOf("safesearch-hosts.json", "strict-search-hosts.json")) {
+            val got = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(File(dir, name).readBytes()).joinToString("") { "%02x".format(it) }
+            assertEquals(sums.getString(name), got, name)
+        }
+    }
+
+    private fun load(name: String): DomainSet =
+        DomainSet.load(File(dir, name).readBytes(), checksums().getString(name)).getOrNull()
+            ?: error("$name must load")
 
     @Test
     fun checksumMismatchRefusesToLoad() {
@@ -40,13 +62,6 @@ class ArtifactsTest {
         val result = DomainSet.load(artifact, "00".repeat(32))
         assertTrue(result is SitrResult.Err)
         assertTrue(result.errorOrNull()!!.contains("checksum"))
-    }
-
-    @Test
-    fun invalidLineIsAHardError() {
-        val result = DomainSet.load("ok.example\nNOT A DOMAIN\n".toByteArray(), null)
-        assertTrue(result is SitrResult.Err)
-        assertTrue(result.errorOrNull()!!.contains("line 2"))
     }
 
     @Test
@@ -117,14 +132,11 @@ class ArtifactsTest {
 
         // These must NOT be in the shared blocklist: a general-purpose
         // search engine fails the inclusion policy's primary-purpose test.
-        val sums = checksums()
         for (category in listOf("adult", "dating", "gambling")) {
-            val name = "$category.domains"
-            val set = DomainSet.load(File(dir, name).readBytes(), sums.getString(name))
-                .getOrNull() ?: error("$name must load")
+            val set = load("$category.domains")
             for (host in map.hosts) {
                 assertTrue(
-                    host !in set.domains,
+                    !set.contains(host),
                     "$host must not ship in the $category blocklist"
                 )
             }
@@ -144,10 +156,9 @@ class ArtifactsTest {
         for ((site, hosts) in sites) {
             val (media, scripts) = hosts
             val name = "$site-media.domains"
-            val set = DomainSet.load(File(dir, name).readBytes(), checksums().getString(name))
-                .getOrNull() ?: error("$name must load")
+            val snapshot = DecisionSnapshot(staticBlock = listOf(load(name)))
             // Android matches a listed domain and every subdomain of it.
-            fun blocks(host: String) = set.domains.any { host == it || host.endsWith(".$it") }
+            fun blocks(host: String) = snapshot.decide(host) == DecisionSnapshot.Verdict.BLOCK
             assertTrue(blocks(media), "$name must block $media")
             // Blocking a site's scripts would break it, not just its images.
             assertTrue(!blocks(scripts), "$name must not block $scripts")

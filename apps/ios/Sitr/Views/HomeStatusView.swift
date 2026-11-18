@@ -8,6 +8,8 @@ import SwiftUI
 struct HomeStatusView: View {
     @EnvironmentObject var model: AppModel
     let attempt: (MutationKind, String, @escaping () -> Void) -> Void
+    let attemptAction: (DelayAction, String, @escaping () -> Void) -> Void
+    let attemptJoin: (@escaping () -> Void) -> Void
     let requirePin: (String, @escaping () -> Void) -> Void
 
     var body: some View {
@@ -36,7 +38,10 @@ struct HomeStatusView: View {
                     ListsView(attempt: attempt)
                 }
                 NavigationLink("Sitr Family") {
-                    HouseholdView(attempt: attempt, requirePin: requirePin)
+                    HouseholdView(attempt: attempt, attemptJoin: attemptJoin, requirePin: requirePin)
+                }
+                NavigationLink("Wait before loosening") {
+                    DelaySettingsView(attemptAction: attemptAction)
                 }
                 NavigationLink("About & privacy") {
                     SettingsAboutView()
@@ -77,6 +82,8 @@ struct HomeStatusView: View {
                     model.blockerStatus == .active
                         ? "Screen Time access was revoked. Open the Screen Time row below to restore it or stop using it."
                         : StatusModel.describe(model.blockerStatus)
+                            + (model.blockerStatus == .stale
+                                ? model.reloadError.map { "\nSafari said: \($0)" } ?? "" : "")
                 )
                 .font(.subheadline)
                 .foregroundStyle(Theme.ink)

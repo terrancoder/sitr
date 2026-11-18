@@ -35,7 +35,7 @@ public enum Pin {
 
     static let freeAttempts = 4
     static let baseDelayMs: Double = 30_000
-    static let maxDelayMs: Double = 15 * 60_000
+    public static let maxDelayMs: Double = 15 * 60_000
 
     public static func isValidInput(_ pin: String) -> Result<Void, SitrError> {
         // UTF-16 units, as the reference (JavaScript) and the Android port
@@ -114,6 +114,16 @@ public enum Pin {
             maxDelayMs
         )
         return PinAttempts(count: next, lockedUntil: now + delay)
+    }
+
+    /// No stored deadline is honoured beyond the longest wait there is.
+    /// The lockout runs on the wall clock: setting it a year ahead,
+    /// failing, and setting it back otherwise locked the guardian out for
+    /// a year. Store the result, or it is re-clamped to a fresh wait.
+    public static func clamp(_ attempts: PinAttempts, now: Double) -> PinAttempts {
+        attempts.lockedUntil - now > maxDelayMs
+            ? PinAttempts(count: attempts.count, lockedUntil: now + maxDelayMs)
+            : attempts
     }
 
     public static func isLockedOut(

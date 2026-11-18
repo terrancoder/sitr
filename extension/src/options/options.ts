@@ -7,8 +7,12 @@
  */
 import {
   DISABLED_CATEGORIES_KEY,
+  ENABLED_OPTIONAL_KEY,
+  OPTIONAL_LISTS,
   sanitizeDisabled,
+  sanitizeEnabledOptional,
   TOGGLEABLE_CATEGORIES,
+  type OptionalRulesetId,
   type ToggleableRulesetId,
 } from "../lib/categories.js";
 import {
@@ -25,20 +29,23 @@ import {
   sanitizeManagedPolicy,
   type ManagedPolicy,
 } from "../lib/managed.js";
-import { HOUSEHOLD_SECRET_KEY } from "../lib/household.js";
+import { isJoinPlaceholder } from "../lib/household.js";
 import {
   addHouseholdDomain,
   joinHousehold,
+  leaveAsChild,
   leaveHousehold,
   loadHousehold,
   removeHouseholdDomain,
   setGuardianPin,
   showPairingCode,
+  WAITING_FOR_FIRST_SYNC,
   withGate,
   type HouseholdContext,
 } from "./household.js";
 import { promptDialog } from "./dialogs.js";
 import { wireMedia } from "./media.js";
+import { wireDelay } from "./delay.js";
 import {
   SYNC_STATUS_KEY,
   describeSyncStatus,
@@ -254,21 +261,75 @@ async function renderCategories(): Promise<void> {
       listEl.append(li);
       continue;
     }
-    checkbox.addEventListener("change", () => {
-      void setCategoryDisabled(category.rulesetId, !checkbox.checked).catch(
-        (e: unknown) => {
-          // Revert the checkbox so the UI never shows an unapplied state.
-          checkbox.checked = !checkbox.checked;
-          showError(
-            `Could not update category: ${e instanceof Error ? e.message : String(e)}`,
-          );
-        },
-      );
-    });
+    gateCheckbox(checkbox, (on) => setCategoryDisabled(category.rulesetId, !on));
     label.append(checkbox, ` Block ${category.label.toLowerCase()} sites`);
     li.append(label);
     listEl.append(li);
   }
+  const enabledOptional = new Set(
+    sanitizeEnabledOptional(
+      (await chrome.storage.local.get(ENABLED_OPTIONAL_KEY))[ENABLED_OPTIONAL_KEY],
+    ),
+  );
+  for (const list of OPTIONAL_LISTS) {
+    const li = document.createElement("li");
+    li.style.flexWrap = "wrap";
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.id = `optional-${list.rulesetId}`;
+    checkbox.checked = enabledOptional.has(list.rulesetId);
+    checkbox.disabled = managedPolicy.lockOptions;
+    gateCheckbox(checkbox, (on) => setOptionalEnabled(list.rulesetId, on));
+    const note = document.createElement("p");
+    note.className = "note";
+    note.style.cssText = "margin: 2px 0 0; flex-basis: 100%;";
+    note.textContent = list.note;
+    label.append(checkbox, ` ${list.label}`);
+    li.append(label, note);
+    listEl.append(li);
+  }
+}
+
+/**
+ * A category-style switch: ON is enableCategory, OFF is disableCategory,
+ * both through the gate (and so the delay and the PIN). Snaps back unless
+ * the change actually ran — refused, cancelled and held all leave it as it
+ * was.
+ */
+function gateCheckbox(
+  checkbox: HTMLInputElement,
+  apply: (on: boolean) => Promise<void>,
+): void {
+  checkbox.addEventListener("change", () => {
+    clearError();
+    const on = checkbox.checked;
+    checkbox.checked = !on; // shown as applied only once it is
+    void withGate(on ? "enableCategory" : "disableCategory", hh, () => apply(on))
+      .then((done) => {
+        if (done) checkbox.checked = on;
+      })
+      .catch((e: unknown) => {
+        showError(
+          `Could not update category: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      });
+  });
+}
+
+/** Engine first, persist after — same order as setCategoryDisabled. */
+async function setOptionalEnabled(
+  rulesetId: OptionalRulesetId,
+  on: boolean,
+): Promise<void> {
+  const stored = await chrome.storage.local.get(ENABLED_OPTIONAL_KEY);
+  const current = new Set(sanitizeEnabledOptional(stored[ENABLED_OPTIONAL_KEY]));
+  if (on) current.add(rulesetId);
+  else current.delete(rulesetId);
+  await chrome.declarativeNetRequest.updateEnabledRulesets(
+    on ? { enableRulesetIds: [rulesetId] } : { disableRulesetIds: [rulesetId] },
+  );
+  await chrome.storage.local.set({ [ENABLED_OPTIONAL_KEY]: [...current] });
 }
 
 /* ------------------------------ household ------------------------------- */
@@ -301,9 +362,12 @@ function renderHousehold(): void {
   none.hidden = true;
   active.hidden = false;
   const isGuardian = hh.role === "guardian";
-  guardianTools.hidden = !isGuardian;
-  blockTools.hidden = !isGuardian;
-  el("household-role-line").textContent = isGuardian
+  const waiting = isJoinPlaceholder(hh.state);
+  guardianTools.hidden = !isGuardian || waiting;
+  blockTools.hidden = !isGuardian || waiting;
+  el("household-role-line").textContent = waiting
+    ? WAITING_FOR_FIRST_SYNC
+    : isGuardian
     ? "This is a guardian device. You can edit the household lists and show the pairing code."
     : "This is a child device. Household settings can only be changed from a guardian device.";
 }
@@ -395,30 +459,8 @@ function wireHousehold(): void {
     clearError();
     void (async () => {
       if (hh.role === "child") {
-        // A child device leaves only with proof of guardianship: the code.
-        const code = await promptDialog(
-          "Enter the household pairing code (from a guardian device) to remove this device:",
-        );
-        if (code === null) return;
-        const { decodePairingCode } = await import("../lib/sync/crypto.js");
-        const { fromB64 } = await import("../lib/pin.js");
-        const secret = decodePairingCode(code);
-        const stored = await chrome.storage.local.get(HOUSEHOLD_SECRET_KEY);
-        const known =
-          typeof stored[HOUSEHOLD_SECRET_KEY] === "string"
-            ? fromB64(stored[HOUSEHOLD_SECRET_KEY])
-            : undefined;
-        const matches =
-          secret.ok &&
-          known?.ok === true &&
-          known.value.length === secret.value.length &&
-          known.value.every((b, i) => b === secret.value[i]);
-        if (!matches) {
-          showError("That pairing code does not match this household.");
-          return;
-        }
-        await leaveHousehold(hh);
-        await hh.onChanged();
+        // The pairing code, then the wait: see leaveAsChild.
+        if (await leaveAsChild(hh)) await hh.onChanged();
         return;
       }
       await withGate("leaveHousehold", hh, async () => {
@@ -470,6 +512,7 @@ void (async () => {
   }
   await renderCategories();
   await wireMedia(hh);
+  await wireDelay(hh, withGate);
   await refreshLists();
   await renderHouseholdLists();
 })().catch((e: unknown) => {

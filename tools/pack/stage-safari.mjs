@@ -38,6 +38,8 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
+import { readNotice } from "../compiler/dist/notice.js";
+
 const ROOT = resolve(import.meta.dirname, "../..");
 const EXT = join(ROOT, "extension");
 
@@ -166,6 +168,8 @@ if (channel === "mas") {
 }
 
 staged.set("channel.json", JSON.stringify({ channel }) + "\n");
+// Licence + attribution notice, generated from ATTRIBUTION.md (pack.mjs too).
+staged.set("NOTICE.txt", readNotice(join(ROOT, "blocklist/imports/ATTRIBUTION.md")));
 
 const hashes = {};
 for (const [rel, body] of [...staged.entries()].sort(([a], [b]) =>

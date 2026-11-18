@@ -80,10 +80,33 @@ import Testing
         #expect(rules.count == domains.count)
     }
 
-    @Test func overflowIsSurfacedNeverTruncated() {
+    @Test func capMatchesTheCompilerBudget() {
+        // SAFARI_RULE_BUDGET / SAFARI_RULE_RESERVE in emitSafari.ts, and
+        // under WebKit's 150,000 hard limit with room to spare.
+        #expect(SafariRules.ruleBudget == 145_000)
+        #expect(SafariRules.ruleReserve == 5_000)
+        #expect(SafariRules.ruleBudget <= 150_000)
+    }
+
+    @Test func fullBudgetBuilds() {
+        let staticRules = Array(
+            repeating: staticRule, count: SafariRules.ruleBudget - SafariRules.ruleReserve)
+        let own = (0..<SafariRules.ruleReserve).map { "d\($0).example" }
+        guard
+            case .success(let rules) = SafariRules.build(
+                staticRules: staticRules, userBlock: Array(own[..<2_000]),
+                userAllow: Array(own[2_000...]), householdBlock: [], householdAllow: [])
+        else {
+            Issue.record("a list exactly at the budget must build")
+            return
+        }
+        #expect(rules.count == SafariRules.ruleBudget)
+    }
+
+    @Test func staticOverflowIsSurfacedNeverTruncated() {
         let tooMany = Array(
             repeating: staticRule,
-            count: SafariRules.maxRules + 1
+            count: SafariRules.ruleBudget - SafariRules.ruleReserve + 1
         )
         if case .success = SafariRules.build(
             staticRules: tooMany, userBlock: [], userAllow: [],
@@ -91,6 +114,33 @@ import Testing
         {
             Issue.record("expected surfaced overflow error")
         }
+    }
+
+    @Test func ownRulesOverTheReserveFailEvenWhenTheTotalFits() {
+        // Static rules are tiny here, so the total is far under the
+        // budget — the reserve is still enforced, so the same lists do
+        // not start failing later when a list update grows the static part.
+        let own = (0...SafariRules.ruleReserve).map { "d\($0).example" }
+        guard
+            case .failure(let error) = SafariRules.build(
+                staticRules: [staticRule], userBlock: Array(own[..<3_000]), userAllow: [],
+                householdBlock: [], householdAllow: Array(own[3_000...]))
+        else {
+            Issue.record("expected surfaced overflow error")
+            return
+        }
+        #expect(error.message.contains("\(SafariRules.ruleReserve + 1) sites"))
+    }
+
+    @Test func serializeEscapesStrings() throws {
+        let odd = SafariRule(urlFilter: "a\"b\\c\nd/é", ifDomain: ["x.example"], action: .block)
+        let data = SafariRules.serialize([odd, staticRule])
+        guard case .success(let parsed) = SafariRules.parseFragment(data) else {
+            Issue.record("serialized output must parse")
+            return
+        }
+        #expect(parsed == [odd, staticRule])
+        #expect(SafariRules.serialize([]) == Data("[]\n".utf8))
     }
 
     @Test func serializeIsDeterministicAndRoundTrips() throws {

@@ -79,16 +79,19 @@ browser's own `chrome.storage.managed` and is never fetched by us — see
 
 ## Determinism and verification
 
-`tools/compiler` turns `blocklist/sources/*/domains.txt` into DNR JSON
-byte-reproducibly (sorted input, fixed batching, fixed ID ranges, stable
+`tools/compiler` turns the list sources — `blocklist/sources/*/domains.txt`
+(hand-curated) and `imported.txt` (written by `tools/import` from pinned
+snapshots of public lists), plus the opt-in lists under
+`blocklist/optional/` — into DNR JSON byte-reproducibly (sorted input, fixed batching, fixed ID ranges, stable
 serialization). CI compiles twice and diffs, and publishes SHA-256 checksums
 (`extension/rulesets/checksums.json`) so anyone can rebuild from the public
 sources and confirm the shipped artifact matches.
 
 ## Mobile engines
 
-The native apps (`apps/ios/`, `apps/android/`) add no new lists and no new
-semantics. They consume the same `blocklist/sources/` through the same
+The native apps (`apps/ios/`, `apps/android/`) add no new semantics, and
+no lists of their own except one: the Android-only opt-in list of
+encrypted-DNS hosts. They consume the same `blocklist/` sources through the same
 deterministic compiler, via two new emitters: `--safari-out` writes Safari
 content-blocker JSON with layer precedence expressed as rule ordering plus
 `ignore-previous-rules`; `--android-out` writes plain sorted domain lists
@@ -125,7 +128,13 @@ the user's own block lists —
 where `.individual` mode is revocable friction and only `.child` mode via
 Family Sharing (parent approval required to revoke) gives real tamper
 resistance. SafeSearch is not enforceable on iOS at all; T10 in
-[threat-model.md](threat-model.md) states the platform limits.
+[threat-model.md](threat-model.md) states the platform limits. Safari's
+format has no `requestDomains` batching, so every domain is one rule, and
+WebKit rejects a whole list above 150,000 rules: the compiler fails the
+build unless all lists (opt-in ones included) plus a 5,000-rule reserve for
+user and household rules fit in 145,000, and the app checks the same cap.
+The app assembles the active list on the device; before its first launch
+the blocker serves a bundled fallback holding only the hand-curated tier.
 
 **DNS filter (Android).** A local `VpnService` where the tun routes only
 the synthetic resolver addresses, so exclusively DNS packets can enter it
@@ -139,7 +148,7 @@ SafeSearch-mapped hosts are answered NODATA so ECH cannot carry the name
 past the filter. SafeSearch is enforced by rewriting engine hosts to
 their published SafeSearch counterparts, and allowed queries are
 forwarded only to the network's own resolvers — never to a Sitr or
-third-party resolver. The bypass surface (strict Private DNS, a browser's
+third-party resolver. The bypass and conflict surface (a fixed Private DNS hostname, a browser's
 own DoH, another VPN app taking the slot, no lockdown support) is
 disclosed in T9 of [threat-model.md](threat-model.md); the optional child
 lock that closes it on a child's phone is in T7 and
@@ -147,7 +156,10 @@ lock that closes it on a child's phone is in T7 and
 
 ## DNR limits we design within
 
-~30k guaranteed static rules (we batch ~1,000 domains per rule via
-`requestDomains`, so capacity is effectively millions of domains), 30k dynamic
+~30k guaranteed static rules (we batch 1,000 domains per rule via
+`requestDomains`, so the ~100,000-domain list takes about 100 static rules
+in Chrome; the iOS content blocker, at one rule per domain and 150,000
+rules at most, is the binding limit on list size — see the iOS paragraph
+above), 30k dynamic
 rules (user rules capped at 5,000 per kind with a surfaced error), and the
 unsafe ruleset is kept to a handful of hand-reviewed rules.

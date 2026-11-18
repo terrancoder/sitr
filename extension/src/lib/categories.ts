@@ -42,6 +42,39 @@ export function requiredRulesets(disabled: ToggleableRulesetId[]): string[] {
   ];
 }
 
+/* ------------------------------ opt-in lists ------------------------------ */
+
+/**
+ * Lists that ship `enabled: false` and are off unless the user turns them
+ * on. Kept apart from TOGGLEABLE_CATEGORIES on purpose: those are
+ * default-on, managed-forcible and household-synced; these are none of
+ * that (device-local only). Another opt-in list is one more row here plus
+ * its manifest rule_resource.
+ */
+export const OPTIONAL_LISTS = [
+  {
+    rulesetId: "sitr_violence",
+    label: "Block violent and extremist sites",
+    note:
+      "Blocks a list of gore and extremist hate sites. The list is old and " +
+      "incomplete. Off unless you turn it on.",
+  },
+] as const;
+
+export type OptionalRulesetId = (typeof OPTIONAL_LISTS)[number]["rulesetId"];
+
+/** storage.local key holding the opt-in lists the user turned on. */
+export const ENABLED_OPTIONAL_KEY = "enabledOptionalLists";
+
+/** Sanitize a stored value: keep only known opt-in ruleset ids. */
+export function sanitizeEnabledOptional(stored: unknown): OptionalRulesetId[] {
+  if (!Array.isArray(stored)) return [];
+  const known = new Set<string>(OPTIONAL_LISTS.map((l) => l.rulesetId));
+  return [...new Set(stored.filter((v): v is OptionalRulesetId =>
+    typeof v === "string" && known.has(v),
+  ))];
+}
+
 /* --------------------- media filtering (threat-model T12) --------------------- */
 
 /**

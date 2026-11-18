@@ -32,7 +32,9 @@ enum ScreenTimeController {
         #if canImport(FamilyControls)
             guard userEnabled else { return .off }
             switch AuthorizationCenter.shared.authorizationStatus {
-            case .approved:
+            // iOS 26.4 added a second approved state; unlisted, it fell
+            // through to "revoked" and turned the status red.
+            case .approved, .approvedWithDataAccess:
                 return .active(mode: Storage.defaults.string(forKey: "screenTimeMode") ?? "individual")
             case .denied, .notDetermined:
                 return .revoked

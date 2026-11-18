@@ -10,6 +10,13 @@ struct AppSettings {
     var deviceId = ""
     /// Device-level toggles; the household's list wins when joined.
     var disabledCategories: [String] = []
+    /// Sites whose images and video are off in Safari ("x", "reddit", …)
+    /// — none by default; see SITE_MEDIA_HOSTS in the compiler.
+    var mediaOff: Set<String> = []
+    /// Opt-in Safari lists switched on ("violence", …) — none by default.
+    /// Device-local like mediaOff: never synced, never in the household
+    /// state (older app versions erase unknown household fields).
+    var optionalOn: Set<String> = []
     var userAllow: [String] = []
     var userBlock: [String] = []
     var role: String?
@@ -33,6 +40,8 @@ enum SettingsStore {
             d.set(s.deviceId, forKey: "deviceId")
         }
         s.disabledCategories = d.stringArray(forKey: "disabledCategories") ?? []
+        s.mediaOff = Set(d.stringArray(forKey: "mediaOff") ?? [])
+        s.optionalOn = Set(d.stringArray(forKey: "optionalListsOn") ?? [])
         s.userAllow = d.stringArray(forKey: "userAllow") ?? []
         s.userBlock = d.stringArray(forKey: "userBlock") ?? []
         s.role = d.string(forKey: "householdRole")
@@ -62,6 +71,8 @@ enum SettingsStore {
         d.set(s.onboarded, forKey: "onboarded")
         d.set(s.deviceId, forKey: "deviceId")
         d.set(s.disabledCategories, forKey: "disabledCategories")
+        d.set(s.mediaOff.sorted(), forKey: "mediaOff")
+        d.set(s.optionalOn.sorted(), forKey: "optionalListsOn")
         d.set(s.userAllow, forKey: "userAllow")
         d.set(s.userBlock, forKey: "userBlock")
         d.set(s.role, forKey: "householdRole")
@@ -79,5 +90,60 @@ enum SettingsStore {
         d.set(s.syncStatus.lastSuccessAt, forKey: "syncLastSuccessAt")
         d.set(s.syncStatus.error, forKey: "syncError")
         d.set(s.appliedRulesChecksum, forKey: "appliedRulesChecksum")
+        #if DEBUG
+        DnsFilterDebug.postSettingsChanged()  // experimental DNS filter reloads its lists
+        #endif
+    }
+}
+
+/// "Wait before loosening" (SitrCore/Delay.swift): device-local, its own
+/// keys — NOT in AppSettings (SettingsStore.persist rewrites every key from
+/// a possibly older copy) and NOT in the household state (older versions
+/// erase unknown household fields).
+enum DelayStore {
+    private static let minutesKey = "loosenDelayMinutes"
+    private static let requestKey = "loosenDelayRequest"
+
+    static var minutes: Int {
+        get { Delay.sanitizeMinutes(Storage.defaults.integer(forKey: minutesKey)) }
+        set { Storage.defaults.set(newValue, forKey: minutesKey) }
+    }
+
+    static var stamp: DelayStamp? {
+        get {
+            guard let raw = Storage.defaults.dictionary(forKey: requestKey),
+                let mono = (raw["atMono"] as? NSNumber)?.int64Value,
+                let wall = (raw["atWall"] as? NSNumber)?.int64Value,
+                mono >= 0, wall >= 0
+            else { return nil }
+            return DelayStamp(atMono: mono, atWall: wall)
+        }
+        set {
+            if let s = newValue {
+                Storage.defaults.set(["atMono": s.atMono, "atWall": s.atWall], forKey: requestKey)
+            } else {
+                Storage.defaults.removeObject(forKey: requestKey)
+            }
+        }
+    }
+
+    /// Both clocks, in ms. Clock A is mach_continuous_time, which (per
+    /// mach_time.h in the iOS SDK) is "like mach_absolute_time, but advances
+    /// during sleep"; mach_absolute_time / CLOCK_UPTIME_RAW stop while
+    /// asleep. It restarts at boot and the user cannot set it. Clock B is
+    /// the wall clock.
+    static func now() -> DelayClockReading {
+        var tb = mach_timebase_info_data_t()
+        mach_timebase_info(&tb)
+        var mono = Int64(mach_continuous_time() * UInt64(tb.numer) / UInt64(tb.denom) / 1_000_000)
+        var wall = Int64(Date().timeIntervalSince1970 * 1000)
+        #if DEBUG
+        // Simulator testing of the open window without waiting in real
+        // time: launch with `-SitrDebugClockOffsetMs <ms>`. Debug builds only.
+        let offset = Int64(UserDefaults.standard.integer(forKey: "SitrDebugClockOffsetMs"))
+        mono += offset
+        wall += offset
+        #endif
+        return DelayClockReading(mono: mono, wall: wall)
     }
 }

@@ -59,10 +59,12 @@ enum StatusModel {
         }
         guard enabled else { return .disabled }
 
-        guard let expected = BlockerController.expectedChecksum(settings) else {
-            return .unknown("rulesets failed verification")
+        switch BlockerController.expectedChecksum(settings) {
+        case .failure(.fragments(let reason)), .failure(.write(let reason)):
+            return .unknown(reason)
+        case .success(let expected):
+            return settings.appliedRulesChecksum == expected ? .active : .stale
         }
-        return settings.appliedRulesChecksum == expected ? .active : .stale
     }
 
     static func describe(_ status: BlockerStatus) -> String {

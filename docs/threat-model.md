@@ -27,6 +27,19 @@ nothing (§4 of the working agreement). The mobile apps inherit this
 unchanged: their blocklists ship inside the store-reviewed app binary and
 update via store releases, exactly like the extension.
 
+Most of the list (about 100,000 of its names) is now imported from public
+third-party lists, which moves part of this risk upstream. Mitigations: each
+source is pinned to a fixed snapshot (a commit, where the upstream has one)
+whose SHA-256 and retrieval date are recorded in the `imported.txt` header;
+an import is a reviewed pull request with a visible diff, never an automatic
+fetch at build or run time; the import tool accepts only MIT, CC BY 4.0 and
+CC BY-SA 4.0 sources; and every imported name passes compile-time guards
+(no public suffixes, nothing on, containing or under a name in the public
+never-block list, nothing in the public `import-exclusions.txt`, and a name
+rule for one gambling source). Imported names are block-only "safe" rules
+like the rest of the list; they cannot redirect anything. A poisoned
+upstream can still add wrong blocks; see T5.
+
 ### T3: Silent filter failure
 A filter that silently stops working is worse than none. Mitigation: the
 service worker verifies the expected rulesets are enabled and shows a red
@@ -42,6 +55,26 @@ artifact is detectable by rebuild-and-compare.
 Moral/religious blocking decisions could be abused or opaque. Mitigations:
 public blocklist sources, written inclusion policy, named maintainers,
 public appeals process, and an on-device per-site allow that always wins.
+
+The imported tier brings risks of its own, stated plainly:
+
+- **False positives at scale.** Imported names were judged by domain name
+  only, not visited one by one, so among tens of thousands some will be
+  wrong (an expired domain now owned by someone else, a generic name).
+  The guards above stop the worst class, blocking a platform or a shared
+  suffix, but not a single wrong site.
+- **Stale upstreams.** Some sources are old (the violence list's main source
+  dates largely from the early web), and a snapshot ages between imports.
+- **Reliance on third-party lists.** Sitr inherits the upstream maintainers'
+  judgement and mistakes, and cannot fix them upstream.
+
+What exists against them: the per-site allow, which wins at once on the
+device; the [appeals process](../blocklist/policy/appeals-process.md), which
+removes a wrong imported name by adding it to `import-exclusions.txt` so a
+later import cannot bring it back; a public name rule that narrows UT1's
+gambling list to names that look like gambling; and every source, licence
+and count published in `blocklist/imports/`. Appeals, not prior review,
+are how imported mistakes get fixed.
 
 ### T6: The sync server operator (Sitr Family only)
 The Family tier adds one server (docs/sync-protocol.md) — so the operator
@@ -65,6 +98,32 @@ in the options page. What actually prevents uninstall on a managed device
 is the browser's own force-install policy (docs/institutions/), not us. We
 state this plainly rather than overclaim.
 
+**Wait before loosening** (extension, iOS and Android; optional, off by default,
+device-local, never synced) is friction of the same kind. When it is on, a
+change that loosens protection is held: the user asks for it, waits the
+chosen time (5 minutes to 24 hours), and then has a 10-minute window to make
+it. Shortening the wait or turning it off is itself held. It runs after the
+gate (a managed lock or a child device still refuses outright) and before
+the PIN. Joining a household is held like any loosening change on every
+platform (the household's settings replace this device's by sync), and in
+the extension it first asks for the browser's own PIN when one is set.
+Changes made on another device in the household arrive by sync and are not
+held: the wait is local to each device. What it does
+not do: it slows changes made inside Sitr only, and cannot stop anyone
+disabling or removing the extension or app, or switching off the content
+blocker or Screen Time (iOS) or the VPN (Android) in system settings. In the extension
+it relies on the computer's clock, which the user can change. The iOS app
+checks two clocks, one of which the user cannot set and which keeps
+running in sleep, so changing the clock or restarting the phone on its own
+makes the wait longer, never shorter. The one known exception needs two
+faults at once: a pending request restored from a backup onto another
+device, plus that device's clock set forward. The Android app also checks
+two clocks, time since boot and the wall clock, and takes the stricter, so
+a clock change cannot open it early and a reboot restarts the wait. On
+Android, turning the child lock off deliberately does not wait: anyone can
+switch the wait on, even on a child's phone, so it must never be able to
+keep the guardian's PIN out of the child-lock screen.
+
 The same honesty applies on mobile. On iOS, Screen Time in `.child` mode
 (via Family Sharing) is real platform enforcement — a parent's approval is
 required to revoke it. `.individual` mode is revocable friction, same as
@@ -74,8 +133,9 @@ phone: an accessibility service closes the screens that would switch
 Sitr off, uninstalling included (Device Admin isn't used: Play forbids it
 for blocking uninstall, and adb can still remove Sitr). It is bypassable —
 safe mode and factory reset (left alone: they are Android's own
-recovery tools), settings in a language its
-phrase list doesn't know, a "cleaner" app that force-stops Sitr (which
+recovery tools), settings in a language other
+than English, Bengali, Arabic, Turkish or Malay or worded differently by
+the phone maker (screens that name Sitr are still closed), a "cleaner" app that force-stops Sitr (which
 also stops filtering until Sitr is opened again) — and
 says so next to the toggle. The guard reads window text on the device
 and discards it; it is opt-in by a guardian, behind a disclosure, and
@@ -118,12 +178,28 @@ build. A privacy cost is disclosed too: forwarded queries leave in plain
 UDP (the engine resets Private-DNS :853 probes so Android falls back to
 cleartext), so Android's automatic encrypted DNS is lost while Sitr runs
 and the network operator can read the names it could already read
-without Private DNS. The bypass surface is disclosed, never hidden: strict Private DNS
-(a user-set DoT hostname) bypasses the filter — detected and surfaced as
-a red protection status with guidance; a browser's own DoH ("Secure
-DNS") cannot be intercepted (Sitr answers Firefox's canary name so its
-default DoH stays off, which does nothing for a user who switches it on);
-an app that sends its lookups to its own DNS server is not filtered,
+without Private DNS. The bypass surface is disclosed, never hidden. A
+fixed Private DNS hostname (a user-set DoT host) conflicts with Sitr: on
+the Android 15 and 16 devices tested, the phone could not look up any
+name while both were on; Sitr detects the setting and shows protection as
+not active, with the fix (set Private DNS to Automatic or Off). We do not
+claim that outcome for every Android version or phone maker. A browser's
+own DoH ("Secure DNS") cannot be intercepted (Sitr answers Firefox's
+canary name so its default DoH stays off, which does nothing for a user
+who switches it on). An optional, off-by-default list of 65 well-known
+public encrypted-DNS hostnames
+([doh-hosts-policy.md](../blocklist/policy/doh-hosts-policy.md)) answers
+those hosts as blocked. Tested with Chrome on Android 15: with secure DNS
+on "automatic" (the default) Sitr filters normally either way; with a
+built-in provider chosen, Chrome silently bypasses Sitr when the switch is
+off, and with it on every page fails with Chrome's secure-DNS error until
+secure DNS is set back to automatic — Chrome did not fall back to the
+system resolver. A connection the browser already had open kept working
+for a few minutes after the switch was turned on. The switch cannot stop
+a provider entered as an IP address or one not on the list, has no effect
+on Private DNS, and does nothing about VPNs, proxies or Tor. Other
+browsers and versions are untested.
+An app that sends its lookups to its own DNS server is not filtered,
 because only the system resolver's addresses are routed into the tunnel; and Android's "block connections without
 VPN" lockdown is unsupported by design, because DNS-only routes would
 break all other traffic. Android runs one VPN at a time, so **another
@@ -141,6 +217,15 @@ domain set is too small for Sitr's category lists) — the evaluation is
 Apple's, not ours.
 SafeSearch cannot be enforced on iOS at all. We state each of
 these in-app rather than imply full coverage.
+
+Two Safari limits shape the list. WebKit rejects a whole content-blocker
+list above 150,000 rules, and Sitr uses one rule per domain, so the
+compiler fails the build unless every list, opt-in ones included, plus a
+5,000-rule reserve for the user's and household's own rules fits within
+145,000; the app enforces the same cap. And until the app has been opened
+once, the content blocker has only the bundled fallback list: the
+hand-curated tier (about 500 domains), not the imported names. The app
+writes the full list the first time it runs.
 
 ### T11: search engines without a DNS safe-mode endpoint
 SafeSearch is enforced by answering DNS for a search engine's hostname
@@ -299,3 +384,7 @@ patched:
   is not visible to DNR and is not filtered at domain level. The optional
   media-filtering layer (T12) narrows this for images and media by resource
   type; what remains (streaming, embedded frames, text) is listed there.
+- **The opt-in lists are partial.** The violence list (off by default)
+  blocks a few hundred known gore and hate sites, many of them old, not
+  such content in general; the Android encrypted-DNS list covers
+  well-known providers only. Sitr has no drugs list and no phishing list.

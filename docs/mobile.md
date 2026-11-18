@@ -12,8 +12,11 @@ The apps are new clients of the existing system, not a new system.
 
 **Shared, unchanged:**
 
-- Blocklist sources (`blocklist/sources/`) and the one compiler
+- Blocklist sources (`blocklist/sources/`, both tiers, and the opt-in
+  lists in `blocklist/optional/`) and the one compiler
   (`tools/compiler`) — every platform's rules come from the same lists.
+  The one platform-specific list is the Android-only encrypted-DNS hosts
+  list.
 - The sync protocol ([sync-protocol.md](sync-protocol.md)). iOS and
   Android are additional clients of the same single endpoint; nothing on
   the wire changes.
@@ -47,8 +50,8 @@ steering. QR codes (displayed on both platforms; scanned on iOS via
 `DataScannerViewController`, Android scanning deferred) are a presentation
 of the existing pairing code, not a protocol change.
 
-Both apps are paid one-time ($5–10) with MPL-2.0 source — open source,
-paid convenience. What a buyer can actually verify is below
+Both apps are paid one-time ($5–10) with MPL-2.0 source (the blocklist
+data is CC BY-SA 4.0) — open source, paid convenience. What a buyer can actually verify is below
 (§Verifiability).
 
 ## Artifact pipeline
@@ -57,7 +60,8 @@ One compiler invocation produces every platform's artifact. If any emitter
 fails, nothing is written.
 
 ```
-blocklist/sources/{adult,gambling,dating}/domains.txt
+blocklist/sources/{adult,gambling,dating}/{domains,imported}.txt
+blocklist/optional/{violence,doh}/
         |
         v
   tools/compiler            one invocation, all emitters,
@@ -107,6 +111,15 @@ before any code does — data-flow.md already reserves exactly this.
   as content embedded in another page, the same as DNR `requestDomains`
   and the Android engine. (`if-domain` would match the top-level page
   only.)
+- One rule per domain means the list size is capped by WebKit, which
+  rejects a whole list above 150,000 rules. The compiler fails the build
+  unless every Safari list, opt-in lists included, plus a 5,000-rule
+  reserve for the user's and household's own rules fits within 145,000
+  (today about 100,500 with everything on); `SafariRules.swift` enforces
+  the same cap in the app. The app assembles the active list on the
+  device. Until it has been opened once, the content blocker serves the
+  bundled fallback `blockerList.default.json`: the hand-curated tier only
+  (about 500 rules), without the imported names.
 - Optional Screen Time integration (FamilyControls / ManagedSettings):
   Apple's algorithmic adult filter applied system-wide in WebKit
   browsers, plus the first 40 sites of the user's own block lists and
@@ -150,10 +163,31 @@ Tamper story: [threat-model.md](threat-model.md) T7; platform limits: T10.
 - A block rule (device, household, managed or category) is checked
   before the SafeSearch rewrite, so blocking a search engine's own domain
   works; an allow rule never switches SafeSearch off.
-- Honest limitations: strict Private DNS (a user-set DoT hostname)
-  bypasses the filter — it is detected, and protection status goes red
-  with guidance. A browser's own DoH ("Secure DNS") cannot be
-  intercepted. Android's "block connections without VPN" lockdown is
+- Honest limitations: a fixed Private DNS hostname (a user-set DoT host)
+  conflicts with Sitr. On the Android 15 and 16 devices tested, the phone
+  could not look up any name while both were on; Sitr detects the setting
+  and shows protection as not active, with the fix: set Private DNS to
+  Automatic or Off. A browser's own DoH ("Secure DNS") cannot be
+  intercepted. An optional, off-by-default list of 65 well-known public
+  encrypted-DNS hostnames
+  ([doh-hosts-policy.md](../blocklist/policy/doh-hosts-policy.md)) answers
+  those hosts as blocked. Tested with Chrome on Android 15: with secure
+  DNS on "automatic" (the default) nothing changes; with a built-in
+  provider chosen, the switch turns a silent bypass into every page
+  failing to load until secure DNS is set back to automatic (Chrome did
+  not fall back to the system resolver), and a connection already open
+  kept working for a few minutes. It cannot stop a provider entered as an
+  IP address or one not on the list, and has no effect on Private DNS.
+- "Wait before loosening" (optional, device-local) works as on the other
+  platforms, with two clocks (time since boot and the wall clock; the
+  stricter wins), so a clock change cannot open it early and a reboot
+  restarts the wait. It cannot stop the VPN being switched off in
+  Android's settings or the app being uninstalled. Turning the child lock
+  off deliberately does not wait, so the wait can never keep the
+  guardian's PIN out of the child-lock screen. Joining a household is
+  held like any loosening change; changes made on another household
+  device arrive by sync and are not held. Threat model: T7.
+- Android's "block connections without VPN" lockdown is
   unsupported — DNS-only routes would break all other traffic — so
   always-on VPN *without* lockdown is the recommended persistence; it
   also stops another VPN app taking the slot. On a child's phone the
@@ -214,8 +248,11 @@ amounts of that, and we say so rather than promise the same on both.
 ## List format and the escape hatch
 
 The sources and the Android artifact are plain-text domain lists, one
-domain per line — inspectable by anyone with a text editor, and at today's
-sizes (a few hundred domains) parsing cost is irrelevant. That stays the
-format until the lists approach ~100k entries. The designated successor is
-a length-prefixed binary format; naming it now means outgrowing plain
-text is an emitter swap in the compiler, not a redesign.
+domain per line, sorted in byte order — inspectable by anyone with a text
+editor. The Android app keeps each verified file as one byte array and looks names
+up by binary search over its lines, with no per-domain objects; loading
+checks the SHA-256, every line, strict sort order and the absence of blank
+or duplicate lines, and refuses the list on any failure. A 150,000-line
+list loads in tens of milliseconds on the Android emulator, so plain text
+stays; if it ever does not, the designated successor is a length-prefixed
+binary format, an emitter swap in the compiler, not a redesign.

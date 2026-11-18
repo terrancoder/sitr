@@ -54,6 +54,18 @@ struct ListsView: View {
                 Text(inputError).foregroundStyle(Theme.alert).font(.caption)
                     .sitrRows()
             }
+            // Support links only — they change nothing here, so no gate
+            // or PIN, and they carry no domain or setting from the app.
+            Section("Report a site") {
+                Link("Ask to block a site", destination: SupportLinks.blockRequest)
+                Link("Report a wrongly blocked site", destination: SupportLinks.unblockRequest)
+                Link("Email instead", destination: SupportLinks.email)
+                Text(
+                    "These open GitHub or your mail app. A GitHub report is public and needs a GitHub account. Sitr itself sends nothing."
+                )
+                .font(.caption).foregroundStyle(Theme.inkSoft)
+            }
+            .sitrRows()
         }
         .navigationTitle("Allow & block lists")
         .sitrScreenBackground()
@@ -93,4 +105,16 @@ struct ListsView: View {
             Text("None yet.").foregroundStyle(Theme.inkSoft).font(.caption)
         }
     }
+}
+
+/// The public report targets — the same ones the Android app and the
+/// browser extension use.
+enum SupportLinks {
+    static let blockRequest = URL(
+        string: "https://github.com/terrancoder/sitr/issues/new?template=block-request.yml")!
+    static let unblockRequest = URL(
+        string: "https://github.com/terrancoder/sitr/issues/new?template=unblock-request.yml")!
+    static let email = URL(string: "mailto:support@sitrshield.com?subject=Site%20report")!
+    static let attribution = URL(
+        string: "https://github.com/terrancoder/sitr/blob/main/blocklist/imports/ATTRIBUTION.md")!
 }

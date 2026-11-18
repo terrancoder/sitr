@@ -16,7 +16,12 @@ export interface CompileIssue {
     | "invalid-domain"
     | "empty-category"
     | "rule-limit-exceeded"
-    | "io-error";
+    | "io-error"
+    | "public-suffix"
+    | "never-block"
+    | "duplicate-entry"
+    | "excluded-entry"
+    | "invalid-declaration";
   message: string;
   /** Source file the issue came from, when known. */
   file?: string;

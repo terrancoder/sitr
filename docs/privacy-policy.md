@@ -1,6 +1,6 @@
 # Sitr privacy policy
 
-*Effective: 2026-07-21; updated 2026-11-02. This policy covers the Sitr browser extension
+*Effective: 2026-07-21; updated 2026-11-18. This policy covers the Sitr browser extension
 (Chrome and Safari) and the Sitr apps for iOS, Android, and macOS. This file is the source of the published
 policy; the store listings, the Chrome data-safety form, the Google Play
 Data safety form, the Apple App Privacy labels, in-app text, website, and
@@ -72,13 +72,22 @@ labels mirror this policy exactly.
 
 ## What Sitr stores on your device
 
-Your settings: which optional categories you disabled, which sites you
-personally allowed or blocked, and — if you use Sitr Family — your
-household's shared lists, its key material, and the guardian PIN (as a
-salted hash). These stay in your browser's local extension storage — or,
-in the apps, in the app's private local storage — are never uploaded
-except as the encrypted household blob described above, and are deleted
-when you uninstall the extension or app. On devices managed by an
+Your settings: which optional categories you disabled, which opt-in lists
+you turned on (such as the violence list), which sites you personally
+allowed or blocked, and — if you use Sitr Family — your household's shared
+lists, its key material, and the guardian PIN (as a salted hash). If you
+turn on "Wait before loosening", Sitr also stores
+the wait you chose and the time of any pending request. These stay in
+your browser's local extension storage — or, in the apps, in the app's
+private local storage — are never uploaded except as the encrypted
+household blob described above, and are deleted when you uninstall the
+extension or app. The opt-in lists and the wait setting are not part of
+that blob: they never leave the device.
+
+**Reporting a site.** The "Report a site" links open a GitHub issue form
+in your browser or a message in your mail app. Sitr itself sends nothing.
+A GitHub issue is public and needs a GitHub account; an email reaches us
+like any other email. On devices managed by an
 organization (Sitr for Institutions), the administrator's policy is
 delivered read-only through the browser's own enterprise mechanism; it can
 force filtering on but cannot make Sitr report anything about you —

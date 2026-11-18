@@ -13,6 +13,7 @@ import {
   HOUSEHOLD_STATE_KEY,
   bumpRev,
   emptyHouseholdState,
+  isJoinPlaceholder,
   sanitizeHouseholdState,
   type HouseholdState,
 } from "../lib/household.js";
@@ -27,6 +28,7 @@ import {
   PIN_ATTEMPTS_KEY,
   PIN_KEY,
   backoffAfterFailure,
+  clampAttempts,
   createPinRecord,
   isLockedOut,
   sanitizeAttempts,
@@ -35,10 +37,12 @@ import {
   fromB64,
   toB64,
 } from "../lib/pin.js";
-import { gateMutation, type HouseholdRole, type MutationKind } from "../lib/gate.js";
+import type { HouseholdRole } from "../lib/gate.js";
+import { decideMutation, needsWait, type DelayAction } from "../lib/delay.js";
 import type { ManagedPolicy } from "../lib/managed.js";
 import { normalizeDomainInput } from "../lib/userRules.js";
 import { promptDialog } from "./dialogs.js";
+import { readDelay, showHold } from "./delay.js";
 
 export interface HouseholdContext {
   role: HouseholdRole | undefined;
@@ -90,48 +94,92 @@ async function deviceId(): Promise<string> {
 
 /* ------------------------------ PIN ceremony --------------------------- */
 
-async function loadPinState() {
-  const stored = await chrome.storage.local.get([PIN_KEY, PIN_ATTEMPTS_KEY]);
+async function loadPinState(localOnly = false) {
+  const stored = await chrome.storage.local.get([
+    PIN_KEY,
+    PIN_ATTEMPTS_KEY,
+    HOUSEHOLD_STATE_KEY,
+  ]);
+  // In a household the PIN is the household's, synced in its state. This
+  // browser's own copy is only written by setGuardianPin here, so a browser
+  // that joined had no PIN and gated nothing: the pairing code alone was
+  // enough to loosen the household or replace its PIN.
+  // `localOnly`: joining asks for this browser's own PIN, never a
+  // household's (a PIN kept from an earlier household stays here).
+  const household = sanitizeHouseholdState(stored[HOUSEHOLD_STATE_KEY]);
   return {
-    record: sanitizePinRecord(stored[PIN_KEY]),
+    record:
+      (household.ok && !localOnly ? household.value.pin : undefined) ??
+      sanitizePinRecord(stored[PIN_KEY]),
     attempts: sanitizeAttempts(stored[PIN_ATTEMPTS_KEY]),
   };
 }
 
+/** The page's dialogs. Tests pass their own. */
+export interface GateUi {
+  prompt: typeof promptDialog;
+  hold: typeof showHold;
+}
+const PAGE_UI: GateUi = { prompt: promptDialog, hold: showHold };
+
+/** Holds (and offers the wait) when `kind` must wait now. True = held. */
+async function heldByDelay(kind: DelayAction, ui: GateUi): Promise<boolean> {
+  const d = await readDelay();
+  if (!needsWait(kind, d.phase)) return false;
+  await ui.hold(d);
+  return true;
+}
+
 /**
- * Run `action` behind the mutation gate. Prompts for the PIN when the gate
- * requires it; persists failed-attempt state BEFORE reporting failure.
- * Returns false when the action was refused.
+ * Run `action` behind the mutation gate, then the "wait before loosening"
+ * delay, then the PIN — the order decideMutation fixes. Holds (and offers
+ * to start the wait) when the delay says so; prompts for the PIN when the
+ * gate requires it; persists failed-attempt state BEFORE reporting
+ * failure. Returns false when the action did not run.
  */
 export async function withGate(
-  kind: MutationKind,
+  kind: DelayAction,
   ctx: HouseholdContext,
   action: () => Promise<void>,
+  ui: GateUi = PAGE_UI,
 ): Promise<boolean> {
-  const { record, attempts } = await loadPinState();
-  const verdict = gateMutation(kind, {
-    managed: ctx.managed,
-    role: ctx.role,
-    hasPin: record !== undefined,
-  });
-  if (!verdict.allowed) {
+  const { record, attempts } = await loadPinState(kind === "joinHousehold");
+  const delay = await readDelay();
+  const step = decideMutation(
+    kind,
+    { managed: ctx.managed, role: ctx.role, hasPin: record !== undefined },
+    delay.phase,
+  );
+  if (step.step === "refused") {
     ctx.showError(
-      verdict.reason === "managed-locked"
+      step.reason === "managed-locked"
         ? "Settings are locked by your organization's administrator."
         : "This setting can only be changed from a guardian device.",
     );
     return false;
   }
-  if (verdict.requiresPin && record !== undefined) {
-    const lock = isLockedOut(attempts, Date.now());
+  if (step.step === "wait") {
+    await ui.hold(delay);
+    return false;
+  }
+  if (step.step === "pin" && record !== undefined) {
+    const now = Date.now();
+    const clamped = clampAttempts(attempts, now);
+    if (clamped !== attempts) {
+      await chrome.storage.local.set({ [PIN_ATTEMPTS_KEY]: clamped });
+    }
+    const lock = isLockedOut(clamped, now);
     if (!lock.ok) {
-      const seconds = Math.ceil((lock.error.retryAt - Date.now()) / 1000);
+      const seconds = Math.ceil((lock.error.retryAt - now) / 1000);
       ctx.showError(`Too many wrong PIN attempts — try again in ${seconds}s.`);
       return false;
     }
-    const entered = await promptDialog("Enter the guardian PIN:", {
-      password: true,
-    });
+    const entered = await ui.prompt(
+      kind === "joinHousehold"
+        ? "Enter this browser's PIN to join a household:"
+        : "Enter the guardian PIN:",
+      { password: true },
+    );
     if (entered === null) return false;
     if (!(await verifyPin(entered, record))) {
       const next = backoffAfterFailure(attempts.count, Date.now());
@@ -140,6 +188,8 @@ export async function withGate(
       return false;
     }
     await chrome.storage.local.set({ [PIN_ATTEMPTS_KEY]: NO_ATTEMPTS });
+    // The PIN prompt can sit open past the window: re-check before acting.
+    if (await heldByDelay(kind, ui)) return false;
   }
   await action();
   return true;
@@ -147,11 +197,24 @@ export async function withGate(
 
 /* --------------------------- household actions -------------------------- */
 
+// The extension syncs by itself (on join, then every 30 minutes); this page
+// does not re-read the state, hence "reopen".
+export const WAITING_FOR_FIRST_SYNC =
+  "Waiting for the first sync with your household. Connect to the internet, " +
+  "then reopen this page. The household's PIN and lists appear here after that.";
+
+/** Not before the first sync: see isJoinPlaceholder. Shows why, returns true. */
+function refuseBeforeFirstSync(ctx: HouseholdContext): boolean {
+  if (ctx.state === undefined || !isJoinPlaceholder(ctx.state)) return false;
+  ctx.showError(WAITING_FOR_FIRST_SYNC);
+  return true;
+}
+
 async function saveMutatedState(
   ctx: HouseholdContext,
   mutate: (s: HouseholdState) => HouseholdState,
 ): Promise<void> {
-  if (ctx.state === undefined) return;
+  if (ctx.state === undefined || refuseBeforeFirstSync(ctx)) return;
   const next = bumpRev(mutate(ctx.state), await deviceId(), Date.now());
   const applied = await applyHouseholdState(
     next,
@@ -212,10 +275,18 @@ export async function createHousehold(ctx: HouseholdContext): Promise<boolean> {
   return true;
 }
 
+/**
+ * Joining replaces this device's settings with the household's (by sync,
+ * within seconds), so it is a loosening: held by the wait like
+ * disableCategory, and it asks for this browser's own PIN when one is set
+ * (decideMutation "joinHousehold"). Never refused by the managed lock or
+ * the child role: it never was.
+ */
 export async function joinHousehold(
   ctx: HouseholdContext,
   code: string,
   role: HouseholdRole,
+  ui: GateUi = PAGE_UI,
 ): Promise<boolean> {
   if (!(await requestSyncOrigin(ctx))) return false;
   const secret = decodePairingCode(code);
@@ -223,25 +294,63 @@ export async function joinHousehold(
     ctx.showError(secret.error);
     return false;
   }
-  // Until the first sync pull, start from the empty shared state authored
-  // at epoch 0 — so the REAL household state always wins the LWW merge on
-  // the first pull, whatever its rev or timestamp.
-  const state = emptyHouseholdState(await deviceId(), 0);
-  const applied = await applyHouseholdState(
-    state,
-    ctx.managed.forcedCategories,
-    engineDeps,
+  let joined = false;
+  await withGate("joinHousehold", ctx, async () => {
+    // Until the first sync pull, start from the empty shared state authored
+    // at epoch 0 — so the REAL household state always wins the LWW merge on
+    // the first pull, whatever its rev or timestamp.
+    const state = emptyHouseholdState(await deviceId(), 0);
+    const applied = await applyHouseholdState(
+      state,
+      ctx.managed.forcedCategories,
+      engineDeps,
+    );
+    if (!applied.ok) {
+      ctx.showError(`Could not join household: ${applied.error}`);
+      return;
+    }
+    await chrome.storage.local.set({
+      [HOUSEHOLD_SECRET_KEY]: toB64(secret.value),
+      [HOUSEHOLD_ROLE_KEY]: role,
+    });
+    ctx.role = role;
+    ctx.state = state;
+    joined = true;
+  }, ui);
+  return joined;
+}
+
+/**
+ * A child device leaves only with proof of guardianship: the pairing code.
+ * The wait before loosening applies on top, checked before the prompt and
+ * again after it (the prompt can sit open past the window).
+ */
+export async function leaveAsChild(
+  ctx: HouseholdContext,
+  ui: GateUi = PAGE_UI,
+): Promise<boolean> {
+  if (await heldByDelay("leaveHousehold", ui)) return false;
+  const code = await ui.prompt(
+    "Enter the household pairing code (from a guardian device) to remove this device:",
   );
-  if (!applied.ok) {
-    ctx.showError(`Could not join household: ${applied.error}`);
+  if (code === null) return false;
+  const secret = decodePairingCode(code);
+  const stored = await chrome.storage.local.get(HOUSEHOLD_SECRET_KEY);
+  const known =
+    typeof stored[HOUSEHOLD_SECRET_KEY] === "string"
+      ? fromB64(stored[HOUSEHOLD_SECRET_KEY])
+      : undefined;
+  const matches =
+    secret.ok &&
+    known?.ok === true &&
+    known.value.length === secret.value.length &&
+    known.value.every((b, i) => b === secret.value[i]);
+  if (!matches) {
+    ctx.showError("That pairing code does not match this household.");
     return false;
   }
-  await chrome.storage.local.set({
-    [HOUSEHOLD_SECRET_KEY]: toB64(secret.value),
-    [HOUSEHOLD_ROLE_KEY]: role,
-  });
-  ctx.role = role;
-  ctx.state = state;
+  if (await heldByDelay("leaveHousehold", ui)) return false;
+  await leaveHousehold(ctx);
   return true;
 }
 
@@ -321,6 +430,8 @@ export async function setGuardianPin(
   ctx: HouseholdContext,
   pin: string,
 ): Promise<void> {
+  // Before the local PIN write too, or the joiner still sets a PIN here.
+  if (refuseBeforeFirstSync(ctx)) return;
   const record = await createPinRecord(pin);
   if (!record.ok) {
     ctx.showError(record.error);

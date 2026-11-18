@@ -125,8 +125,9 @@ object EngineNotification {
         Protection.Reason.VPN_REVOKED ->
             "The VPN was turned off or replaced by another app. Tap to re-enable."
         Protection.Reason.PRIVATE_DNS_STRICT ->
-            "Private DNS is set to a fixed host and bypasses filtering. " +
-                "Set it to Automatic in network settings."
+            "Private DNS is set to a fixed host, which conflicts with Sitr: " +
+                "protection is not active. Set Private DNS to Automatic or Off " +
+                "in network settings."
         Protection.Reason.BLOCKLIST_LOAD_FAILED ->
             "The blocklist failed verification. Reinstall the app."
         Protection.Reason.NO_UPSTREAMS ->

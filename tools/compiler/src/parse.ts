@@ -14,8 +14,35 @@ export function parseDomainList(
   content: string,
   file: string,
 ): Result<string[], CompileIssue[]> {
+  const parsed = parseEntries(content, file);
+  if (!parsed.ok) return parsed;
+  if (parsed.value.length === 0) {
+    return err([
+      { kind: "empty-category", message: "no domains in source file", file },
+    ]);
+  }
+  return ok([...new Set(parsed.value.map((e) => e.domain))].sort());
+}
+
+/** One list entry with where it came from, for guard error messages. */
+export interface Entry {
+  domain: string;
+  file: string;
+  /** Absent for entries defined in code (SITE_MEDIA_HOSTS). */
+  line?: number;
+}
+
+/**
+ * Same line format as parseDomainList, but keeps file and line per entry,
+ * keeps duplicates (first occurrence first) and accepts a file with no
+ * entries — an `imported.txt` or `import-exclusions.txt` may be empty.
+ */
+export function parseEntries(
+  content: string,
+  file: string,
+): Result<Entry[], CompileIssue[]> {
   const issues: CompileIssue[] = [];
-  const domains = new Set<string>();
+  const entries: Entry[] = [];
 
   const lines = content.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
@@ -33,16 +60,10 @@ export function parseDomainList(
       });
       continue;
     }
-    domains.add(normalized);
+    entries.push({ domain: normalized, file, line: i + 1 });
   }
 
-  if (issues.length > 0) return err(issues);
-  if (domains.size === 0) {
-    return err([
-      { kind: "empty-category", message: "no domains in source file", file },
-    ]);
-  }
-  return ok([...domains].sort());
+  return issues.length > 0 ? err(issues) : ok(entries);
 }
 
 /**

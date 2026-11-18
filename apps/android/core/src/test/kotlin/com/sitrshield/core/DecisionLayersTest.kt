@@ -1,6 +1,7 @@
 package com.sitrshield.core
 
 import com.sitrshield.core.dns.SafeSearchMap
+import com.sitrshield.core.domainset.DomainSet
 import com.sitrshield.core.rules.DecisionSnapshot
 import com.sitrshield.core.rules.DecisionSnapshot.Verdict
 import com.sitrshield.core.rules.NameAction
@@ -14,9 +15,12 @@ import kotlin.test.assertEquals
  * layer's allow.
  */
 class DecisionLayersTest {
+    private fun static(vararg domains: String) =
+        listOf(DomainSet.of(domains.toList()).getOrNull() ?: error("test set must be valid"))
+
     @Test
     fun staticBlocklistBlocks() {
-        val snapshot = DecisionSnapshot(staticBlock = setOf("blocked.example"))
+        val snapshot = DecisionSnapshot(staticBlock = static("blocked.example"))
         assertEquals(Verdict.BLOCK, snapshot.decide("blocked.example"))
         assertEquals(Verdict.BLOCK, snapshot.decide("sub.blocked.example"))
         assertEquals(Verdict.FORWARD, snapshot.decide("fine.example"))
@@ -26,7 +30,7 @@ class DecisionLayersTest {
     @Test
     fun userAllowBeatsStaticBlock() {
         val snapshot = DecisionSnapshot(
-            staticBlock = setOf("blocked.example"),
+            staticBlock = static("blocked.example"),
             userAllow = setOf("blocked.example"),
         )
         assertEquals(Verdict.FORWARD, snapshot.decide("blocked.example"))
@@ -76,14 +80,14 @@ class DecisionLayersTest {
             managedAllow = setOf("site.example"),
             householdBlock = setOf("site.example"),
             userBlock = setOf("site.example"),
-            staticBlock = setOf("site.example"),
+            staticBlock = static("site.example"),
         )
         assertEquals(Verdict.FORWARD, snapshot.decide("site.example"))
     }
 
     @Test
     fun subdomainMatchingMirrorsRequestDomains() {
-        val snapshot = DecisionSnapshot(staticBlock = setOf("blocked.example"))
+        val snapshot = DecisionSnapshot(staticBlock = static("blocked.example"))
         assertEquals(Verdict.BLOCK, snapshot.decide("a.b.c.blocked.example"))
         // A parent of the entry does NOT match.
         assertEquals(Verdict.FORWARD, snapshot.decide("example"))
@@ -94,7 +98,7 @@ class DecisionLayersTest {
     @Test
     fun allowScopedToSubdomainDoesNotUnblockParent() {
         val snapshot = DecisionSnapshot(
-            staticBlock = setOf("blocked.example"),
+            staticBlock = static("blocked.example"),
             userAllow = setOf("ok.blocked.example"),
         )
         assertEquals(Verdict.FORWARD, snapshot.decide("ok.blocked.example"))
@@ -138,7 +142,7 @@ class DecisionLayersTest {
 
     @Test
     fun ordinaryNamesForward() {
-        val snapshot = DecisionSnapshot(staticBlock = setOf("blocked.example"))
+        val snapshot = DecisionSnapshot(staticBlock = static("blocked.example"))
         assertEquals(NameAction.Forward, NameAction.of("fine.example", snapshot, safeSearch))
         assertEquals(NameAction.Block, NameAction.of("blocked.example", snapshot, safeSearch))
     }

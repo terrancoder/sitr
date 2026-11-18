@@ -46,7 +46,7 @@ const HOUSEHOLD_ONLY: ReadonlySet<MutationKind> = new Set([
   "changePin",
 ]);
 
-const LOOSENING: ReadonlySet<MutationKind> = new Set([
+export const LOOSENING: ReadonlySet<MutationKind> = new Set([
   "disableCategory",
   "removeDeviceBlockRule",
   "addDeviceAllowRule",

@@ -2,7 +2,7 @@
  * Android emitter — domain-set artifacts for the DNS filter engine, plus the
  * DNS-side SafeSearch host map.
  *
- * The domain artifact is deliberately plain text (one registrable domain per
+ * The domain artifact is deliberately plain text (one domain or hostname per
  * line, sorted, LF, trailing newline): it is the parser's output
  * re-serialized, byte-diffable in review, and loads into a HashSet on
  * device. A length-prefixed binary format is the designated escape hatch if
@@ -92,9 +92,15 @@ export function safesearchHostsMap(): SafeSearchHostsMap {
   };
 }
 
-/** One domain per line, sorted (the parser guarantees it), trailing newline. */
-export function serializeDomainList(sortedDomains: string[]): string {
-  return sortedDomains.join("\n") + "\n";
+/**
+ * One domain per line, sorted in code-point (= byte, for these ASCII
+ * names) order, no duplicates, no blank lines, exactly one trailing LF.
+ * Every `.domains` artifact goes through here — categories, optional lists
+ * and per-site media lists — because the on-device loaders refuse a file
+ * that is not strictly sorted.
+ */
+export function serializeDomainList(domains: readonly string[]): string {
+  return [...new Set(domains)].sort().join("\n") + "\n";
 }
 
 /** Stable JSON serialization: 2-space indent, trailing newline, LF only. */

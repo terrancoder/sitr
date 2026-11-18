@@ -1,6 +1,7 @@
 package com.sitrshield.core.rules
 
 import com.sitrshield.core.dns.SafeSearchMap
+import com.sitrshield.core.domainset.DomainSet
 
 /**
  * The DNS decision function — the Android embodiment of the rule ladder
@@ -20,8 +21,13 @@ class DecisionSnapshot(
     val householdBlock: Set<String> = emptySet(),
     val userAllow: Set<String> = emptySet(),
     val userBlock: Set<String> = emptySet(),
-    /** Union of the ENABLED static category sets. */
-    val staticBlock: Set<String> = emptySet(),
+    /**
+     * The ENABLED static lists (categories, Strict Search, media sites,
+     * opt-in lists),
+     * searched in turn — never unioned into a copy, so a settings change
+     * only assembles a list of references.
+     */
+    val staticBlock: List<DomainSet> = emptyList(),
 ) {
     enum class Verdict { BLOCK, FORWARD }
 
@@ -33,6 +39,18 @@ class DecisionSnapshot(
             val dot = suffix.indexOf('.')
             if (dot < 0) return false
             suffix = suffix.substring(dot + 1)
+        }
+    }
+
+    /** Same suffix walk as above, by offset: no substring per label. */
+    private fun matches(qname: String, set: DomainSet): Boolean {
+        if (set.size == 0) return false
+        var from = 0
+        while (true) {
+            if (set.contains(qname, from)) return true
+            val dot = qname.indexOf('.', from)
+            if (dot < 0) return false
+            from = dot + 1
         }
     }
 
@@ -48,7 +66,8 @@ class DecisionSnapshot(
             if (matches(name, allow)) return Verdict.FORWARD
             if (matches(name, block)) return Verdict.BLOCK
         }
-        return if (matches(name, staticBlock)) Verdict.BLOCK else Verdict.FORWARD
+        for (set in staticBlock) if (matches(name, set)) return Verdict.BLOCK
+        return Verdict.FORWARD
     }
 }
 

@@ -27,31 +27,41 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sitrshield.app.data.Settings
 import com.sitrshield.app.ui.CategoriesScreen
+import com.sitrshield.app.ui.DelayText
 import com.sitrshield.app.ui.ChildLockScreen
 import com.sitrshield.app.ui.FamilyScreen
 import com.sitrshield.app.ui.HomeScreen
+import com.sitrshield.app.ui.LicenceScreen
 import com.sitrshield.app.ui.ListsScreen
 import com.sitrshield.app.ui.OnboardingScreen
 import com.sitrshield.app.ui.PinDialog
 import com.sitrshield.app.ui.SettingsScreen
 import com.sitrshield.app.ui.SitrTheme
+import com.sitrshield.core.gate.Delay
+import com.sitrshield.core.gate.DelayAction
+import com.sitrshield.core.gate.DelayPhase
 import com.sitrshield.core.gate.MutationKind
+import com.sitrshield.core.gate.MutationStep
 import com.sitrshield.core.gate.MutationVerdict
 
-enum class Screen { HOME, ONBOARDING, CATEGORIES, LISTS, FAMILY, SETTINGS, CHILD_LOCK }
+enum class Screen { HOME, ONBOARDING, CATEGORIES, LISTS, FAMILY, SETTINGS, CHILD_LOCK, LICENCE }
 
 /**
  * Shared per-screen context: settings snapshot, actions, navigation, and
  * the gate runner — every mutating tap goes through attempt(), which
- * consults the authority ladder and collects the PIN when the verdict
- * requires it.
+ * consults the authority ladder, then "wait before loosening", then
+ * collects the PIN when the verdict requires it (Delay.decide).
  */
 class UiCtx(
     val app: SitrApp,
     val settings: Settings,
     val actions: HouseholdActions,
     val attempt: (MutationKind, String, () -> Unit) -> Unit,
+    /** attempt() for any DelayAction, including shortening the wait. */
+    val attemptAction: (DelayAction, String, () -> Unit) -> Unit,
     val requirePin: (String, () -> Unit) -> Unit,
+    /** Joining a household: the delay alone, as Delay.JOIN_HOUSEHOLD_WAITS_AS. */
+    val attemptJoin: (() -> Unit) -> Unit,
     val navigate: (Screen) -> Unit,
     /** Changes every time the activity resumes — a key for state that
      *  system settings can change behind the app's back. */
@@ -88,29 +98,46 @@ fun SitrRoot(app: SitrApp, resumes: Int) {
     }
     // System Back returns to Home from a sub-screen instead of leaving the app.
     BackHandler(enabled = screen != Screen.HOME && screen != Screen.ONBOARDING) {
-        screen = Screen.HOME
+        screen = if (screen == Screen.LICENCE) Screen.SETTINGS else Screen.HOME
     }
-    var pinRequest by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
+    // The action kind rides along so the delay can be checked again after
+    // the PIN; null for reveals that are not gate kinds (no delay).
+    var pinRequest by remember { mutableStateOf<Triple<String, DelayAction?, () -> Unit>?>(null) }
     var gateMessage by remember { mutableStateOf<String?>(null) }
+    var hold by remember { mutableStateOf<HouseholdActions.DelayState?>(null) }
 
+    // Gate, then "wait before loosening", then the PIN. A held change
+    // does not happen, so a switch keeps showing the stored value.
+    val attemptAction: (DelayAction, String, () -> Unit) -> Unit = { kind, title, action ->
+        val delay = actions.delayState()
+        when (val step = actions.decide(kind, delay.phase)) {
+            is MutationStep.Refused -> gateMessage = when (step.reason) {
+                MutationVerdict.Reason.MANAGED_LOCKED ->
+                    "Settings are locked by your organization."
+                MutationVerdict.Reason.CHILD_DEVICE ->
+                    "This is managed by your guardian."
+            }
+            MutationStep.Wait -> hold = delay
+            MutationStep.Pin -> pinRequest = Triple(title, kind, action)
+            MutationStep.Go -> action()
+        }
+    }
     val ctx = UiCtx(
         app = app,
         settings = settings,
         actions = actions,
-        attempt = { kind, title, action ->
-            when (val verdict = actions.gate(kind)) {
-                is MutationVerdict.Refused -> gateMessage = when (verdict.reason) {
-                    MutationVerdict.Reason.MANAGED_LOCKED ->
-                        "Settings are locked by your organization."
-                    MutationVerdict.Reason.CHILD_DEVICE ->
-                        "This is managed by your guardian."
-                }
-                is MutationVerdict.Allowed ->
-                    if (verdict.requiresPin) pinRequest = title to action else action()
-            }
-        },
+        attempt = { kind, title, action -> attemptAction(DelayAction.Kind(kind), title, action) },
+        attemptAction = attemptAction,
         requirePin = { title, action ->
-            if (settings.household?.pin != null) pinRequest = title to action else action()
+            if (settings.household?.pin != null) pinRequest = Triple(title, null, action) else action()
+        },
+        attemptJoin = { action ->
+            val delay = actions.delayState()
+            if (Delay.needsWait(DelayAction.Kind(Delay.JOIN_HOUSEHOLD_WAITS_AS), delay.phase)) {
+                hold = delay
+            } else {
+                action()
+            }
         },
         navigate = { screen = it },
         resumes = resumes,
@@ -132,20 +159,43 @@ fun SitrRoot(app: SitrApp, resumes: Int) {
                 Screen.FAMILY -> FamilyScreen(ctx)
                 Screen.SETTINGS -> SettingsScreen(ctx)
                 Screen.CHILD_LOCK -> ChildLockScreen(ctx)
+                Screen.LICENCE -> LicenceScreen(ctx)
             }
         }
     }
 
-    pinRequest?.let { (title, action) ->
+    pinRequest?.let { (title, kind, action) ->
         PinDialog(
             context = context,
             title = title,
             verify = actions::verifyPin,
             onSuccess = {
                 pinRequest = null
-                action()
+                // The PIN dialog can sit open past the window: check again.
+                val after = actions.delayState()
+                if (kind != null && Delay.needsWait(kind, after.phase)) hold = after else action()
             },
             onDismiss = { pinRequest = null },
+        )
+    }
+
+    hold?.let { held ->
+        val idle = held.phase == DelayPhase.IDLE
+        AlertDialog(
+            onDismissRequest = { hold = null },
+            title = { Text("Wait before loosening") },
+            text = { Text(DelayText.hold(held), style = MaterialTheme.typography.bodyMedium) },
+            // While waiting, only "Close": a prominent "Cancel request" got
+            // tapped by habit. Cancelling stays in Settings.
+            confirmButton = {
+                TextButton(onClick = {
+                    hold = null
+                    if (idle) actions.startDelayRequest()
+                }) { Text(if (idle) "Start the wait" else "Close") }
+            },
+            dismissButton = if (idle) {
+                { TextButton(onClick = { hold = null }) { Text("Cancel") } }
+            } else null,
         )
     }
 

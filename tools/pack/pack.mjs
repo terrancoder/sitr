@@ -18,6 +18,8 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 
+import { readNotice } from "../compiler/dist/notice.js";
+
 const ROOT = resolve(import.meta.dirname, "../..");
 const EXT = join(ROOT, "extension");
 const outDir = resolve(process.argv[2] ?? join(ROOT, "build"));
@@ -44,8 +46,15 @@ function walk(dir, base = "") {
   return out;
 }
 
+// Generated licence + attribution notice (CC BY / BY-SA travel with the
+// lists). Not in extension/: built from blocklist/imports/ATTRIBUTION.md now.
+const GENERATED = new Map([
+  ["NOTICE.txt", Buffer.from(readNotice(join(ROOT, "blocklist/imports/ATTRIBUTION.md")))],
+]);
+
 const files = walk(EXT).filter((rel) => INCLUDE.some((re) => re.test(rel)));
-if (files.length === 0) {
+files.unshift(...GENERATED.keys()); // fixed position: first entry
+if (files.length === GENERATED.size) {
   console.error("pack: no files matched — run npm run build first");
   process.exit(1);
 }
@@ -53,6 +62,7 @@ const missing = [
   "manifest.json",
   "managed_schema.json", // manifest storage.managed_schema — Chrome refuses to load without it
   "dist/background/service-worker.js",
+  "NOTICE.txt",
 ].filter((f) => !files.includes(f));
 if (missing.length) {
   console.error(`pack: required files missing: ${missing.join(", ")} — run npm run build`);
@@ -79,7 +89,7 @@ const centralParts = [];
 let offset = 0;
 
 for (const rel of files) {
-  const data = readFileSync(join(EXT, rel));
+  const data = GENERATED.get(rel) ?? readFileSync(join(EXT, rel));
   const name = Buffer.from(rel, "utf8");
   const crc = crc32(data);
 

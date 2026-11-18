@@ -16,14 +16,38 @@
  * (SitrCore SafariRules) — this emitter produces only the static category
  * blocks, exactly as compile.ts produces only the static DNR rulesets.
  */
-import { type CompileIssue, type Result, err, ok } from "./types.js";
+import { type CompileIssue, type Result, ok } from "./types.js";
 
 /**
- * WebKit allows far more, but 50k is the conservative floor across supported
- * iOS versions; overflow is a surfaced compile error (never a truncation),
- * same posture as MAX_RULES_PER_RULESET.
+ * WebKit rejects a content-blocker list ENTIRELY above 150,000 rules — no
+ * truncation, the whole list fails to load. The iOS app compiles one list
+ * from every enabled category, optional list and per-site media list plus
+ * the user's and household's own rules, and the macOS Safari extension
+ * turns each DNR requestDomains entry into one rule against the same
+ * ceiling. So the budget is combined, worst case (everything enabled):
+ * sum of all such lists + SAFARI_RULE_RESERVE <= SAFARI_RULE_BUDGET.
+ * Overflow is a surfaced compile error, never a truncation.
  */
-export const MAX_SAFARI_RULES = 50_000;
+export const SAFARI_RULE_BUDGET = 145_000;
+/** Kept free for user and household rules added on the device. */
+export const SAFARI_RULE_RESERVE = 5_000;
+
+/** Fails when the worst-case combined rule count exceeds the budget. */
+export function checkSafariBudget(
+  lists: ReadonlyArray<{ id: string; rules: number }>,
+): CompileIssue | undefined {
+  const total = lists.reduce((sum, l) => sum + l.rules, 0) + SAFARI_RULE_RESERVE;
+  if (total <= SAFARI_RULE_BUDGET) return undefined;
+  const top = [...lists]
+    .sort((a, b) => b.rules - a.rules || (a.id < b.id ? -1 : 1))
+    .slice(0, 3)
+    .map((l) => `${l.id} ${l.rules}`)
+    .join(", ");
+  return {
+    kind: "rule-limit-exceeded",
+    message: `Safari rule budget exceeded: lists ${total - SAFARI_RULE_RESERVE} + reserve ${SAFARI_RULE_RESERVE} = ${total} > ${SAFARI_RULE_BUDGET} (WebKit fails the whole list above 150,000). Largest: ${top}`,
+  };
+}
 
 /** Minimal typing of the WebKit content-blocker rule shape we emit. */
 export interface SafariRule {
@@ -61,23 +85,28 @@ export function compileSafariRuleset(
   category: string,
   sortedDomains: string[],
 ): Result<SafariRule[], CompileIssue> {
-  const rules: SafariRule[] = sortedDomains.map((domain) => ({
-    trigger: { "url-filter": safariUrlFilter(domain) },
-    action: { type: "block" },
-  }));
-  if (rules.length > MAX_SAFARI_RULES) {
-    return err({
-      kind: "rule-limit-exceeded",
-      message: `category "${category}" compiles to ${rules.length} Safari rules (limit ${MAX_SAFARI_RULES}) — split the category`,
-    });
-  }
-  return ok(rules);
+  // No per-list cap: the limit is the combined budget (checkSafariBudget).
+  return ok(
+    sortedDomains.map((domain) => ({
+      trigger: { "url-filter": safariUrlFilter(domain) },
+      action: { type: "block" },
+    })),
+  );
 }
 
 /**
- * The blocker's bundled default: every category concatenated in sorted
- * category order — the safe state before the app first regenerates rules
- * (all protections on, no dynamic rules yet).
+ * The blocker's bundled default, `blockerList.default.json`: the given
+ * per-category rules concatenated in sorted category order.
+ *
+ * It is only a FALLBACK. The content-blocker extension serves it when the
+ * app has never run (the app writes the full list, every enabled category
+ * with both tiers plus user and household rules, to its App Group container
+ * on first launch) or when that file cannot be opened. Both iOS targets
+ * bundle it, so the CLI passes only the HAND-CURATED tier of the default-on
+ * categories (~500 rules): a short first-run gap in the imported tier, in
+ * exchange for not shipping ~16 MB twice that is dead weight after first
+ * launch. The per-category fragments keep both tiers, and the Safari rule
+ * budget counts the full lists, since that is what the app builds.
  */
 export function buildDefaultBlockerList(
   rulesetsByCategory: ReadonlyMap<string, SafariRule[]>,

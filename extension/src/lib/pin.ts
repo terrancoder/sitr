@@ -39,7 +39,7 @@ export const NO_ATTEMPTS: PinAttempts = { count: 0, lockedUntil: 0 };
 
 const FREE_ATTEMPTS = 4;
 const BASE_DELAY_MS = 30_000;
-const MAX_DELAY_MS = 15 * 60_000;
+export const MAX_DELAY_MS = 15 * 60_000;
 
 export function toB64(bytes: Uint8Array): string {
   let s = "";
@@ -181,6 +181,18 @@ export function backoffAfterFailure(count: number, now: number): PinAttempts {
     MAX_DELAY_MS,
   );
   return { count: next, lockedUntil: now + delay };
+}
+
+/**
+ * No stored deadline is honoured beyond the longest wait there is. The
+ * lockout runs on the wall clock: setting it a year ahead, failing, and
+ * setting it back otherwise locked the guardian out for a year. Callers
+ * store the result, or the deadline is re-clamped to a fresh wait forever.
+ */
+export function clampAttempts(attempts: PinAttempts, now: number): PinAttempts {
+  return attempts.lockedUntil - now > MAX_DELAY_MS
+    ? { ...attempts, lockedUntil: now + MAX_DELAY_MS }
+    : attempts;
 }
 
 export function isLockedOut(

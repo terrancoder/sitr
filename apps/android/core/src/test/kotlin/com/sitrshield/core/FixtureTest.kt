@@ -1,5 +1,10 @@
 package com.sitrshield.core
 
+import com.sitrshield.core.gate.Delay
+import com.sitrshield.core.gate.DelayAction
+import com.sitrshield.core.gate.DelayEvaluation
+import com.sitrshield.core.gate.DelayPhase
+import com.sitrshield.core.gate.DelayRequest
 import com.sitrshield.core.gate.Gate
 import com.sitrshield.core.gate.GateContext
 import com.sitrshield.core.gate.HouseholdRole
@@ -200,6 +205,59 @@ class FixtureTest {
                     .first { it.wire == expected.getString("reason") }
                 assertEquals(MutationVerdict.Refused(reason), verdict, label)
             }
+        }
+    }
+
+    @Test
+    fun delayTable() {
+        val fx = fixture("delay.json")
+        val allowed = fx.getJSONArray("delayMinutesAllowed")
+        assertEquals(Delay.MINUTES_ALLOWED, (0 until allowed.length()).map { allowed.getInt(it) })
+        assertEquals(Delay.WINDOW_MS, fx.getLong("windowMs"))
+        assertEquals(Delay.SHORTEN_DELAY_GATED_AS.wire, fx.getString("shortenDelayGatedAs"))
+        assertEquals(Delay.JOIN_HOUSEHOLD_WAITS_AS.wire, fx.getString("joinHouseholdWaitsAs"))
+
+        val evaluate = objects(fx, "evaluate")
+        assertEquals(84, evaluate.size)
+        for (c in evaluate) {
+            val name = c.getString("name")
+            val request = c.optJSONObject("request")?.let { DelayRequest(it.getLong("at")) }
+            val got = Delay.evaluate(c.getInt("delayMinutes"), request, c.getLong("now"))
+            val r = c.getJSONObject("result")
+            val want = DelayEvaluation(
+                assertNotNull(DelayPhase.fromWire(r.getString("phase"))),
+                r.getLong("remainingMs"),
+                r.optJSONObject("request")?.let { DelayRequest(it.getLong("at")) },
+            )
+            assertEquals(want, got, name)
+        }
+
+        val needsWait = objects(fx, "needsWait")
+        assertEquals(60, needsWait.size)
+        for (c in needsWait) {
+            val action = assertNotNull(DelayAction.fromWire(c.getString("action")))
+            val phase = assertNotNull(DelayPhase.fromWire(c.getString("phase")))
+            assertEquals(c.getBoolean("needsWait"), Delay.needsWait(action, phase), "$action $phase")
+        }
+
+        val change = objects(fx, "delayChange")
+        assertEquals(80, change.size)
+        for (c in change) {
+            val from = c.getInt("fromMinutes")
+            val to = c.getInt("toMinutes")
+            val phase = assertNotNull(DelayPhase.fromWire(c.getString("phase")))
+            val action = Delay.changeAction(from, to)
+            val label = "$from→$to $phase"
+            assertEquals(
+                if (c.isNull("action")) null else DelayAction.fromWire(c.getString("action")),
+                action,
+                label,
+            )
+            assertEquals(
+                c.getBoolean("needsWait"),
+                action != null && Delay.needsWait(action, phase),
+                label,
+            )
         }
     }
 

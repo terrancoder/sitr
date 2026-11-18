@@ -45,21 +45,35 @@ export const MEDIA_RESOURCE_TYPES = ["image", "media"];
  * pictures and video from — and NEVER a host that also serves the site's
  * scripts, styles or API (Android blocks whole hostnames):
  *  - x: pbs (pictures), video, ton (DM media); not abs.twimg.com (scripts).
- *  - reddit: i/v/preview/external-preview.redd.it, thumbs.redditmedia.com;
- *    not bare redd.it (short links) or www.redditstatic.com (scripts).
+ *  - reddit: i/v/preview/external-preview.redd.it, packaged-media.redd.it
+ *    (feed video as MP4), thumbs/styles/emoji.redditmedia.com (thumbnails,
+ *    subreddit banners and icons, flair emoji); not bare redd.it (short
+ *    links) or www.redditstatic.com (scripts, styles, default avatars).
  *  - tumblr: media.tumblr.com (NN./va.), vt.tumblr.com (video); not
  *    assets.tumblr.com (scripts mixed with media).
  *  - pinterest: i.pinimg.com (pictures), v1.pinimg.com (video); not
  *    s.pinimg.com (scripts and styles).
  *  - imgur: i.imgur.com; not s.imgur.com (scripts) or api.imgur.com.
  * Request hosts recorded in Brave on 2026-11-08 (Reddit from its known
- * media hosts; reddit.com refused the recording machine). None of these
+ * media hosts; reddit.com refused the recording machine). Reddit's
+ * packaged-media, styles and emoji hosts recorded in Brave (iPhone
+ * emulation) on 2026-11-17 across r/aww, r/pics and r/AskReddit: image or
+ * media requests only, no script or stylesheet. None of these
  * URLs says which picture is explicit, so each switch is all of a site's
  * media or none of it (threat-model T12).
  */
 export const SITE_MEDIA_HOSTS: Record<string, string[]> = {
   x: ["pbs.twimg.com", "ton.twimg.com", "video.twimg.com"],
-  reddit: ["external-preview.redd.it", "i.redd.it", "preview.redd.it", "thumbs.redditmedia.com", "v.redd.it"],
+  reddit: [
+    "emoji.redditmedia.com",
+    "external-preview.redd.it",
+    "i.redd.it",
+    "packaged-media.redd.it",
+    "preview.redd.it",
+    "styles.redditmedia.com",
+    "thumbs.redditmedia.com",
+    "v.redd.it",
+  ],
   tumblr: ["media.tumblr.com", "vt.tumblr.com"],
   pinterest: ["i.pinimg.com", "v1.pinimg.com"],
   imgur: ["i.imgur.com"],

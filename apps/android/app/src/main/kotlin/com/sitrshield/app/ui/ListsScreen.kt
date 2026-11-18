@@ -1,5 +1,8 @@
 package com.sitrshield.app.ui
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sitrshield.app.Screen
 import com.sitrshield.app.UiCtx
@@ -80,7 +84,51 @@ fun ListsScreen(ctx: UiCtx) {
     )
 
     Spacer(Modifier.height(16.dp))
+    ReportASite()
+
+    Spacer(Modifier.height(16.dp))
     TextButton(onClick = { ctx.navigate(Screen.HOME) }) { Text("Back") }
+}
+
+/** Report targets — the iOS app and the extension use the same three. */
+object ReportLinks {
+    const val BLOCK = "https://github.com/terrancoder/sitr/issues/new?template=block-request.yml"
+    const val UNBLOCK = "https://github.com/terrancoder/sitr/issues/new?template=unblock-request.yml"
+    const val EMAIL = "mailto:support@sitrshield.com?subject=Site%20report"
+}
+
+/**
+ * Hands a fixed link to the browser or mail app. Nothing from the app
+ * (no domain, no setting) goes into it, and it changes nothing here, so
+ * it is never gated — it works on a child's device too.
+ */
+@Composable
+private fun ReportASite() {
+    val context = LocalContext.current
+    var error by remember { mutableStateOf<String?>(null) }
+    fun open(url: String) {
+        error = try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            null
+        } catch (_: ActivityNotFoundException) {
+            if (url.startsWith("mailto:")) "No mail app can open this. Write to support@sitrshield.com."
+            else "No browser can open this link."
+        }
+    }
+    Text("Report a site", style = MaterialTheme.typography.titleMedium)
+    Text(
+        "Something that should be blocked, or blocked by mistake? These open " +
+            "GitHub or your mail app. A GitHub report is public and needs a " +
+            "GitHub account. Sitr itself sends nothing.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.secondary,
+    )
+    TextButton(onClick = { open(ReportLinks.BLOCK) }) { Text("Ask to block a site") }
+    TextButton(onClick = { open(ReportLinks.UNBLOCK) }) { Text("Report a wrongly blocked site") }
+    TextButton(onClick = { open(ReportLinks.EMAIL) }) { Text("Email instead") }
+    error?.let {
+        Text(it, style = MaterialTheme.typography.bodySmall, color = ProtectionRed)
+    }
 }
 
 @Composable

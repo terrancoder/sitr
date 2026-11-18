@@ -21,7 +21,7 @@ struct OnboardingView: View {
 
                     Sitr blocks adult, gambling and dating sites in Safari — \
                     entirely on this device. No accounts. No analytics. No \
-                    crash reports. Your browsing never leaves this phone, in \
+                    crash reports. Your browsing never leaves this device, in \
                     any tier. The blocklist is public and identical for every \
                     user, and the app is open source, so this is verifiable — \
                     not a promise.

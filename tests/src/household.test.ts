@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   bumpRev,
   emptyHouseholdState,
+  isJoinPlaceholder,
   MAX_HOUSEHOLD_DEVICES,
   MAX_HOUSEHOLD_DOMAINS,
   mergeStates,
@@ -93,4 +94,12 @@ test("bumpRev increments and re-stamps authorship", () => {
   assert.equal(b.updatedBy, "b");
   assert.equal(b.updatedAt, 500);
   assert.equal(s.rev, 1, "original untouched");
+});
+
+test("only the never-synced join state is a placeholder", () => {
+  const joined = emptyHouseholdState("dev-a", 0);
+  assert.equal(isJoinPlaceholder(joined), true);
+  assert.equal(isJoinPlaceholder(emptyHouseholdState("dev-a", 1000)), false);
+  assert.equal(isJoinPlaceholder(bumpRev(joined, "dev-a", 0)), false);
+  assert.equal(isJoinPlaceholder(bumpRev(joined, "dev-a", 5000)), false);
 });

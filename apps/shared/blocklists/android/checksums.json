@@ -1,12 +1,14 @@
 {
-  "adult.domains": "fb7ea732dae17b6b524ebffbf922a9bf2c8e641853154d1ebbde15e5de7146fa",
-  "dating.domains": "ee83a0737926903504d0935702a007067bc84c1672dea3fe5cc5d46effd97052",
-  "gambling.domains": "7084a4c0fb9ccc9085ab154ed113f44cae04111d05fa10bf778607e72bd58492",
+  "adult.domains": "ad0549953007d52d57a17256a16c4637050bbeaf5c08c145dd9f818f7a149edc",
+  "dating.domains": "324df6b988e124c02be83f3a9eb7c2a70a33d5159b29c78d11dbbdfb6488cd9c",
+  "gambling.domains": "b6badcff94dc7e94b53225d992a473dcb18c9e7c093d36c791063a7ae3f11489",
   "safesearch-hosts.json": "45c508d889d741ade8dc627b2ee7ebb7704acc49fcf36704ad16f8a0c46e3191",
   "strict-search-hosts.json": "5242bfb15a5d2de386ec79e583927001cdde6f7dce4231b39393a6691bcf7437",
   "x-media.domains": "1b4dc9e3216f6a61e89c817c59e443066f6ee894cd44e34a6054e71fb496e807",
-  "reddit-media.domains": "e20ba5e84215f082ea9f80b1d7ff74f954bf02e28304dfad3305fcf8f714532d",
+  "reddit-media.domains": "30b2d31a90aab448ca30ba67de6a8c8c36966d8e0e36219a73369508e1adf964",
   "tumblr-media.domains": "d95f298004647184a98d5decf2cab6887ec467c82cb3b3df086b8e625c8fb6b1",
   "pinterest-media.domains": "021adf53f88b112d8a34f50c1841b8b59d6bd3bb476ea71971f3d388d389c432",
-  "imgur-media.domains": "8db82770a824cb243b57520b3d135f4abf9c1d42639e3f61152937b17217a54b"
+  "imgur-media.domains": "8db82770a824cb243b57520b3d135f4abf9c1d42639e3f61152937b17217a54b",
+  "doh.domains": "6fbd98e3a1610d51c3f7003bfc334f12e4f86b0b3be3d15c8906cf2be5aba751",
+  "violence.domains": "2ebc718bc524fb54af8896cedef59e9e72ddfa9965387a3b275f56730454c132"
 }

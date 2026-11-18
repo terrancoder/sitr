@@ -1,14 +1,18 @@
 package com.sitrshield.app
 
+import android.os.SystemClock
 import com.sitrshield.app.data.Settings
 import com.sitrshield.app.sync.SyncHttp
 import com.sitrshield.app.sync.SyncWorker
 import com.sitrshield.core.SitrResult
-import com.sitrshield.core.gate.Gate
+import com.sitrshield.core.gate.Delay
+import com.sitrshield.core.gate.DelayAction
+import com.sitrshield.core.gate.DelayClockReading
+import com.sitrshield.core.gate.DelayPhase
+import com.sitrshield.core.gate.DelayStamp
 import com.sitrshield.core.gate.GateContext
 import com.sitrshield.core.gate.HouseholdRole
-import com.sitrshield.core.gate.MutationKind
-import com.sitrshield.core.gate.MutationVerdict
+import com.sitrshield.core.gate.MutationStep
 import com.sitrshield.core.household.Household
 import com.sitrshield.core.household.HouseholdState
 import com.sitrshield.core.pin.Pin
@@ -24,8 +28,8 @@ import kotlin.concurrent.thread
  * Every settings mutation, gate-checked through the ported authority
  * ladder (managed > child > PIN; the PIN gates loosening actions only)
  * and applied engine-first via SitrApp.update. The UI calls
- * gate() first, collects the PIN when the verdict requires it, then
- * calls the action.
+ * decide() first (gate, then "wait before loosening", then the PIN),
+ * then calls the action.
  */
 class HouseholdActions(private val app: SitrApp) {
     private companion object {
@@ -36,15 +40,47 @@ class HouseholdActions(private val app: SitrApp) {
 
     private fun settings(): Settings = app.repository.current()
 
-    fun gate(kind: MutationKind): MutationVerdict =
-        Gate.gateMutation(
-            kind,
+    /** Gate first, then "wait before loosening", then the PIN. */
+    fun decide(action: DelayAction, phase: DelayPhase): MutationStep =
+        Delay.decide(
+            action,
             GateContext(
                 managedLockOptions = app.managedPolicy().lockOptions,
                 role = HouseholdRole.fromWire(settings().role),
                 hasPin = settings().household?.pin != null,
             ),
+            phase,
         )
+
+    // --- Wait before loosening (device-local; see Repository) ---
+
+    data class DelayState(val minutes: Int, val phase: DelayPhase, val remainingMs: Long)
+
+    /** elapsedRealtime counts during sleep and restarts at boot. */
+    private fun clocks() = DelayClockReading(SystemClock.elapsedRealtime(), System.currentTimeMillis())
+
+    /** Evaluates on both clocks and persists a restarted or cleared request. */
+    fun delayState(): DelayState {
+        val repo = app.repository
+        val minutes = repo.loosenDelayMinutes
+        val stored = repo.loosenDelayStamp
+        val ev = Delay.evaluate(minutes, stored, clocks())
+        // Off clears nothing: the stored request is cleared on every setting change.
+        if (ev.phase != DelayPhase.OFF && ev.stamp != stored) repo.loosenDelayStamp = ev.stamp
+        return DelayState(minutes, ev.phase, ev.remainingMs)
+    }
+
+    /** Starting or cancelling never waits. */
+    fun startDelayRequest() {
+        if (app.repository.loosenDelayMinutes > 0) app.repository.loosenDelayStamp = DelayStamp(clocks())
+    }
+
+    fun cancelDelayRequest() {
+        app.repository.loosenDelayStamp = null
+    }
+
+    /** Call only after decide() let a shortening through; lengthening is free. */
+    fun setDelayMinutes(minutes: Int) = app.repository.setLoosenDelayMinutes(minutes)
 
     fun verifyPin(pin: String): Boolean {
         val record = settings().household?.pin ?: return false

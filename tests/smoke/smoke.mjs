@@ -156,12 +156,19 @@ async function navigate(url) {
 // 1. Extension service worker present? (Keep its target for DNR queries.)
 let swSessionId;
 {
-  const { targetInfos } = await send("Target.getTargets");
-  const sw = targetInfos.find(
-    (t) =>
-      t.type === "service_worker" &&
-      t.url.includes("/dist/background/service-worker.js"),
-  );
+  // The worker starts only after Chrome has indexed the static rulesets, and
+  // with ~100k domains that takes longer than the browser takes to open its
+  // DevTools port, so poll instead of looking once.
+  let sw;
+  for (let i = 0; i < 100 && !sw; i++) {
+    const { targetInfos } = await send("Target.getTargets");
+    sw = targetInfos.find(
+      (t) =>
+        t.type === "service_worker" &&
+        t.url.includes("/dist/background/service-worker.js"),
+    );
+    if (!sw) await new Promise((r) => setTimeout(r, 200));
+  }
   report("extension service worker running", Boolean(sw), sw?.url ?? "not found");
   if (sw) {
     const attach = await send("Target.attachToTarget", {
@@ -189,6 +196,16 @@ async function evalInWorker(expression) {
   const { errorText } = await navigate("https://pornhub.com/");
   report(
     "blocklisted domain is blocked",
+    errorText.includes("ERR_BLOCKED_BY_CLIENT"),
+    errorText || "navigation was not blocked",
+  );
+}
+
+// 2b. A domain only in the imported adult tier (not curated) is blocked.
+{
+  const { errorText } = await navigate("https://007milf.com/");
+  report(
+    "imported-tier domain is blocked",
     errorText.includes("ERR_BLOCKED_BY_CLIENT"),
     errorText || "navigation was not blocked",
   );
@@ -225,6 +242,42 @@ if (swSessionId) {
     want.every((id) => enabled.includes(id)),
     enabled.join(", "),
   );
+
+  // 4b. Every rule of every shipped block ruleset actually loaded: Chrome
+  // skips an invalid static rule (or a ruleset over the static rule limit)
+  // with no error the extension can see. Test the first domain of each
+  // rule against the engine; the opt-in violence list is enabled briefly.
+  {
+    const { readFileSync } = await import("node:fs");
+    const available = await evalInWorker(
+      "chrome.declarativeNetRequest.getAvailableStaticRuleCount()",
+    );
+    report("static rule headroom left", available > 0, `available ${available}`);
+    await evalInWorker(
+      'chrome.declarativeNetRequest.updateEnabledRulesets({ enableRulesetIds: ["sitr_violence"] })',
+    );
+    for (const [rulesetId, file] of [
+      ["sitr_adult", "adult.json"],
+      ["sitr_gambling", "gambling.json"],
+      ["sitr_dating", "dating.json"],
+      ["sitr_violence", "violence.json"],
+    ]) {
+      const rules = JSON.parse(readFileSync(join(EXTENSION_DIR, "rulesets", file), "utf8"));
+      const probes = rules.map((r) => ({ id: r.id, url: `https://${r.condition.requestDomains[0]}/`, type: "main_frame" }));
+      const missed = await evalInWorker(`(async () => {
+        const missed = [];
+        for (const p of ${JSON.stringify(probes)}) {
+          const o = await chrome.declarativeNetRequest.testMatchOutcome({ url: p.url, type: p.type });
+          if (!o.matchedRules.some((m) => m.ruleId === p.id && m.rulesetId === "${rulesetId}")) missed.push(p.id);
+        }
+        return missed;
+      })()`);
+      report(`${rulesetId}: all ${rules.length} rules loaded`, missed.length === 0, missed.length ? `missing rule ids ${missed.join(", ")}` : "");
+    }
+    await evalInWorker(
+      'chrome.declarativeNetRequest.updateEnabledRulesets({ disableRulesetIds: ["sitr_violence"] })',
+    );
+  }
 
   // 5. SafeSearch rules match, per the engine's own matcher — deterministic,
   // no dependence on the search engines being reachable or bot-friendly.
@@ -376,6 +429,190 @@ if (swSessionId) {
       (await enabledEventually("sitr_media_greylist", false)),
     "media rulesets still enabled after mediaMode removed",
   );
+}
+
+// 7. Options page: wait-before-loosening, the gated category toggle, the
+// opt-in violence list and the report links — driven through the real page.
+// The clock is stubbed in the PAGE context only (Date.now), no prod seam.
+if (swSessionId) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const extId = new URL(
+    (await send("Target.getTargets")).targetInfos.find(
+      (t) => t.type === "service_worker" && t.url.includes("/dist/background/service-worker.js"),
+    ).url,
+  ).host;
+  await evalInWorker(
+    'chrome.storage.local.set({ loosenDelayMinutes: 5 }).then(() => chrome.storage.local.remove(["loosenDelayRequest", "guardianPin", "disabledCategories"]))',
+  );
+  const opt = await send("Target.createTarget", {
+    url: `chrome-extension://${extId}/src/options/options.html`,
+  });
+  const { sessionId: optSession } = await send("Target.attachToTarget", {
+    targetId: opt.targetId,
+    flatten: true,
+  });
+  const page = async (expression) => {
+    const r = await send(
+      "Runtime.evaluate",
+      { expression, awaitPromise: true, returnByValue: true },
+      optSession,
+    );
+    if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? "page threw");
+    return r.result?.value;
+  };
+  await sleep(1500);
+  await page(`(() => { const real = Date.now.bind(Date); window.__off = 0;
+    Date.now = () => real() + window.__off; })()`);
+  const MIN = 60_000;
+  const gambling = "document.querySelector('#category-list input')";
+  const dialogText = "(document.querySelector('dialog')?.open ? document.querySelector('dialog p').textContent : null)";
+  const pressDialog = (label) =>
+    page(`[...document.querySelectorAll('dialog button')].find((b) => b.textContent === ${JSON.stringify(label)}).click()`);
+  const stored = (key) => page(`chrome.storage.local.get(${JSON.stringify(key)}).then((s) => s[${JSON.stringify(key)}] ?? null)`);
+  const clickGambling = async () => { await page(`${gambling}.click()`); await sleep(400); };
+
+  await clickGambling();
+  const held = await page(dialogText);
+  report(
+    "delay on: turning Gambling off is held and the checkbox snaps back",
+    /wait 5 minutes/.test(held ?? "") && (await page(`${gambling}.checked`)) === true &&
+      !((await stored("disabledCategories")) ?? []).includes("sitr_gambling"),
+    String(held),
+  );
+  await pressDialog("Start");
+  await sleep(200);
+  const request = await stored("loosenDelayRequest");
+  await clickGambling();
+  const waitingText = await page(dialogText);
+  const waitingButtons = await page("[...document.querySelectorAll('dialog button')].filter((b) => !b.hidden).map((b) => b.textContent)");
+  await pressDialog("Close");
+  await sleep(200);
+  const keptRequest = await stored("loosenDelayRequest");
+  await page("document.getElementById('delay-cancel').click()");
+  await sleep(200);
+  report(
+    "while waiting: held with 'Ready in', only 'Close' in the dialog; the request is cancelled in settings",
+    /^Ready in 4:5\d|^Ready in 5:00/.test(waitingText ?? "") && JSON.stringify(waitingButtons) === '["Close"]' &&
+      keptRequest !== null && (await stored("loosenDelayRequest")) === null &&
+      (await page(`${gambling}.checked`)) === true,
+    `${waitingText} | ${JSON.stringify(waitingButtons)}`,
+  );
+  await clickGambling();
+  await pressDialog("Start");
+  await sleep(200);
+  await page(`window.__off = ${5 * MIN + 1000}`);
+  await clickGambling();
+  const opened = !(await page(dialogText)) &&
+    (await page(`${gambling}.checked`)) === false &&
+    ((await stored("disabledCategories")) ?? []).includes("sitr_gambling");
+  report("inside the window the change goes through", Boolean(request) && opened, JSON.stringify(request));
+  await clickGambling(); // back on: enableCategory, never held
+  report("turning Gambling back on is free", (await page(`${gambling}.checked`)) === true);
+
+  await page(`window.__off = ${15 * MIN + 1000}`);
+  await clickGambling();
+  report(
+    "after the window closes the change is held again",
+    /Start the wait/.test((await page(dialogText)) ?? "") && (await page(`${gambling}.checked`)) === true,
+  );
+  await pressDialog("Cancel");
+
+  await page(`(() => { const s = document.getElementById('delay-minutes'); s.value = '0';
+    s.dispatchEvent(new Event('change')); })()`);
+  await sleep(400);
+  report(
+    "shortening the delay is itself held",
+    /Start the wait/.test((await page(dialogText)) ?? "") && (await stored("loosenDelayMinutes")) === 5,
+  );
+  await pressDialog("Cancel");
+  await sleep(300);
+  report("delay select snaps back", (await page("document.getElementById('delay-minutes').value")) === "5");
+
+  // Joining a household replaces this browser's settings by sync: held too.
+  const pairing = await page(`import(chrome.runtime.getURL('dist/lib/sync/crypto.js')).then((m) => m.encodePairingCode(m.generateRootSecret()))`);
+  await page(`document.getElementById('household-join-code').value = ${JSON.stringify(pairing)}`);
+  await send(
+    "Runtime.evaluate",
+    { expression: "document.querySelector('#household-join-form button[type=submit]').click()", userGesture: true },
+    optSession,
+  );
+  await sleep(500);
+  const joinHeld = await page(dialogText);
+  report(
+    "join is held while the wait is on",
+    /Start the wait/.test(joinHeld ?? "") && (await stored("householdSecret")) === null &&
+      (await page("document.getElementById('household-none').hidden")) === false,
+    String(joinHeld),
+  );
+  await pressDialog("Cancel");
+  await sleep(200);
+
+  // With a PIN: the hold first (no PIN asked), then inside the window the PIN.
+  await page(`import(chrome.runtime.getURL('dist/lib/pin.js')).then(async (m) => {
+    const r = await m.createPinRecord('1234'); await chrome.storage.local.set({ guardianPin: r.value }); })`);
+  await page("window.__off = 0");
+  await clickGambling();
+  const firstHidden = await page("document.querySelector('dialog input').hidden");
+  const first = await page(dialogText);
+  await pressDialog("Start");
+  await sleep(200);
+  await page(`window.__off = ${5 * MIN + 1000}`);
+  await clickGambling();
+  const second = await page(dialogText);
+  const secondIsPin = await page("document.querySelector('dialog input').type === 'password' && !document.querySelector('dialog input').hidden");
+  await page("document.querySelector('dialog input').value = '1234'");
+  await pressDialog("OK");
+  await sleep(500);
+  report(
+    "with a PIN: wait ceremony first, then the PIN, then the change",
+    /Start the wait/.test(first ?? "") && firstHidden === true &&
+      /guardian PIN/.test(second ?? "") && secondIsPin === true &&
+      ((await stored("disabledCategories")) ?? []).includes("sitr_gambling"),
+    `${first} | ${second}`,
+  );
+
+  // Opt-in violence list: delay and PIN off first (straight to storage —
+  // the gate has been exercised above).
+  await evalInWorker(
+    'chrome.storage.local.remove(["loosenDelayMinutes", "loosenDelayRequest", "guardianPin", "disabledCategories"])',
+  );
+  await page("window.__off = 0");
+  const violenceDomain = "aaargh-international.org";
+  const violenceHit = async () =>
+    (await evalInWorker(
+      `chrome.declarativeNetRequest.testMatchOutcome({ url: "https://${violenceDomain}/", type: "main_frame" })`,
+    )).matchedRules?.some((m) => m.rulesetId === "sitr_violence") ?? false;
+  const enabledNow = () => evalInWorker("chrome.declarativeNetRequest.getEnabledRulesets()");
+  report("violence list off by default: not enabled, domain not matched",
+    !(await enabledNow()).includes("sitr_violence") && !(await violenceHit()));
+  await page("document.getElementById('optional-sitr_violence').click()");
+  await sleep(1500);
+  const { errorText: vErr } = await navigate(`https://${violenceDomain}/`);
+  report(
+    "violence switch on: ruleset enabled, domain blocked, status green",
+    (await enabledNow()).includes("sitr_violence") && vErr.includes("ERR_BLOCKED_BY_CLIENT") &&
+      (await evalInWorker("chrome.storage.local.get('protectionStatus').then((s) => s.protectionStatus.state)")) === "active",
+    vErr,
+  );
+  await page("document.getElementById('optional-sitr_violence').click()");
+  await sleep(1500);
+  report(
+    "violence switch off: ruleset disabled, domain not matched, status green",
+    !(await enabledNow()).includes("sitr_violence") && !(await violenceHit()) &&
+      (await evalInWorker("chrome.storage.local.get('protectionStatus').then((s) => s.protectionStatus.state)")) === "active",
+  );
+
+  const hrefs = await page("[...document.querySelectorAll('a')].map((a) => a.getAttribute('href'))");
+  report(
+    "report links have the exact hrefs",
+    [
+      "https://github.com/terrancoder/sitr/issues/new?template=block-request.yml",
+      "https://github.com/terrancoder/sitr/issues/new?template=unblock-request.yml",
+      "mailto:support@sitrshield.com?subject=Site%20report",
+    ].every((h) => hrefs.includes(h)) && !hrefs.includes("https://github.com/terrancoder/sitr/issues"),
+    hrefs.join(" "),
+  );
+  report("options page shows no error", (await page("document.getElementById('error').textContent")) === "");
 }
 
 ws.close();

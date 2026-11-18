@@ -31,6 +31,16 @@ import {
 } from "../../extension/dist/lib/gate.js";
 import { EMPTY_MANAGED_POLICY } from "../../extension/dist/lib/managed.js";
 import {
+  DELAY_MINUTES,
+  JOIN_HOUSEHOLD_WAITS_AS,
+  SHORTEN_DELAY_GATED_AS,
+  WINDOW_MS,
+  delayChangeAction,
+  evaluate,
+  needsWait,
+  type DelayAction,
+} from "../../extension/dist/lib/delay.js";
+import {
   backoffAfterFailure,
   hashPin,
   verifyPin,
@@ -164,6 +174,31 @@ test("gate fixture: exhaustive authority table", () => {
       hasPin: c.hasPin,
     });
     assert.deepEqual(verdict, c.verdict, `${c.kind} / ${JSON.stringify(c)}`);
+  }
+});
+
+test("delay fixture: evaluate, needsWait and changing the delay", () => {
+  const fx = fixture("delay.json");
+  assert.deepEqual(fx.delayMinutesAllowed, [...DELAY_MINUTES]);
+  assert.equal(fx.windowMs, WINDOW_MS);
+  assert.equal(fx.shortenDelayGatedAs, SHORTEN_DELAY_GATED_AS);
+  assert.equal(fx.joinHouseholdWaitsAs, "disableCategory");
+  assert.equal(fx.joinHouseholdWaitsAs, JOIN_HOUSEHOLD_WAITS_AS);
+  // 6 delays x 14 clock cases; 15 actions (14 kinds + shortenDelay) x 4
+  // phases; delay changes: 5 from off (phase off) + 5 x 5 x 3 phases.
+  assert.equal(fx.evaluate.length, 84);
+  assert.equal(fx.needsWait.length, 60);
+  assert.equal(fx.delayChange.length, 80);
+  for (const c of fx.evaluate) {
+    assert.deepEqual(evaluate(c.delayMinutes, c.request, c.now), c.result, c.name);
+  }
+  for (const c of fx.needsWait) {
+    assert.equal(needsWait(c.action as DelayAction, c.phase), c.needsWait, `${c.action}/${c.phase}`);
+  }
+  for (const c of fx.delayChange) {
+    const action = delayChangeAction(c.fromMinutes, c.toMinutes);
+    assert.equal(action, c.action, JSON.stringify(c));
+    assert.equal(action !== null && needsWait(action, c.phase), c.needsWait, JSON.stringify(c));
   }
 });
 

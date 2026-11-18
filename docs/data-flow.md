@@ -70,6 +70,13 @@ Sitr off (`GuardRules.kt`), and closes a match. The text is checked in
 memory and discarded; nothing is stored, logged or sent. It runs only
 after a guardian opts in. See [child-lock.md](child-lock.md).
 
+### "Report a site" links (no request)
+
+The "Report a site" links on every platform are ordinary links: they open
+a GitHub issue form in the browser, or a message to support@sitrshield.com
+in the mail app. The client itself sends nothing, so they are not
+endpoints and have no row in the table above. A GitHub issue is public.
+
 If a blocklist-update endpoint is ever added, it will appear here first,
 carry nothing user-specific, and return an artifact **identical for every
 user**, checksum-verified before applying. The same promise covers the
@@ -83,6 +90,8 @@ update only through store releases.
 | Protection status | `storage.local` | `active` / `inactive` + missing ruleset ids | overwritten on every check |
 | Category preferences | `storage.local` | which optional categories are disabled | until changed by the user |
 | Media filtering mode | `storage.local` | `off` / `greylist` / `allowlist` — the T12 image+media layer | until changed by the user |
+| Opt-in lists | `storage.local` (`enabledOptionalLists`) | which off-by-default lists the user turned on (`sitr_violence`; the Android app also has the encrypted-DNS hosts list). Device-local: never in the household blob | until changed by the user |
+| Wait before loosening | `storage.local` (`loosenDelayMinutes`, `loosenDelayRequest`) | the chosen wait (0, 5, 30, 60, 360 or 1440 minutes) and the time of a pending request — in the apps, a reading of two clocks. Device-local: never in the household blob. All three platforms | until changed or the request ends |
 | Per-site allow/deny | DNR dynamic rules | domains the user chose | until removed by the user |
 | Image allowlist | DNR dynamic rules | sites whose images stay visible in allowlist-only mode | until removed by the user |
 | Household state | `storage.local` + DNR dynamic rules | shared allow/block lists, category config, guardian PIN hash | until the device leaves the household |

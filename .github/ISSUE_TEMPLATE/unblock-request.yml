@@ -1,0 +1,34 @@
+name: Unblock request
+description: Report a site that Sitr blocks by mistake.
+title: "unblock request: "
+labels: ["unblock request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every rule is public and contestable ([appeals process](https://github.com/terrancoder/sitr/blob/main/blocklist/policy/appeals-process.md)).
+        A maintainer answers within 14 days with accept, reject or needs-info, citing the
+        [inclusion policy](https://github.com/terrancoder/sitr/blob/main/blocklist/policy/inclusion-policy.md).
+        Only genuine false positives are unblocked; disagreeing with a category is not one.
+
+        Meanwhile you can add an "Always allow" rule for the site on your own device. That rule never leaves it.
+  - type: input
+    id: domain
+    attributes:
+      label: Domain
+      placeholder: example.com
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What the site actually is
+    validations:
+      required: true
+  - type: textarea
+    id: criterion
+    attributes:
+      label: Which inclusion criterion it fails
+      description: For example, its primary purpose is not adult, gambling or dating, or the entry is over-broad (a shared host).
+    validations:
+      required: true

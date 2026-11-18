@@ -9,33 +9,63 @@ struct RootView: View {
     @EnvironmentObject var model: AppModel
     @State private var pinRequest: PinRequest?
     @State private var gateMessage: String?
+    @State private var hold: AppModel.DelayState?
+    /// A hold found after the PIN: shown once the sheet has gone, or the
+    /// alert is dropped mid-dismissal.
+    @State private var holdAfterSheet: AppModel.DelayState?
 
     struct PinRequest: Identifiable {
         let id = UUID()
         let title: String
+        let kind: DelayAction
         let action: () -> Void
     }
 
     func attempt(_ kind: MutationKind, _ title: String, _ action: @escaping () -> Void) {
-        switch model.gate(kind) {
+        attemptAction(.kind(kind), title, action)
+    }
+
+    /// Gate, then "wait before loosening", then the PIN (Delay.decide).
+    func attemptAction(_ kind: DelayAction, _ title: String, _ action: @escaping () -> Void) {
+        let delay = model.delayState()
+        switch model.decide(kind, phase: delay.phase) {
         case .refused(let reason):
             gateMessage =
                 reason == .managedLocked
                 ? "Settings are locked by your organization."
                 : "This is managed by your guardian."
-        case .allowed(let requiresPin):
-            if requiresPin {
-                pinRequest = PinRequest(title: title, action: action)
-            } else {
-                action()
-            }
+        case .wait:
+            showHold(delay)
+        case .pin:
+            pinRequest = PinRequest(title: title, kind: kind, action: action)
+        case .go:
+            action()
+        }
+    }
+
+    /// The change does not happen. Re-render so a switch that was flipped
+    /// snaps back to the stored value, and offer the next move.
+    private func showHold(_ delay: AppModel.DelayState) {
+        model.objectWillChange.send()
+        hold = delay
+    }
+
+    /// Joining a household: the delay alone, as `Delay.joinHouseholdWaitsAs`.
+    /// No gate and no PIN — neither ever applied to joining.
+    func attemptJoin(_ action: @escaping () -> Void) {
+        let delay = model.delayState()
+        if Delay.needsWait(.kind(Delay.joinHouseholdWaitsAs), delay.phase) {
+            showHold(delay)
+        } else {
+            action()
         }
     }
 
     /// For sensitive reveals (pairing code) that aren't gate kinds.
     func requirePin(_ title: String, _ action: @escaping () -> Void) {
         if model.settings.household?.pin != nil {
-            pinRequest = PinRequest(title: title, action: action)
+            // Not a gate kind and not loosening: no delay.
+            pinRequest = PinRequest(title: title, kind: .kind(.changePin), action: action)
         } else {
             action()
         }
@@ -44,19 +74,34 @@ struct RootView: View {
     var body: some View {
         NavigationStack {
             if model.settings.onboarded {
-                HomeStatusView(attempt: attempt, requirePin: requirePin)
+                HomeStatusView(
+                    attempt: attempt, attemptAction: attemptAction, attemptJoin: attemptJoin,
+                    requirePin: requirePin)
             } else {
                 OnboardingView()
             }
         }
-        .sheet(item: $pinRequest) { request in
+        .sheet(
+            item: $pinRequest,
+            onDismiss: {
+                hold = holdAfterSheet
+                holdAfterSheet = nil
+            }
+        ) { request in
             // Sheets are separate presentations — re-apply the user's
             // appearance choice so a forced scheme reaches them too.
             PinSheet(title: request.title) { pin in
                 if await model.verifyPin(pin) {
                     PinAttemptsStore.reset()
                     pinRequest = nil
-                    request.action()
+                    // The sheet can sit open past the window: check again.
+                    let after = model.delayState()
+                    if Delay.afterPin(request.kind, phase: after.phase) == .wait {
+                        model.objectWillChange.send()
+                        holdAfterSheet = after
+                    } else {
+                        request.action()
+                    }
                     return nil
                 }
                 return "Wrong PIN."
@@ -76,6 +121,23 @@ struct RootView: View {
             Text(gateMessage ?? "")
         }
         .alert(
+            "Wait before loosening", isPresented: .init(
+                get: { hold != nil },
+                set: { if !$0 { hold = nil } }),
+            presenting: hold
+        ) { held in
+            if held.phase == .idle {
+                Button("Start the wait") { model.startDelayRequest() }
+                Button("Cancel", role: .cancel) {}
+            } else {
+                // Close only: cancelling a running request lives in the
+                // wait's settings, never one habitual tap away here.
+                Button("Close", role: .cancel) {}
+            }
+        } message: { held in
+            Text(DelayText.hold(held))
+        }
+        .alert(
             "Something went wrong", isPresented: .init(
                 get: { model.lastError != nil },
                 set: { if !$0 { model.lastError = nil } })
@@ -90,10 +152,15 @@ struct RootView: View {
 /// Lockout persisted before failure is shown — an app kill cannot reset it.
 enum PinAttemptsStore {
     static func load() -> PinAttempts {
-        PinAttempts(
+        let stored = PinAttempts(
             count: Storage.defaults.integer(forKey: "pinAttemptCount"),
             lockedUntil: Storage.defaults.double(forKey: "pinLockedUntil")
         )
+        // A deadline set while the clock was moved ahead: stored clamped,
+        // or the next load would clamp it to a fresh wait again.
+        let clamped = Pin.clamp(stored, now: Date().timeIntervalSince1970 * 1000)
+        if clamped != stored { save(clamped) }
+        return clamped
     }
 
     static func save(_ attempts: PinAttempts) {

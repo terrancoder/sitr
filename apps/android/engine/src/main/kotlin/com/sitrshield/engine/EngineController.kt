@@ -27,7 +27,8 @@ data class EngineFacts(
     val blocklistVerified: Boolean = false,
     /** The underlying network offered at least one resolver. */
     val hasUpstreams: Boolean = false,
-    /** Strict Private DNS is set — DNS bypasses the filter entirely. */
+    /** Strict Private DNS is set — it conflicts with the filter, so
+     *  protection is not active (lookups either fail or skip Sitr). */
     val privateDnsStrict: Boolean = false,
     /** The system or another VPN revoked us (epoch ms, 0 = never). */
     val revokedAt: Long = 0,

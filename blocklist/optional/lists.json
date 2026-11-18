@@ -1,0 +1,11 @@
+{
+  "doh": {
+    "description": "Public encrypted-DNS (DoH/DoT) endpoints; see ../policy/doh-hosts-policy.md",
+    "platforms": ["android"],
+    "neverBlockExempt": true
+  },
+  "violence": {
+    "description": "Gore and shock-video sites, and mostly old hate sites (neo-Nazi, Ku Klux Klan, Holocaust-denial); see ../policy/violence-list-policy.md",
+    "platforms": ["extension", "safari", "android"]
+  }
+}

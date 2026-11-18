@@ -78,7 +78,7 @@ fun OnboardingScreen(ctx: UiCtx) {
                 Text("Fail-visible protection", style = MaterialTheme.typography.headlineSmall)
                 Text(
                     "If protection ever stops — the VPN is turned off, another VPN " +
-                        "takes over, a setting bypasses filtering — Sitr shows a red " +
+                        "takes over, Private DNS is set to a fixed host — Sitr shows a red " +
                         "warning instead of pretending. It never reports silently " +
                         "working when it isn't.\n\n" +
                         "Allow notifications so that warning can reach you.",

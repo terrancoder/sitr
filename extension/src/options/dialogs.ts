@@ -9,6 +9,7 @@ let dialog: HTMLDialogElement | undefined;
 let messageEl: HTMLParagraphElement;
 let inputEl: HTMLInputElement;
 let okButton: HTMLButtonElement;
+let cancelButton: HTMLButtonElement;
 
 function ensureDialog(): HTMLDialogElement {
   if (dialog !== undefined) return dialog;
@@ -28,8 +29,8 @@ function ensureDialog(): HTMLDialogElement {
   const row = document.createElement("div");
   row.style.cssText = "display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;";
   const cancel = document.createElement("button");
+  cancelButton = cancel;
   cancel.type = "button";
-  cancel.textContent = "Cancel";
   cancel.addEventListener("click", () => dialog?.close("cancel"));
   okButton = document.createElement("button");
   okButton.type = "submit";
@@ -47,6 +48,12 @@ export interface PromptOptions {
   password?: boolean;
   /** OK button label; default "OK". */
   confirmLabel?: string;
+  /** Cancel button label; default "Cancel". */
+  cancelLabel?: string;
+  /** A message with buttons only: resolves "" on OK, null on cancel. */
+  noInput?: boolean;
+  /** A notice: only the OK (confirmLabel) button is shown. */
+  noCancel?: boolean;
 }
 
 /**
@@ -61,7 +68,10 @@ export function promptDialog(
   messageEl.textContent = message;
   inputEl.type = options.password === true ? "password" : "text";
   inputEl.value = "";
+  inputEl.hidden = options.noInput === true;
   okButton.textContent = options.confirmLabel ?? "OK";
+  cancelButton.textContent = options.cancelLabel ?? "Cancel";
+  cancelButton.hidden = options.noCancel === true;
   return new Promise((resolve) => {
     d.addEventListener(
       "close",
@@ -72,6 +82,6 @@ export function promptDialog(
     );
     d.returnValue = ""; // stale "ok" from a prior prompt must never leak
     d.showModal();
-    inputEl.focus();
+    (options.noInput !== true ? inputEl : options.noCancel === true ? okButton : cancelButton).focus();
   });
 }

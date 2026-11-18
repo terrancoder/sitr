@@ -11,6 +11,7 @@ import com.sitrshield.app.data.SecretStore
 import com.sitrshield.app.data.Settings
 import com.sitrshield.app.managed.ManagedConfig
 import com.sitrshield.app.sync.SyncWorker
+import com.sitrshield.core.categories.OptionalLists
 import com.sitrshield.core.dns.SafeSearchMap
 import com.sitrshield.core.dns.StrictSearchHosts
 import com.sitrshield.core.domainset.DomainSet
@@ -32,9 +33,15 @@ class SitrApp : Application() {
 
     private var categorySets: Map<String, DomainSet> = emptyMap()
     private var safeSearchMap: SafeSearchMap = SafeSearchMap(emptyList())
+    /** For the UI; EMPTY when the artifact failed verification. */
     var strictSearchHosts: StrictSearchHosts = StrictSearchHosts.EMPTY
+        private set
+    private var strictSearchSet: DomainSet? = null
     /** Media hosts per site key (MEDIA_SITES); a site whose list failed is absent. */
-    var mediaHosts: Map<String, Set<String>> = emptyMap()
+    var mediaHosts: Map<String, DomainSet> = emptyMap()
+        private set
+    /** Opt-in lists by OptionalLists id; a list that failed is absent. */
+    var optionalSets: Map<String, DomainSet> = emptyMap()
         private set
 
     companion object {
@@ -49,6 +56,12 @@ class SitrApp : Application() {
         super.onCreate()
         repository = Repository(this)
         secretStore = SecretStore(this)
+        // ponytail: synchronous on the main thread, so a boot, always-on or
+        // update start never sees an engine without its lists. Measured on
+        // the API 35 emulator (debug build, busy host): ~60 ms median cold
+        // start for 150,000 lines, worst seen ~215 ms. Past ~100 ms, load on a
+        // background thread and have SitrVpnService wait on it before its
+        // blocklistVerified check (always-on bypasses BootReceiver).
         loadArtifacts()
         rebuildEngine(repository.current())
         if (secretStore.load() != null) SyncWorker.schedulePeriodic(this)
@@ -79,33 +92,41 @@ class SitrApp : Application() {
             val checksums = JSONObject(
                 assets.open("checksums.json").readBytes().decodeToString()
             )
-            val sets = mutableMapOf<String, DomainSet>()
-            for (category in listOf("adult", "dating", "gambling")) {
-                val name = "$category.domains"
-                val artifact = assets.open(name).readBytes()
-                val set = DomainSet.load(artifact, checksums.getString(name)).getOrNull()
-                    ?: throw IllegalStateException("$name failed verification")
-                sets[category] = set
+            // Every list that feeds blocking is checked against
+            // checksums.json; a missing entry is a failure, never a skip.
+            fun verified(name: String): ByteArray {
+                val bytes = assets.open(name).readBytes()
+                check(DomainSet.sha256Hex(bytes) == checksums.getString(name).lowercase()) {
+                    "$name failed checksum verification"
+                }
+                return bytes
             }
-            val map = SafeSearchMap.parse(
-                assets.open("safesearch-hosts.json").readBytes().decodeToString()
-            ).getOrNull() ?: throw IllegalStateException("safesearch map failed to parse")
+            fun domainSet(name: String): DomainSet =
+                DomainSet.load(assets.open(name).readBytes(), checksums.getString(name)).getOrNull()
+                    ?: throw IllegalStateException("$name failed verification")
+
+            val sets = listOf("adult", "dating", "gambling")
+                .associateWith { domainSet("$it.domains") }
+            val map = SafeSearchMap.parse(verified("safesearch-hosts.json").decodeToString())
+                .getOrNull() ?: throw IllegalStateException("safesearch map failed to parse")
 
             // Strict Search is optional; a missing or bad artifact must
             // not stop the filter from starting — the toggle just stays
-            // unavailable, which the UI reflects.
-            strictSearchHosts = StrictSearchHosts.parse(
-                assets.open("strict-search-hosts.json").readBytes().decodeToString()
-            ).getOrNull() ?: StrictSearchHosts.EMPTY
+            // unavailable and says so.
+            val strict = runCatching {
+                val hosts = StrictSearchHosts.parse(verified("strict-search-hosts.json").decodeToString())
+                    .getOrNull()!!
+                hosts to DomainSet.of(hosts.hosts).getOrNull()!!
+            }.getOrNull()
+            strictSearchHosts = strict?.first ?: StrictSearchHosts.EMPTY
+            strictSearchSet = strict?.second
             // Optional too: a missing or bad list leaves only that site's
             // switch unavailable, never the filter.
             mediaHosts = MEDIA_SITES.mapNotNull { (key, _) ->
-                val name = "$key-media.domains"
-                runCatching {
-                    DomainSet.load(assets.open(name).readBytes(), checksums.optString(name).ifEmpty { "missing" })
-                        .getOrNull()?.domains?.takeIf { it.isNotEmpty() }
-                }.getOrNull()?.let { key to it }
+                runCatching { domainSet("$key-media.domains") }.getOrNull()
+                    ?.takeIf { it.size > 0 }?.let { key to it }
             }.toMap()
+            optionalSets = OptionalLists.load(checksums) { assets.open(it).readBytes() }
 
             categorySets = sets
             safeSearchMap = map
@@ -156,14 +177,14 @@ class SitrApp : Application() {
             if ("sitr_gambling" !in disabled) add("gambling")
             if ("sitr_dating" !in disabled) add("dating")
         }
-        val staticBlock = buildSet {
-            for (file in enabledCategoryFiles) {
-                categorySets[file]?.let { addAll(it.domains) }
-            }
+        // References only — no copy, however long the lists grow.
+        val staticBlock = buildList {
+            for (file in enabledCategoryFiles) categorySets[file]?.let { add(it) }
             // Strict Search folds into the same static layer, so a user
             // allow rule can still override it like any other block.
-            if (settings.strictSearch) addAll(strictSearchHosts.hosts)
-            for (site in settings.mediaOff) mediaHosts[site]?.let { addAll(it) }
+            if (settings.strictSearch) strictSearchSet?.let { add(it) }
+            for (site in settings.mediaOff) mediaHosts[site]?.let { add(it) }
+            addAll(OptionalLists.enabledSets(settings.optionalLists, optionalSets))
         }
         EngineController.apply(
             DecisionSnapshot(

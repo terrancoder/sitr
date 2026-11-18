@@ -12,6 +12,7 @@ import VisionKit
 struct HouseholdView: View {
     @EnvironmentObject var model: AppModel
     let attempt: (MutationKind, String, @escaping () -> Void) -> Void
+    let attemptJoin: (@escaping () -> Void) -> Void
     let requirePin: (String, @escaping () -> Void) -> Void
 
     var body: some View {
@@ -73,7 +74,11 @@ struct HouseholdView: View {
             }
             .foregroundStyle(Theme.ink)
             Button("Join") {
-                Task { await model.joinHousehold(code: code, asChild: asChild) }
+                // Held by "wait before loosening": the household's settings
+                // arrive by sync and may be looser than this device's.
+                attemptJoin {
+                    Task { await model.joinHousehold(code: code, asChild: asChild) }
+                }
             }
             .disabled(code.isEmpty)
         }
@@ -93,9 +98,14 @@ struct HouseholdView: View {
     @State private var revealedCode: String?
     @State private var newPin = ""
 
+    static let waitingForFirstSync =
+        "Waiting for the first sync with your household. Connect to the internet and tap "
+        + "Sync now. The household's PIN and lists appear here after that."
+
     @ViewBuilder private var memberSections: some View {
         let household = model.settings.household!
         let isGuardian = model.settings.role == "guardian"
+        let waiting = Household.isJoinPlaceholder(household)
 
         Section("This household") {
             LabeledContent("This device", value: model.settings.role ?? "—")
@@ -108,11 +118,14 @@ struct HouseholdView: View {
             Text(model.settings.syncStatus.describe)
                 .font(.caption)
                 .foregroundStyle(Theme.inkSoft)
+            if waiting {
+                Text(Self.waitingForFirstSync).foregroundStyle(Theme.ink)
+            }
             Button("Sync now") { Task { await model.runSync() } }
         }
         .sitrRows()
 
-        if isGuardian {
+        if isGuardian && !waiting {
             Section("Pairing") {
                 if let revealed = revealedCode {
                     Text(revealed)

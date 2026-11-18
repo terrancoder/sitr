@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: the release build never compiles src/debug. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver
+            android:name="com.sitrshield.app.DebugDelayReceiver"
+            android:exported="false" />
+    </application>
+</manifest>

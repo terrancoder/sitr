@@ -221,6 +221,15 @@ public enum Household {
         return jsGreater(a.updatedBy, b.updatedBy) ? a : b
     }
 
+    /// The stand-in a device holds after joining, until its first sync:
+    /// rev 1 authored at epoch 0. It must not be edited — each edit raised
+    /// its rev, and once that passed the real household's the merge
+    /// replaced the household's PIN and lists with the joiner's. A
+    /// household created on a device has a real updatedAt.
+    public static func isJoinPlaceholder(_ s: HouseholdState) -> Bool {
+        s.rev == 1 && s.updatedAt == 0
+    }
+
     /// A new revision authored by this device.
     public static func bumpRev(
         _ s: HouseholdState,

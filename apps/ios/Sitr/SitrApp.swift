@@ -13,6 +13,9 @@ struct SitrApp: App {
         }
         Theme.applyChrome()
         Storage.pinRootSecretToThisDevice()
+        #if DEBUG
+        DnsFilterDebug.writeBaseline()  // experimental DNS filter diagnostics
+        #endif
     }
 
     var body: some Scene {

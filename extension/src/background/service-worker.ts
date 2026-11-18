@@ -23,8 +23,10 @@ import {
 } from "../lib/status.js";
 import {
   DISABLED_CATEGORIES_KEY,
+  ENABLED_OPTIONAL_KEY,
   MEDIA_MODE_KEY,
   sanitizeDisabled,
+  sanitizeEnabledOptional,
   sanitizeMediaMode,
   type MediaMode,
   type ToggleableRulesetId,
@@ -68,6 +70,11 @@ async function readManagedPolicy(): Promise<ManagedPolicy> {
 async function readDeviceDisabled(): Promise<ToggleableRulesetId[]> {
   const stored = await chrome.storage.local.get(DISABLED_CATEGORIES_KEY);
   return sanitizeDisabled(stored[DISABLED_CATEGORIES_KEY]);
+}
+
+async function readEnabledOptional(): Promise<string[]> {
+  const stored = await chrome.storage.local.get(ENABLED_OPTIONAL_KEY);
+  return sanitizeEnabledOptional(stored[ENABLED_OPTIONAL_KEY]);
 }
 
 async function readMediaMode(): Promise<MediaMode> {
@@ -179,12 +186,17 @@ async function checkProtection(): Promise<ProtectionStatus> {
         };
       }
     }
-    const required = effectiveRequiredRulesets(
-      await readDeviceDisabled(),
-      await readHouseholdDisabled(),
-      policy.forcedCategories,
-      await readMediaMode(),
-    );
+    // Opt-in lists the user turned on are required like any other: on but
+    // failed to enable renders red; off is simply not required.
+    const required = [
+      ...effectiveRequiredRulesets(
+        await readDeviceDisabled(),
+        await readHouseholdDisabled(),
+        policy.forcedCategories,
+        await readMediaMode(),
+      ),
+      ...(await readEnabledOptional()),
+    ];
     // Engine first (§4): assert the preferences, then verify what actually
     // took — deriveStatus reports required-but-absent as INACTIVE, so an
     // assert that failed to stick renders red, never silently off.

@@ -152,12 +152,14 @@ async function renderSessionEscapes(ctx: HouseholdContext): Promise<void> {
       const button = document.createElement("button");
       button.textContent = "Remove";
       button.addEventListener("click", () => {
-        void chrome.declarativeNetRequest
-          .updateSessionRules({ removeRuleIds: [rule.id] })
-          .then(() => renderSessionEscapes(ctx))
-          .catch((e: unknown) =>
-            ctx.showError(e instanceof Error ? e.message : String(e)),
-          );
+        void withGate("removeImageAllowRule", ctx, async () => {
+          await chrome.declarativeNetRequest.updateSessionRules({
+            removeRuleIds: [rule.id],
+          });
+          await renderSessionEscapes(ctx);
+        }).catch((e: unknown) =>
+          ctx.showError(e instanceof Error ? e.message : String(e)),
+        );
       });
       li.append(button);
       listEl.append(li);

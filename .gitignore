@@ -28,6 +28,9 @@ server/sync/dist/
 # committed under apps/shared/fixtures — same rationale as extension/rulesets)
 tools/conformance/dist/
 
+# Import tool build output (tools/import; a build tool, never shipped)
+tools/import/dist/
+
 # Mobile app build state (sources and shared artifacts ARE committed)
 apps/ios/**/xcuserdata/
 apps/ios/**/DerivedData/

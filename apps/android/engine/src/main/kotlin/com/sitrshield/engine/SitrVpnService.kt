@@ -226,7 +226,7 @@ class SitrVpnService : VpnService() {
 
     /**
      * The default network's resolvers are our upstreams, and its
-     * Private-DNS setting decides whether we are bypassed (strict mode →
+     * Private-DNS setting decides whether we conflict with it (strict mode →
      * red, surfaced, service keeps running so recovery is instant when the
      * user fixes the setting). With no network the upstream list is empty
      * (queries get no answer) and the last verdict stands.

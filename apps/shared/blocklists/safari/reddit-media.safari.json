@@ -1,6 +1,14 @@
 [
   {
     "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?emoji\\.redditmedia\\.com\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
       "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?external-preview\\.redd\\.it\\.?[:/]"
     },
     "action": {
@@ -17,7 +25,23 @@
   },
   {
     "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?packaged-media\\.redd\\.it\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
       "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?preview\\.redd\\.it\\.?[:/]"
+    },
+    "action": {
+      "type": "block"
+    }
+  },
+  {
+    "trigger": {
+      "url-filter": "^[^:]+://+([^/]*@)?([^:/]+\\.)?styles\\.redditmedia\\.com\\.?[:/]"
     },
     "action": {
       "type": "block"

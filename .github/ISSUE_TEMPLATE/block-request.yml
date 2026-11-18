@@ -1,0 +1,47 @@
+name: Block request
+description: Ask for a site to be added to the public blocklist.
+title: "block request: "
+labels: ["block request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping. A site is added only when its **primary purpose** fits a category
+        ([inclusion policy](https://github.com/terrancoder/sitr/blob/main/blocklist/policy/inclusion-policy.md)).
+        Sites with only incidental or user-generated adult content are not blocked at domain level.
+
+        **Do not paste explicit material, links to explicit pages, or screenshots.** The domain and a
+        plain description are enough. This issue is public.
+  - type: input
+    id: domain
+    attributes:
+      label: Domain
+      description: The registrable domain, for example example.com. Subdomains are covered automatically.
+      placeholder: example.com
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - adult
+        - gambling
+        - dating
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why its primary purpose fits the category
+      description: What the site is and why it qualifies. Describe it in words; no explicit detail needed.
+    validations:
+      required: true
+  - type: checkboxes
+    id: no-explicit
+    attributes:
+      label: Before you submit
+      options:
+        - label: I have not pasted explicit material, explicit links or screenshots.
+          required: true

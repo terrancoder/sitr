@@ -60,7 +60,7 @@ engine actually answers.
 | Scenario | How to trigger | Expected |
 |---|---|---|
 | Another VPN takes the slot | Connect any other VPN app | Sitr's notification turns red ("turned off or replaced"), status matches |
-| Strict Private DNS | Settings → Network → Private DNS → enter a hostname | Red, with the guidance to set it back to Automatic — filtering really is bypassed, so the honest report is the whole point |
+| Fixed Private DNS | Settings → Network → Private DNS → enter a hostname | Red, with the guidance to set it to Automatic or Off. On the Android 15 and 16 devices tested, no name could be looked up while both were on ("Private DNS broken"); filtering works again at once on Automatic |
 | Always-on VPN | Settings → Network → VPN → Sitr → Always-on. Leave **Block connections without VPN OFF** | Survives reboot; lockdown would break all non-DNS traffic because our tunnel carries only DNS |
 | Reboot without always-on | Restart the phone | Either the service returns, or the notification says it did not — never silence |
 | Doze | Leave the phone idle overnight | Filtering intact; sync may defer |

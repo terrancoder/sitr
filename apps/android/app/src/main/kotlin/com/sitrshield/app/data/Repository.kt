@@ -2,6 +2,8 @@ package com.sitrshield.app.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.sitrshield.core.gate.Delay
+import com.sitrshield.core.gate.DelayStamp
 import com.sitrshield.core.household.Household
 import com.sitrshield.core.household.HouseholdState
 import com.sitrshield.core.sync.SyncStatus
@@ -33,6 +35,9 @@ data class Settings(
     /** Sites whose images and video are off ("x", "reddit", …) — none by
      *  default; see SITE_MEDIA_HOSTS in the compiler. */
     val mediaOff: Set<String> = emptySet(),
+    /** Opt-in lists turned on (OptionalLists ids) — none by default;
+     *  device-local, never synced. */
+    val optionalLists: Set<String> = emptySet(),
     /** Guard mode armed by a guardian (ChildLock); opened only by the PIN. */
     val childLock: Boolean = false,
     /** UI appearance: "system" | "light" | "dark" (ui.Appearance). */
@@ -84,6 +89,7 @@ class Repository(context: Context) {
             // Up to 0.2.1 this was one "xMedia" boolean.
             mediaOff = prefs.getStringSet("mediaOff", emptySet())!! +
                 (if (prefs.getBoolean("xMedia", false)) setOf("x") else emptySet()),
+            optionalLists = prefs.getStringSet("optionalLists", emptySet())!!.toSet(),
             childLock = prefs.getBoolean("childLock", false),
             appearance = prefs.getString("appearance", null)
                 ?.takeIf { it in setOf("system", "light", "dark") } ?: "system",
@@ -107,6 +113,7 @@ class Repository(context: Context) {
             .putBoolean("strictSearch", next.strictSearch)
             .putStringSet("mediaOff", next.mediaOff)
             .remove("xMedia")
+            .putStringSet("optionalLists", next.optionalLists)
             .putBoolean("childLock", next.childLock)
             .putString("appearance", next.appearance)
             .putStringSet("disabledCategories", next.disabledCategories.toSet())
@@ -132,4 +139,36 @@ class Repository(context: Context) {
     }
 
     fun current(): Settings = state.value
+
+    // "Wait before loosening": device-local keys outside Settings, so the
+    // once-a-second status read never goes through SitrApp.update, and
+    // never in the household state (older versions drop unknown fields).
+
+    val loosenDelayMinutes: Int
+        get() = Delay.sanitizeMinutes(prefs.getInt("loosenDelayMinutes", 0))
+
+    var loosenDelayStamp: DelayStamp?
+        get() {
+            val mono = prefs.getLong("loosenDelayAtMono", -1)
+            val wall = prefs.getLong("loosenDelayAtWall", -1)
+            return if (mono >= 0 && wall >= 0) DelayStamp(mono, wall) else null
+        }
+        set(value) {
+            prefs.edit().apply {
+                if (value == null) {
+                    remove("loosenDelayAtMono").remove("loosenDelayAtWall")
+                } else {
+                    putLong("loosenDelayAtMono", value.atMono).putLong("loosenDelayAtWall", value.atWall)
+                }
+            }.apply()
+        }
+
+    /** Any change to the setting clears the request, in the same write. */
+    fun setLoosenDelayMinutes(minutes: Int) {
+        prefs.edit()
+            .putInt("loosenDelayMinutes", Delay.sanitizeMinutes(minutes))
+            .remove("loosenDelayAtMono")
+            .remove("loosenDelayAtWall")
+            .apply()
+    }
 }

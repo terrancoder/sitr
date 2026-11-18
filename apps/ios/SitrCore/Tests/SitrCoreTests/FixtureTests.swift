@@ -219,6 +219,47 @@ func expectJSONEqual(
         }
     }
 
+    @Test func delayTable() throws {
+        let fx = try fixture("delay.json")
+        #expect(fx["delayMinutesAllowed"] as? [Int] == Delay.minutesAllowed)
+        #expect((fx["windowMs"] as? NSNumber)?.int64Value == Delay.windowMs)
+        #expect(fx["shortenDelayGatedAs"] as? String == Delay.shortenDelayGatedAs.rawValue)
+        let joinKind = try #require(
+            (fx["joinHouseholdWaitsAs"] as? String).flatMap(MutationKind.init(rawValue:)))
+        #expect(joinKind == Delay.joinHouseholdWaitsAs)
+        #expect(Delay.needsWait(.kind(joinKind), .idle))
+        func request(_ raw: Any?) -> DelayRequest? {
+            ((raw as? [String: Any])?["at"] as? NSNumber).map { DelayRequest(at: $0.int64Value) }
+        }
+        let evaluate = try #require(fx["evaluate"] as? [[String: Any]])
+        let needsWait = try #require(fx["needsWait"] as? [[String: Any]])
+        let delayChange = try #require(fx["delayChange"] as? [[String: Any]])
+        #expect(evaluate.count + needsWait.count + delayChange.count == 224)
+        for c in evaluate {
+            let name = c["name"] as? String ?? "?"
+            let expected = try #require(c["result"] as? [String: Any])
+            let got = Delay.evaluate(
+                delayMinutes: try #require(c["delayMinutes"] as? Int),
+                request: request(c["request"]),
+                now: try #require(c["now"] as? NSNumber).int64Value)
+            #expect(got.phase.rawValue == expected["phase"] as? String, "\(name)")
+            #expect(got.remainingMs == (expected["remainingMs"] as? NSNumber)?.int64Value, "\(name)")
+            #expect(got.request == request(expected["request"]), "\(name)")
+        }
+        for c in needsWait {
+            let action = try #require((c["action"] as? String).flatMap(DelayAction.init(rawValue:)))
+            let phase = try #require((c["phase"] as? String).flatMap(DelayPhase.init(rawValue:)))
+            #expect(Delay.needsWait(action, phase) == c["needsWait"] as? Bool, "\(c)")
+        }
+        for c in delayChange {
+            let action = Delay.changeAction(
+                from: try #require(c["fromMinutes"] as? Int), to: try #require(c["toMinutes"] as? Int))
+            #expect(action == (c["action"] as? String).flatMap(DelayAction.init(rawValue:)), "\(c)")
+            let phase = try #require((c["phase"] as? String).flatMap(DelayPhase.init(rawValue:)))
+            #expect((action.map { Delay.needsWait($0, phase) } ?? false) == c["needsWait"] as? Bool, "\(c)")
+        }
+    }
+
     @Test func sanitizeCases() throws {
         let fx = try fixture("sanitize.json")
         for c in try #require(fx["cases"] as? [[String: Any]]) {

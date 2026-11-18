@@ -13,7 +13,9 @@ calls, and uses no content scripts.
 ## `storage`
 
 Stores, locally only (`storage.local`): the current protection status shown
-in the popup, category preferences, and — when the optional Family
+in the popup, category preferences, which off-by-default lists the user
+turned on, the optional "Wait before loosening" setting and any pending
+request, and — when the optional Family
 household feature is used — the household's settings and key material. The
 user's per-site allow/deny choices live as DNR dynamic rules inside the
 browser. `storage.managed` is read so organizations can deliver policy via
@@ -36,7 +38,7 @@ the optional Family sync endpoint:
 |---|---|
 | `https://sync.sitrshield.com/*` | Optional Family sync: stores one end-to-end-encrypted settings blob the server cannot read (see docs/sync-protocol.md). Contacted only when the user sets up a household. |
 | `*://*.google.com/*` | Append `safe=active` to Google Search result URLs |
-| `*://www.bing.com/*` | Redirect searches to `strict.bing.com` (Bing's SafeSearch-strict host) |
+| `*://www.bing.com/*` | Append `adlt=strict` (Bing SafeSearch strict) |
 | `*://duckduckgo.com/*` | Append `kp=1` (DuckDuckGo safe search strict) |
 | `*://*.youtube.com/*` | Set the documented `YouTube-Restrict: Strict` request header |
 | `*://youtubei.googleapis.com/*` | Same header for YouTube's internal API requests |

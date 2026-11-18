@@ -3,11 +3,13 @@ import { test } from "node:test";
 
 import {
   backoffAfterFailure,
+  clampAttempts,
   createPinRecord,
   fromB64,
   hashPin,
   isLockedOut,
   isValidPinInput,
+  MAX_DELAY_MS,
   NO_ATTEMPTS,
   sanitizeAttempts,
   sanitizePinRecord,
@@ -83,4 +85,18 @@ test("sanitizeAttempts degrades garbage to no-attempts", () => {
     sanitizeAttempts({ count: 3, lockedUntil: 99 }),
     { count: 3, lockedUntil: 99 },
   );
+});
+
+test("a deadline set from a clock moved ahead is clamped to the longest wait", () => {
+  const now = 1_000_000;
+  const yearAway = { count: 9, lockedUntil: now + 365 * 86_400_000 };
+  const clamped = clampAttempts(yearAway, now);
+  assert.deepEqual(clamped, { count: 9, lockedUntil: now + MAX_DELAY_MS });
+  // Stored once, it expires: not re-clamped to a fresh wait later.
+  assert.ok(!isLockedOut(clamped, now + MAX_DELAY_MS - 1).ok);
+  assert.ok(isLockedOut(clampAttempts(clamped, now + MAX_DELAY_MS), now + MAX_DELAY_MS).ok);
+  // Real deadlines pass through untouched.
+  const soon = backoffAfterFailure(6, now);
+  assert.equal(clampAttempts(soon, now), soon);
+  assert.equal(clampAttempts(NO_ATTEMPTS, now), NO_ATTEMPTS);
 });

@@ -6,7 +6,9 @@ import {
   compileSafariRuleset,
   safariUrlFilter,
   serializeSafariRuleset,
-  MAX_SAFARI_RULES,
+  checkSafariBudget,
+  SAFARI_RULE_BUDGET,
+  SAFARI_RULE_RESERVE,
 } from "../../tools/compiler/dist/emitSafari.js";
 
 test("golden: one host-anchored block rule per domain, byte-identically", () => {
@@ -80,11 +82,25 @@ test("deterministic: same input twice gives identical output", () => {
   );
 });
 
-test("rule-limit overflow is a surfaced error, not a truncation", () => {
-  const domains: string[] = new Array(MAX_SAFARI_RULES + 1).fill("x.example");
-  const r = compileSafariRuleset("adult", domains);
-  assert.ok(!r.ok);
-  assert.equal(r.error.kind, "rule-limit-exceeded");
+test("combined budget: exactly at the limit passes, one over fails clearly", () => {
+  const room = SAFARI_RULE_BUDGET - SAFARI_RULE_RESERVE;
+  assert.equal(room, 140_000);
+  assert.equal(
+    checkSafariBudget([
+      { id: "adult", rules: room - 10 },
+      { id: "x-media", rules: 10 },
+    ]),
+    undefined,
+  );
+  const issue = checkSafariBudget([
+    { id: "adult", rules: room - 10 },
+    { id: "x-media", rules: 11 },
+  ]);
+  assert.ok(issue);
+  assert.equal(issue.kind, "rule-limit-exceeded");
+  assert.match(issue.message, /Safari rule budget exceeded/);
+  assert.match(issue.message, /145001 > 145000/);
+  assert.match(issue.message, /Largest: adult 139990/);
 });
 
 test("default blocker list concatenates categories in sorted order", () => {

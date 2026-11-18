@@ -48,9 +48,15 @@ public struct SafariRule: Equatable {
 }
 
 public enum SafariRules {
-    /// Conservative floor across supported iOS versions; overflow is a
-    /// surfaced error, mirroring MAX_SAFARI_RULES in the compiler emitter.
-    public static let maxRules = 50_000
+    /// Mirrors SAFARI_RULE_BUDGET and SAFARI_RULE_RESERVE in
+    /// tools/compiler/src/emitSafari.ts — change them together. WebKit
+    /// fails the WHOLE list above 150,000 rules; the compiler guarantees
+    /// every Safari list (categories, optional lists, media lists) fits in
+    /// `ruleBudget - ruleReserve` with all of them on, which leaves
+    /// `ruleReserve` for the user's and household's own rules and 5,000 of
+    /// headroom under WebKit's limit.
+    public static let ruleBudget = 145_000
+    public static let ruleReserve = 5_000
 
     /// The `url-filter` for one domain. Must stay byte-identical to
     /// `safariUrlFilter` in tools/compiler/src/emitSafari.ts, which emits
@@ -77,33 +83,69 @@ public enum SafariRules {
         householdBlock: [String],
         householdAllow: [String]
     ) -> Result<[SafariRule], SitrError> {
+        // Checked separately, not as one total: a total-only check would
+        // let today's user rules pass and then fail after a list update
+        // grows the static part. Overflow fails the whole build — static
+        // rules are never dropped and Safari keeps what it had.
+        if staticRules.count > ruleBudget - ruleReserve {
+            return .failure(
+                SitrError(
+                    "the bundled lists need \(staticRules.count) Safari rules (limit \(ruleBudget - ruleReserve)) — this app build is broken"
+                ))
+        }
+        let own = userBlock.count + userAllow.count + householdBlock.count + householdAllow.count
+        if own > ruleReserve {
+            return .failure(
+                SitrError(
+                    "your allow and block lists (with the household's) hold \(own) sites; Safari has room for \(ruleReserve) — remove some"
+                ))
+        }
         var rules = staticRules
         rules += perDomain(userBlock, action: .block)
         rules += perDomain(userAllow, action: .ignorePreviousRules)
         rules += perDomain(householdBlock, action: .block)
         rules += perDomain(householdAllow, action: .ignorePreviousRules)
-        if rules.count > maxRules {
-            return .failure(
-                SitrError(
-                    "content blocker would need \(rules.count) rules (limit \(maxRules)) — remove some rules"
-                ))
-        }
         return .success(rules)
     }
 
     /// Stable JSON for SFContentBlockerManager: 2-space indent, sorted keys,
     /// trailing newline — deterministic so the applied-rules checksum in the
     /// fail-visible status check is meaningful.
+    ///
+    /// Written byte by byte into one buffer: JSONSerialization over ~110k
+    /// dictionaries plus the String round-trip peaked at ~230 MB for a
+    /// 17 MB list; this peaks at the output size.
     public static func serialize(_ rules: [SafariRule]) -> Data {
-        let objects = rules.map { $0.jsonObject }
-        let data =
-            (try? JSONSerialization.data(
-                withJSONObject: objects,
-                options: [.prettyPrinted, .sortedKeys]
-            )) ?? Data("[]".utf8)
-        var text = String(decoding: data, as: UTF8.self)
-        if !text.hasSuffix("\n") { text += "\n" }
-        return Data(text.utf8)
+        guard !rules.isEmpty else { return Data("[]\n".utf8) }
+        var out = Data()
+        out.reserveCapacity(rules.count * 180)
+        func put(_ s: String) { out.append(contentsOf: s.utf8) }
+        put("[\n")
+        for (i, rule) in rules.enumerated() {
+            put("  {\n    \"action\": {\n      \"type\": \"\(rule.action.rawValue)\"\n    },\n    \"trigger\": {\n")
+            if let ifDomain = rule.ifDomain {
+                put("      \"if-domain\": [\(ifDomain.map(jsonString).joined(separator: ", "))],\n")
+            }
+            put("      \"url-filter\": \(jsonString(rule.urlFilter))\n    }\n  }")
+            put(i == rules.count - 1 ? "\n" : ",\n")
+        }
+        put("]\n")
+        return out
+    }
+
+    /// A JSON string literal: quote, backslash and control characters
+    /// escaped — everything else passes through as UTF-8.
+    static func jsonString(_ s: String) -> String {
+        var r = "\""
+        for scalar in s.unicodeScalars {
+            switch scalar {
+            case "\"": r += "\\\""
+            case "\\": r += "\\\\"
+            case _ where scalar.value < 0x20: r += String(format: "\\u%04x", scalar.value)
+            default: r.unicodeScalars.append(scalar)
+            }
+        }
+        return r + "\""
     }
 
     /// Trigger/action keys this parser actually understands. A fragment
