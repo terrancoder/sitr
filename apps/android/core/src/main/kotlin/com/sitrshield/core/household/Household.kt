@@ -178,6 +178,33 @@ object Household {
     fun isJoinPlaceholder(s: HouseholdState): Boolean = s.rev == 1 && s.updatedAt == 0.0
 
     /** A new revision authored by this device. */
+    /**
+     * "Refresh device list": the device list with this device alone, as a
+     * new revision. Every device that still uses the household adds itself
+     * again at its next sync (enrolDevice); a device that is gone stays
+     * gone and its place is free. The list holds only random ids, so no
+     * per-device remove can be offered.
+     */
+    fun refreshDevices(s: HouseholdState, deviceId: String, now: Double): HouseholdState =
+        bumpRev(s.copy(devices = listOf(deviceId)), deviceId, now)
+
+    /**
+     * The enrolment after every successful sync round: this device added
+     * when it is missing (after a join, or after a guardian refreshed the
+     * list). Ok(null): already listed. Err at the fair-use cap (filtering
+     * stays fully active; only the sync status says so).
+     */
+    fun enrolDevice(s: HouseholdState, deviceId: String, now: Double): SitrResult<HouseholdState?> {
+        if (deviceId in s.devices) return SitrResult.Ok(null)
+        if (s.devices.size >= MAX_HOUSEHOLD_DEVICES) {
+            return SitrResult.Err(
+                "household already has $MAX_HOUSEHOLD_DEVICES devices (fair-use limit) — " +
+                    "refresh the device list from a guardian device"
+            )
+        }
+        return SitrResult.Ok(bumpRev(s.copy(devices = (s.devices + deviceId).sorted()), deviceId, now))
+    }
+
     fun bumpRev(s: HouseholdState, deviceId: String, now: Double): HouseholdState =
         s.copy(rev = s.rev + 1, updatedAt = now, updatedBy = deviceId)
 

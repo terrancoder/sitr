@@ -36,8 +36,12 @@ import kotlin.concurrent.thread
  * then calls the action.
  */
 class HouseholdActions(private val app: SitrApp) {
-    private companion object {
-        const val LOCKED = "turn off the child lock first"
+    companion object {
+        private const val LOCKED = "turn off the child lock first"
+        const val WAITING_FOR_FIRST_SYNC =
+            "Waiting for the first sync with your household. Connect to the " +
+                "internet and tap Sync now. The household's PIN and lists " +
+                "appear here after that."
     }
 
     private fun now() = System.currentTimeMillis().toDouble()
@@ -203,6 +207,24 @@ class HouseholdActions(private val app: SitrApp) {
     fun createPinRecord(newPin: String): SitrResult<PinRecord> = Pin.createRecord(newPin)
 
     fun setPin(record: PinRecord) = mutateHousehold { it.copy(pin = record) }
+
+    /**
+     * Call only after decide() let Gate.REFRESH_DEVICE_LIST_GATED_AS
+     * through (guardian; PIN when set). The device list becomes this device
+     * alone, as a normal household change (rev bumped, synced); the others
+     * add themselves again as they sync. Refused before the first sync.
+     */
+    fun refreshDeviceList(): SitrResult<Unit> {
+        val household = settings().household ?: return SitrResult.Ok(Unit)
+        if (Household.isJoinPlaceholder(household)) return SitrResult.Err(WAITING_FOR_FIRST_SYNC)
+        // refreshDevices bumps the revision itself, so not mutateHousehold.
+        app.update(kickSync = true) { s ->
+            val h = s.household ?: return@update s
+            if (Household.isJoinPlaceholder(h)) s
+            else s.copy(household = Household.refreshDevices(h, s.deviceId, now()))
+        }
+        return SitrResult.Ok(Unit)
+    }
 
     fun setHouseholdCategoryDisabled(rulesetId: String, disabled: Boolean) {
         mutateHousehold {

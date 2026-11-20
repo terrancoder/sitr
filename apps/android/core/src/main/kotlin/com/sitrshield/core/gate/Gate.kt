@@ -62,6 +62,18 @@ sealed class MutationVerdict {
 }
 
 object Gate {
+    /**
+     * "Refresh device list" has no row of its own (gate.json
+     * "refreshDeviceListGatedAs"): gated exactly like changing the PIN —
+     * refused on a managed lock or a child device, PIN when one is set, no
+     * wait (it loosens nothing).
+     */
+    val REFRESH_DEVICE_LIST_GATED_AS = MutationKind.CHANGE_PIN
+
+    /** A child device's leave refused for want of a household PIN (gate.json note). */
+    const val CHILD_LEAVE_NEEDS_PIN =
+        "Leaving needs the guardian PIN. Ask your guardian to set one in the household."
+
     private val HOUSEHOLD_ONLY = setOf(
         MutationKind.REMOVE_HOUSEHOLD_RULE,
         MutationKind.ADD_HOUSEHOLD_RULE,
@@ -86,6 +98,12 @@ object Gate {
             return MutationVerdict.Refused(MutationVerdict.Reason.MANAGED_LOCKED)
         }
         if (ctx.role == HouseholdRole.CHILD) {
+            // A child device leaves only with the household's guardian PIN;
+            // with no PIN set it cannot leave (no other proof is accepted).
+            if (kind == MutationKind.LEAVE_HOUSEHOLD) {
+                return if (ctx.hasPin) MutationVerdict.Allowed(requiresPin = true)
+                else MutationVerdict.Refused(MutationVerdict.Reason.CHILD_DEVICE)
+            }
             // A child device may still tighten its own device rules;
             // everything household-level or loosening is guardian territory.
             if (kind in HOUSEHOLD_ONLY || kind in LOOSENING) {

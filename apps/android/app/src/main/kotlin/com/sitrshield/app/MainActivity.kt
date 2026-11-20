@@ -40,6 +40,7 @@ import com.sitrshield.app.ui.SitrTheme
 import com.sitrshield.core.gate.Delay
 import com.sitrshield.core.gate.DelayAction
 import com.sitrshield.core.gate.DelayPhase
+import com.sitrshield.core.gate.Gate
 import com.sitrshield.core.gate.MutationKind
 import com.sitrshield.core.gate.MutationStep
 import com.sitrshield.core.gate.MutationVerdict
@@ -115,7 +116,9 @@ fun SitrRoot(app: SitrApp, resumes: Int) {
                 MutationVerdict.Reason.MANAGED_LOCKED ->
                     "Settings are locked by your organization."
                 MutationVerdict.Reason.CHILD_DEVICE ->
-                    "This is managed by your guardian."
+                    // A child refused leaving has no household PIN to give.
+                    if (kind == DelayAction.Kind(MutationKind.LEAVE_HOUSEHOLD)) Gate.CHILD_LEAVE_NEEDS_PIN
+                    else "This is managed by your guardian."
             }
             MutationStep.Wait -> hold = delay
             MutationStep.Pin -> pinRequest = Triple(title, kind, action)

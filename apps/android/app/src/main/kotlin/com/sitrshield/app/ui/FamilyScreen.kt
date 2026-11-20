@@ -27,10 +27,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import com.sitrshield.app.HouseholdActions
 import com.sitrshield.app.Screen
 import com.sitrshield.app.UiCtx
 import com.sitrshield.app.sync.SyncWorker
 import com.sitrshield.core.SitrResult
+import com.sitrshield.core.gate.Gate
 import com.sitrshield.core.gate.MutationKind
 import com.sitrshield.core.household.Household
 import kotlinx.coroutines.Dispatchers
@@ -169,15 +171,34 @@ private fun InHousehold(ctx: UiCtx) {
     val waiting = Household.isJoinPlaceholder(household)
     if (waiting) {
         Spacer(Modifier.height(12.dp))
-        Text(
-            "Waiting for the first sync with your household. Connect to the " +
-                "internet and tap Sync now. The household's PIN and lists " +
-                "appear here after that.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        Text(HouseholdActions.WAITING_FOR_FIRST_SYNC, style = MaterialTheme.typography.bodyMedium)
     }
 
     if (isGuardian && !waiting) {
+        // Beside the count: the list holds only random ids, so the only way
+        // to free a gone device's place is to clear it and let the live
+        // devices add themselves back. Gated like changing the PIN.
+        Text(
+            "Clears the household's device list. Each device that still uses " +
+                "this household adds itself again the next time it syncs: within " +
+                "about 30 minutes, or when Sitr is opened on it. Use it to free " +
+                "the places of devices that are gone.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.secondary,
+        )
+        OutlinedButton(onClick = {
+            ctx.attempt(Gate.REFRESH_DEVICE_LIST_GATED_AS, "Refresh the device list") {
+                message = when (val done = ctx.actions.refreshDeviceList()) {
+                    is SitrResult.Err -> done.message
+                    is SitrResult.Ok -> {
+                        val n = ctx.app.repository.current().household?.devices?.size ?: 0
+                        "The household now lists $n ${if (n == 1) "device" else "devices"}. " +
+                            "The number rises again as its devices sync."
+                    }
+                }
+            }
+        }) { Text("Refresh device list") }
+
         Spacer(Modifier.height(12.dp))
         Text("Pairing", style = MaterialTheme.typography.titleMedium)
         if (revealedCode == null) {

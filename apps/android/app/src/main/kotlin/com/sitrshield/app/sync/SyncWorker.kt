@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.sitrshield.app.SitrApp
+import com.sitrshield.core.SitrResult
 import com.sitrshield.core.household.Household
 import com.sitrshield.core.sync.SyncClient
 import com.sitrshield.core.sync.SyncInput
@@ -49,37 +50,26 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
             )
         )
 
-        // Honest fair-use enrollment (mirrors the extension's service
-        // worker): join the device list only below the 20-device cap;
-        // at the cap, surface it — filtering stays fully active.
-        if (outcome.status.state == SyncStatus.State.OK &&
-            settings.deviceId !in outcome.state.devices
-        ) {
-            if (outcome.state.devices.size >= Household.MAX_HOUSEHOLD_DEVICES) {
-                outcome = outcome.copy(
-                    status = SyncStatus(
-                        SyncStatus.State.ERROR,
-                        error = "this household is at its " +
-                            "${Household.MAX_HOUSEHOLD_DEVICES}-device fair-use cap",
+        // Honest fair-use enrolment (Household.enrolDevice, as the
+        // extension's service worker): join the device list when missing —
+        // after a join, or after a guardian refreshed the list — below the
+        // 20-device cap; at the cap, surface it — filtering stays active.
+        if (outcome.status.state == SyncStatus.State.OK) {
+            when (val enrolled = Household.enrolDevice(outcome.state, settings.deviceId, now())) {
+                is SitrResult.Err -> outcome = outcome.copy(
+                    status = SyncStatus(SyncStatus.State.ERROR, error = enrolled.message)
+                )
+                is SitrResult.Ok -> enrolled.value?.let { state ->
+                    outcome = client.syncOnce(
+                        SyncInput(
+                            rootSecret = secret,
+                            local = state,
+                            maxSeenRev = outcome.maxSeenRev,
+                            deviceId = settings.deviceId,
+                            entitlement = settings.entitlementToken,
+                        )
                     )
-                )
-            } else {
-                val enrolled = Household.bumpRev(
-                    outcome.state.copy(
-                        devices = (outcome.state.devices + settings.deviceId).sorted(),
-                    ),
-                    settings.deviceId,
-                    now(),
-                )
-                outcome = client.syncOnce(
-                    SyncInput(
-                        rootSecret = secret,
-                        local = enrolled,
-                        maxSeenRev = outcome.maxSeenRev,
-                        deviceId = settings.deviceId,
-                        entitlement = settings.entitlementToken,
-                    )
-                )
+                }
             }
         }
 
