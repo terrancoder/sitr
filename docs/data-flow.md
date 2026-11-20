@@ -179,6 +179,91 @@ user**, checksum-verified before applying. The same promise covers the
 apps: today their blocklists ship inside the store-reviewed binaries and
 update only through store releases.
 
+### Planned (not yet in effect): Family subscriptions, entitlement version 2
+
+> **NOT YET IN EFFECT** (written 20 November 2026). Nothing in this block
+> is built. Everything above describes what is live. Full rules:
+> [sync-protocol.md](sync-protocol.md) §Entitlement version 2 (planned).
+
+When version 2 ships, these flows are added. Three sentences above then
+stop being true and will be rewritten: Family sync is no longer "exactly
+one endpoint" (the claim service is a second host,
+`claim.sitrshield.com`, a separate service with its own storage; the
+sync host never receives a claim request), the claim is no longer called
+only by the website, and the iOS app is no longer join-only. Each client
+keeps one HTTP call site, with a second base URL used only for the
+claim. The extension asks for the claim host as an optional permission
+when the user enters a subscription code; the apps need no permission.
+A network observer, or the DNS resolver, can see that a device contacts
+the claim host: in practice, that it is the device that renews a
+subscription.
+
+| From → to | Endpoint | Request contains | Response | Frequency |
+|---|---|---|---|---|
+| extension, Android → claim service | `POST https://claim.sitrshield.com/v1/entitlement/claim` | `source: "polar"`, the subscription code (Polar's subscription ID), the device's claim secret (32 random bytes, the same every month; it binds the subscription to one claimer), a `replace` flag. No household id, no auth credential. The claim secret is a stable value, so it links one device's monthly claims, which the subscription ID already does | a signed token (plan, term, end date, random token ID; no identity), or a reason code | when a household is created; then once a month for every plan, in a window from 7 days before the UTC month ends to the 4th, the first attempt at a random time in its first 5 days; retries after failures |
+| iOS → claim service | same | `source: "apple"`, Apple's signed transaction for the Family subscription, the claim secret, the `replace` flag | same | at purchase and household creation, then as above |
+| iOS → Apple | StoreKit (Apple's own purchase flow) | whatever Apple's purchase sheet sends; Sitr adds nothing, and never sets `appAccountToken` | the signed transaction | at purchase, renewal and Restore |
+| Apple → claim service | `POST https://claim.sitrshield.com/v1/entitlement/apple/notifications` | Apple's signed notification (refund, renewal, expiry, …) | empty | sent by Apple, not by any client |
+| website → claim service | `GET https://claim.sitrshield.com/v1/entitlement/subscription/{checkoutId}` | the checkout ID from the welcome page | `{"code": <subscription ID>}`, or a reason code; nothing stored | once, on the welcome page after checkout (a website call, not a client one) |
+| claim service → Polar | `GET /v1/subscriptions/{id}` (claims); `GET /v1/checkouts/{id}` (the exchange above and the version 1 route) | the subscription ID, or the checkout ID | status, product, interval, paid end, or the checkout's status and subscription ID; Polar also sends the buyer's details; the service keeps only the listed fields and stores and logs nothing else | one call per website claim; one per exchange; two per version 1 claim |
+| iOS → iCloud Keychain (Apple) | synchronizable Keychain items | the household root secret and the claim secret | none | while the switch "Keep the household key in iCloud Keychain" is on (on by default); turning it off deletes the synced copy |
+
+Apple's signed transaction also contains the transaction ID, the
+storefront country, the price and a device-verification value. The claim
+service reads only the fields it checks (bundle, environment, product,
+original transaction ID, expiry, revocation, ownership type, signing date)
+and stores none of them.
+
+What the claim service stores, in its own database on its own volume,
+which the sync service never opens:
+
+- per subscription that renews: a keyed hash of the subscription ID (the
+  marker), a keyed hash of the claim secret it is bound to (the binder),
+  and the end of the last month it claimed for (the same value for every
+  subscription that claimed for that month). Deleted once its newest
+  token has expired, on the 4th of the first month it did not renew for.
+- per marker, only while needed: the day of the last rebind (kept 180
+  days). Sandbox purchases store neither binder nor month.
+- per refunded or revoked Apple transaction: a keyed hash of its
+  transaction ID and its expiry, kept until that expiry (at most about a
+  year for a yearly subscription). The raw transaction ID is never
+  stored or logged.
+- until the version 1 cut-over: a keyed hash of each checkout redeemed on
+  the version 1 claim route and its token's expiry, so it mints once per
+  checkout and can repeat that same token until its expiry. Deleted at
+  the cut-over.
+- no token, no token ID, no claim secret, no subscription ID, no checkout
+  ID, no product, no name, no email, no IP address. The operator can still
+  match a website marker to a named buyer, because Polar lists every
+  subscription ID for the operator; it cannot match a marker to a
+  household.
+
+Apple's signed transactions and notifications are checked with Node's
+own crypto library against Apple's pinned root certificate; no call goes
+to Apple.
+
+What the sync server adds:
+
+- per household: the entitlement's end date (`ent_exp`), the same date
+  for every household that renewed in a month, and, for a test household
+  made with an App Review or TestFlight purchase, the day it is deleted
+  (7 days after creation).
+- a table of used-token hashes with each token's end date, and no
+  household id: version 2 tokens and, from deployment until the cut-over,
+  version 1 tokens, which become single-use. Deleted when the token's end
+  date passes.
+- responses tell a household's devices its end date
+  (`X-Sitr-Entitlement-Expires`).
+
+Planned local items, with the same retention rules as the table below:
+
+| Item | Where | Contains | Retention |
+|---|---|---|---|
+| Subscription code | extension `storage.local`; Android encrypted under the Keystore key that protects the root secret; not stored on iOS (StoreKit holds the purchase) | Polar's subscription ID | until removed by the user or the device leaves the household |
+| Claim secret | extension `storage.local`; Android app-private preferences, encrypted under the Keystore key that protects the root secret; iOS Keychain, synchronizable through iCloud Keychain together with the root secret when the switch is on. Never sent to the sync server, never in the household blob | 32 random bytes | kept with the credential, deleted with it |
+| Subscription token | as today; iOS App Group storage | signed token: plan, term, end date, random token ID | until replaced, or once the server shows it was applied |
+| Household root secret (iOS) | Keychain, synchronizable through iCloud Keychain when the switch is on | as today | as today; the iCloud copy is deleted when the switch is turned off |
+
 ## Data stored locally
 
 | Item | Where | Contains | Retention |

@@ -541,6 +541,188 @@ turns providers into visible failures; iCloud Private Relay; an
 encrypted-DNS profile or app. We make no claim for these cases until
 they are tested.
 
+### T15: The Family entitlement and the claim service (planned, not yet in effect)
+Written 20 November 2026 for entitlement version 2
+([sync-protocol.md](sync-protocol.md) §Entitlement version 2 (planned)).
+Nothing here is built. Version 2 adds a claim service that sees proof of
+payment (a Polar subscription ID, or Apple's signed transaction) and issues a
+single-use token per UTC calendar month; the sync server records each
+household's end date and the hashes of used tokens. The assets at risk
+are the buyer's privacy (T6 extended to payments) and the rule that one
+subscription backs one household.
+
+**The operator.** Structural limits: the claim service stores only a
+keyed hash of each subscription ID (the marker), a keyed hash of the
+claim secret it is bound to (the binder) and the last month it claimed
+for, while the subscription renews; plus, while needed, the day of the
+last rebind, a keyed hash and the expiry of each refunded or revoked
+Apple transaction, and, until the cut-over, a keyed hash of each
+checkout redeemed on the version 1 route with its token's expiry. It
+stores no token, token ID, claim secret, raw transaction ID, name, email
+or IP address, and from Polar's
+answers, which carry the buyer's details, it keeps only the status,
+product, interval and paid end. The sync server stores no subscription
+data. They run as two services with two volumes (on Railway, two
+services and two hostnames) and share no key, table or file; the sync
+service's settings hold no private key, claim key or Polar or Apple
+setting. The token ID is an HMAC
+output that neither database can link to a marker. Every non-test
+household that renewed in a month has the same end date (the 4th of the
+next month), so the date no longer points to a subscription. What
+remains, stated plainly: an operator holding the claim key who already
+knows a subscription ID can test for its marker and learn whether it is
+bound, claimed this month or was rebound in the last 180 days, and one
+who knows an Apple transaction ID can test whether it was refunded. For
+website purchases the operator knows every subscription ID
+(Polar's dashboard and API list them with the buyers' names), so every
+website marker can be matched to a named buyer; for Apple purchases the
+operator has no transaction IDs (that would need an API key). In both
+cases the marker still does not lead to a household. An operator who compares copies of both databases taken over
+time can see when a household first appeared and in which month it
+stopped renewing, and when a marker appeared and stopped claiming; with
+few subscribers these moments can be matched, and Polar's dashboard
+shows the operator when each named website buyer bought and cancelled.
+Test households carry their creation day. An operator who logged
+requests could match a claim to the write that follows it, as with
+version 1 today; and because the claim secret is sent every month, one
+logged claim would let the operator compute that subscription's future
+token IDs. The servers log nothing per request.
+
+**A network observer.** Sees TLS connections and their timing and
+sizes. The claim service has its own hostname, `claim.sitrshield.com`,
+so an observer of the connection or of its DNS lookup can tell that a
+device contacts it: in practice, that this device renews a subscription,
+about once a month. A claim followed by a write to the sync host looks
+like two short exchanges with two hosts. The credential and the token are
+inside TLS.
+
+**A dishonest buyer.** A subscription is bound to one claim secret, so
+one device renews it. That device gets one token per calendar month, and
+each token extends one household once (its ID is burned at first use).
+The bounds:
+
+- **Replacement rule (rebind).** Another claim secret can take over a
+  subscription once in any 180 days (`SITR_REPLACEMENT_DAYS`), and gets
+  the token the period rule gives at that moment even if the old one
+  already got it. Made on the first day of a renewal window, that token
+  runs to the 4th of the month after next, at most about 41 days, so at
+  worst a second household lives about 41 of every 180 days (under a
+  quarter of the time). A binding whose newest token has expired is
+  stale, and any claim secret can then bind without using the rebind;
+  that gives no second household, because the old token is dead.
+- **Renewal window and early tokens.** Next month's token can be
+  claimed from the 24th or 25th, while this month's token keeps its
+  household until the 4th. Such a token is early until the 1st: it may
+  create a household or extend one that has not lapsed, but it cannot
+  reopen a lapsed one (it is then not burned and works from the 1st). So
+  a buyer who alternates tokens between two existing households keeps
+  both alive together for at most the 3-day grace each month, as before
+  the window. The only way to hold two households longer is to create a
+  fresh one each month, which starts empty and loses every pairing.
+- **Unpaid tail.** A token is issued while the paid end is ahead (for
+  next month's token, while the paid end is after the 1st) and lasts to
+  the 4th of the month after. A buyer who cancels, or whose renewal
+  fails, keeps the household up to about 34 days (paid end just after
+  00:00 UTC on the 1st of a 31-day month), about 18 days on average,
+  without paying. Owner's decision, accepted for the simpler, more
+  private rule.
+- **Until the cut-over.** Version 1 tokens minted before version 2 is
+  deployed are unchanged (owner's decision D3): each still creates any
+  number of legacy households, as today, until the cut-over. That
+  includes tokens already handed out, for example in store review notes,
+  and any token the owner mints later with `mint.js --old-style-token`
+  (the CLI defaults to 7 days and needs that flag for more).
+  Only in its own last 8 days does such a token fall under the
+  single-use rule. Version 1 tokens minted after deployment (by the
+  version 1 route, which the welcome page still calls for the builds in
+  use, at most once per checkout and only while its subscription is
+  active, with a 7-day deadline) are single-use. Households created
+  before the deployment stay, and a legacy household has no end until
+  the cut-over, even if its subscription lapses.
+- **Sharing an Apple ID or a code.** Every holder of the credential can
+  try, but only the bound claim secret renews (devices that share it
+  through iCloud Keychain compute the same token, usable once), so sharing
+  gives no more households than the bounds above.
+- **Sandbox.** A Sandbox purchase (App Review, TestFlight, where
+  purchases are free) gets a token marked as a test for the current UTC
+  day, valid at most 25 hours, on any device: Sandbox has no binding,
+  because App Review uses several devices. So anyone with a Sandbox
+  purchase can make test households, each lapsing within 25 hours unless
+  renewed daily and deleted after 7 days. Xcode receipts are always
+  refused. The Sandbox switch should be on only while a review or test
+  needs it.
+
+**The refund window.** A refund stops new tokens, not the current one.
+Apple's `REFUND` notification marks the refunded transaction, so its
+receipt gets no further token; the household stays writable until its
+current end date, the next 4th or, if next month's token was already
+claimed, the 4th after that: at most about 41 days. A later renewal or a
+new purchase is a different transaction and is not blocked; whether Apple
+stops auto-renewal after a refund is to confirm, and if it does not, the
+next renewal gets tokens, which is the intended reading. On Polar a
+refund does not end a subscription: the owner
+must also revoke it, or it keeps getting tokens. If Apple's
+notification never arrives, a receipt signed before the refund can still
+be claimed until its own expiry, by the bound device or after a rebind:
+about a month for a monthly plan, up to the end of the paid year for a
+yearly one. Closing that needs Apple's server API and an API key, which
+version 2 avoids.
+
+**Exhausting the Polar allowance.** Refused claims (`bound-to-other-device`,
+`replacement-used`, `revoked`) do not count against the per-marker limit,
+so a holder of the code without the claim secret cannot use up the bound
+device's allowance. But each refused website claim still costs one call
+to Polar, bounded only per IP address. An attacker with many addresses
+could push the organisation's Polar allowance (500 requests a minute)
+towards its limit and cause `billing-unavailable` for every buyer for as
+long as they keep it up. Households keep working until `E` meanwhile.
+Apple refusals cost no outbound call.
+
+**Who holds a website subscription code.** The code is Polar's
+subscription ID, which Polar does not present as a secret: besides the
+buyer, the owner (Polar's dashboard), every webhook consumer of the
+organisation and anyone holding the organisation token can read it, and
+the welcome page shows it to whoever holds the checkout URL. Any of them
+can do what a thief of the code can do, below, and no more.
+
+**A thief of a subscription code or of a copy of a receipt.** Once the
+buyer has claimed, the thief is refused (`bound-to-other-device`): the
+thief does not have the buyer's claim secret, which never leaves the
+buyer's devices except to the claim service (and, on iOS, to the buyer's
+own iCloud Keychain). A thief who claims before the buyer ever does binds
+the subscription, and the buyer then needs the rebind. The rebind is a
+bearer power too: a thief who also uses it takes the subscription back,
+and the buyer cannot rebind again for 180 days, so a persistent thief can
+hold a subscription for up to 180 days at a time. A thief can also bind
+when the buyer's device missed a whole renewal window (about 10 days
+offline), because the binding is then stale. The thief cannot reach the
+owner's household (that needs the pairing code) and gets no buyer data
+from Sitr: the token has no identity, and errors never name the plan or
+paid end. A Polar subscription ID cannot be rotated; the remedy is to cancel
+and buy again. A copy of an Apple receipt works only until its
+`expiresDate`; later receipts reach only the buyer's devices.
+
+**The keyed marker.** The marker is HMAC-SHA-256 under a key only the
+claim process holds. A leak of the claim database alone gives hashes that
+cannot be read back or tested without the key. A leak of the key and the
+database lets the holder test known subscription IDs, as the operator
+can. The key never enters the sync service, which parses untrusted
+blob traffic, for the same reason the signing key does not; that holds
+only if neither key is set on the sync service or as a project-wide
+shared variable, which the deployment steps forbid.
+
+**Apple receipts are checked with the standard library.** The claim
+service verifies Apple's certificate chain and signature with Node's
+`node:crypto` against a pinned root, with no runtime dependency, so a
+mistake there would be ours. The steps are listed for review in the
+spec, and the tests compare results with Apple's own library. Apple's
+certificates are not checked for revocation, which would be an online
+check. The pinned root is a certificate file downloaded from Apple's
+certificate authority page; a person compares its fingerprint with the
+value on that page before the first deployment. The trust anchor is a
+constructor argument that no setting can change, so tests can use their
+own chains while production can accept only Apple's.
+
 ## Out of scope / honest limitations
 
 - **A determined user can bypass Sitr** (disable the extension, another
