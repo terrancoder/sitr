@@ -14,6 +14,15 @@ struct ListsView: View {
 
     var body: some View {
         List {
+            if model.safariUpdating {
+                Section {
+                    Label("Updating Safari rules…", systemImage: "arrow.triangle.2.circlepath")
+                        .foregroundStyle(Theme.ink)
+                    Text(SafariUpdatingText.line(dnsFilterOn: model.dnsFilterStatus == .on))
+                        .font(.caption).foregroundStyle(Theme.inkSoft)
+                }
+                .sitrRows()
+            }
             Section("Always allow these sites") {
                 editor(
                     input: $allowInput,
@@ -93,6 +102,9 @@ struct ListsView: View {
                 }
             }
         }
+        // The separator otherwise aligns to the first Text in the row —
+        // the "Add" label, since a TextField isn't one — leaving a stub.
+        .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         ForEach(domains, id: \.self) { domain in
             HStack {
                 Text(domain).foregroundStyle(Theme.ink)

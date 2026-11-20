@@ -95,8 +95,11 @@ public final class DnsEngine: Sendable {
     ///  1. unparseable or non-IN → drop
     ///  2. the DoH canary → NODATA (Firefox then leaves its own DoH off)
     ///  3. the ladder → blocked answer
-    ///  4. SafeSearch host → HTTPS (65) NODATA; A/AAAA rewrite; any other
-    ///     type forwarded WITHOUT a cache read (as Kotlin's forwardRaw)
+    ///  4. SafeSearch host → SVCB (64), HTTPS (65) and ANY (255) NODATA,
+    ///     since each can carry the real addresses (ipv4hint/ipv6hint, or
+    ///     the A records) and skip the rewrite; A/AAAA rewrite; any other
+    ///     type forwarded WITHOUT a cache read (as Kotlin's forwardRaw).
+    ///     Android 0.3.0 NODATAs only HTTPS and forwards SVCB/ANY.
     ///  5. cache hit → answer; else forward
     public func decide(
         payload: [UInt8], snapshot: DecisionSnapshot, safeSearch: SafeSearchMap, now: TimeInterval
@@ -108,7 +111,7 @@ public final class DnsEngine: Sendable {
             return .answer(DnsAnswerBuilder.blocked(query))
         case .rewrite(let rule):
             switch query.qtype {
-            case DnsMessage.typeHTTPS: return .answer(DnsAnswerBuilder.nodata(query))
+            case DnsMessage.typeSVCB, DnsMessage.typeHTTPS, DnsMessage.typeANY: return .answer(DnsAnswerBuilder.nodata(query))
             case DnsMessage.typeA, DnsMessage.typeAAAA: return .rewrite(query, rule)
             default: return .forward(query)
             }
@@ -197,7 +200,11 @@ public actor UpstreamResolver {
     /// skipped until the transport's timeout. A truncated answer is fetched
     /// again over TCP from the same upstream and returned whole; if TCP
     /// fails, is not accepted or is over 4096 bytes, the truncated one is
-    /// returned. `preferred` moves to any upstream that answered, truncated
+    /// returned. A UDP datagram over 4096 bytes (the transport reads one
+    /// byte more to see it) was cut: it is treated as truncated, and if TCP
+    /// cannot replace it the client gets a well-formed TC reply (header and
+    /// question only), never the cut message, so it fails at once instead
+    /// of timing out, and nothing malformed is cached. `preferred` moves to any upstream that answered, truncated
     /// or not.
     /// ponytail: no bound on in-flight forwards here; Android caps them
     /// (32 forward + 4 target workers, queue 64, drop when full) and the
@@ -209,13 +216,14 @@ public actor UpstreamResolver {
             let index = (first + i) % list.count
             guard let reply = await overUdp(list[index], payload, accept) else { continue }
             preferred = index
-            if !DnsMessage.isTruncated(reply) { return reply }
+            let cut = reply.count > Self.maxReplyBytes
+            if !cut && !DnsMessage.isTruncated(reply) { return reply }
             if let full = try? await transport.tcp(payload, to: list[index]),
                 full.count <= Self.maxReplyBytes, accept(full)
             {
                 return full
             }
-            return reply
+            return cut ? DnsMessage.truncatedReply(to: payload) : reply
         }
         return nil
     }

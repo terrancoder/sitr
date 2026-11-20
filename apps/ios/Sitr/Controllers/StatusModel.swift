@@ -28,13 +28,31 @@ enum ScreenTimeStatus: Equatable {
 struct ProtectionSummary: Equatable {
     let blocker: BlockerStatus
     let screenTime: ScreenTimeStatus
+    var dnsFilter: DnsFilterStatus = .off
+
+    /// Safari stale only because an apply of a saved change is running.
+    var safariUpdating = false
+
+    /// Home's one card, by precedence: red (anything failing) > gold (DNS
+    /// filter cannot read this network's DNS server) > grey (DNS filter
+    /// starting) > grey (Safari loading a saved change) > green.
+    enum Card: Equatable { case failing, noResolver, dnsStarting, safariUpdating, active }
+
+    /// The Safari blocker is fine, or merely loading a change already saved.
+    var blockerOK: Bool { blocker == .active || (safariUpdating && blocker == .stale) }
+
+    var card: Card {
+        if !blockerOK { return .failing }
+        if case .revoked = screenTime { return .failing }
+        if dnsFilter.isFailing { return .failing }
+        if dnsFilter == .noResolver { return .noResolver }
+        if dnsFilter == .starting { return .dnsStarting }
+        if safariUpdating { return .safariUpdating }
+        return .active
+    }
 
     /// Green only when the user-required protections are proven.
-    var overallActive: Bool {
-        if blocker != .active { return false }
-        if case .revoked = screenTime { return false }
-        return true
-    }
+    var overallActive: Bool { card == .active }
 }
 
 enum StatusModel {

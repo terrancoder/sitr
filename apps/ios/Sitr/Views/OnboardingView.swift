@@ -61,6 +61,9 @@ struct OnboardingView: View {
                     screen with a pairing code from your family's guardian \
                     device.
                     """
+                        + (DnsFilterText.available
+                            ? "\n\nTo filter other apps too and enforce SafeSearch, you can turn on the optional DNS filter later from the Home screen."
+                            : "")
                 )
                 .foregroundStyle(Theme.ink)
                 Button("Finish") {
@@ -72,6 +75,7 @@ struct OnboardingView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .sitrReadableWidth()
         .background(Theme.paper.ignoresSafeArea())
         .task { await model.refreshStatus() }
         .onChange(of: step) { _ in

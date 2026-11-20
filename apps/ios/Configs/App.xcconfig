@@ -1,7 +1,6 @@
 #include "Shared.xcconfig"
 
 PRODUCT_BUNDLE_IDENTIFIER = com.sitrshield.sitr
-CODE_SIGN_ENTITLEMENTS = Sitr/Sitr.entitlements
 INFOPLIST_FILE = Sitr/Info.plist
 INFOPLIST_KEY_UILaunchScreen_Generation = YES
 INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES
@@ -19,8 +18,15 @@ INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO
 INFOPLIST_KEY_LSApplicationCategoryType = public.app-category.utilities
 ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
 
-// Experimental DNS filter prototype: DEBUG ONLY. Debug signs with the
-// Network Extension entitlement and embeds SitrTunnel.appex; Release keeps
-// Sitr.entitlements and leaves the appex out, so Release is unchanged.
-CODE_SIGN_ENTITLEMENTS[config=Debug] = Sitr/SitrDebug.entitlements
-EXCLUDED_SOURCE_FILE_NAMES[config=Release] = SitrTunnel.appex
+// DNS filter (SITR_DNS_FILTER in Shared.xcconfig). Same entitlements in
+// Debug and Release; the NO variant drops the appex, the Network Extension
+// entitlement and every DNS-filter code path.
+SITR_ENTITLEMENTS_YES = Sitr/Sitr.entitlements
+SITR_ENTITLEMENTS_NO = Sitr/SitrNoDnsFilter.entitlements
+CODE_SIGN_ENTITLEMENTS = $(SITR_ENTITLEMENTS_$(SITR_DNS_FILTER))
+SITR_EXCLUDE_YES =
+SITR_EXCLUDE_NO = SitrTunnel.appex
+EXCLUDED_SOURCE_FILE_NAMES = $(SITR_EXCLUDE_$(SITR_DNS_FILTER))
+SITR_SWIFT_FLAG_YES = SITR_DNS_FILTER
+SITR_SWIFT_FLAG_NO =
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) $(SITR_SWIFT_FLAG_$(SITR_DNS_FILTER))

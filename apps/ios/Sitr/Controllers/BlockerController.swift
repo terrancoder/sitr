@@ -168,9 +168,30 @@ enum BlockerController {
         return .success(.applied(checksum: checksum))
     }
 
+    /// One write-then-reload at a time, process-wide: the foreground
+    /// (AppModel) and background (SyncScheduler) paths both come through
+    /// here, so their file writes and Safari reloads cannot interleave.
+    private static let applyGate = InFlightGate(limit: 1, queueLimit: .max)
+
+    /// What Safari holds after `result` (SafariHeld in SitrCore).
+    static func held(after result: Result<ApplyOutcome, ApplyError>) -> SafariHeld.Outcome {
+        switch result {
+        case .success(.applied(let checksum)): return .applied(checksum: checksum)
+        case .success(.pendingReload): return .pendingReload
+        case .failure: return .failed
+        }
+    }
+
     /// The rule inputs of a settings value: the household's lists and
     /// category choices win over the device's when joined.
     static func apply(_ s: AppSettings) async -> Result<ApplyOutcome, ApplyError> {
+        _ = await applyGate.enter()
+        let result = await applyInputs(s)
+        await applyGate.leave()
+        return result
+    }
+
+    private static func applyInputs(_ s: AppSettings) async -> Result<ApplyOutcome, ApplyError> {
         await apply(
             disabledCategories: s.household?.disabledCategories ?? s.disabledCategories,
             mediaOff: s.mediaOff,

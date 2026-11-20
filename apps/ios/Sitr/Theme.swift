@@ -120,7 +120,35 @@ extension View {
     func sitrScreenBackground() -> some View {
         self
             .scrollContentBackground(.hidden)
+            .sitrReadableScroll()
             .background(Theme.paper.ignoresSafeArea())
+    }
+
+    /// The readable-width cap for scrolling screens. On iOS 17+ the
+    /// content is inset instead of the scroll view narrowed, so the whole
+    /// width — margins included — still scrolls and the indicator stays
+    /// at the screen edge.
+    @ViewBuilder
+    func sitrReadableScroll() -> some View {
+        if #available(iOS 17, *), UIDevice.current.userInterfaceIdiom == .pad {
+            // The margin replaces the List's own inset (16 pt in a compact
+            // window), so cards come out 640 pt — the same as the fallback.
+            GeometryReader { geo in
+                self.contentMargins(
+                    .horizontal, max(16, (geo.size.width - 640) / 2), for: .scrollContent)
+            }
+        } else {
+            sitrReadableWidth()
+        }
+    }
+
+    /// Caps content at a readable width, centred, on iPad. Gated on the
+    /// idiom, not the size class: a Max iPhone in landscape is regular
+    /// width too, and iPhone layouts must not change.
+    func sitrReadableWidth() -> some View {
+        self
+            .frame(maxWidth: UIDevice.current.userInterfaceIdiom == .pad ? 680 : .infinity)
+            .frame(maxWidth: .infinity)
     }
 
     /// Row chrome shared by every list section: paper2 cards, rule

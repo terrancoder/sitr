@@ -13,7 +13,8 @@ struct AppSettings {
     /// Sites whose images and video are off in Safari ("x", "reddit", …)
     /// — none by default; see SITE_MEDIA_HOSTS in the compiler.
     var mediaOff: Set<String> = []
-    /// Opt-in Safari lists switched on ("violence", …) — none by default.
+    /// Opt-in lists switched on ("violence", and "doh" for the DNS filter
+    /// only) — none by default.
     /// Device-local like mediaOff: never synced, never in the household
     /// state (older app versions erase unknown household fields).
     var optionalOn: Set<String> = []
@@ -29,6 +30,13 @@ struct AppSettings {
 }
 
 enum SettingsStore {
+    /// SHA-256 of the rules Safari holds (nil: unknown). Written only after
+    /// an apply (AppModel.applySafari, SyncScheduler.syncAndApply).
+    static var appliedChecksum: String? {
+        get { Storage.defaults.string(forKey: "appliedRulesChecksum") }
+        set { Storage.defaults.set(newValue, forKey: "appliedRulesChecksum") }
+    }
+
     static func load() -> AppSettings {
         let d = Storage.defaults
         var s = AppSettings()
@@ -89,9 +97,16 @@ enum SettingsStore {
         d.set(s.syncStatus.state.rawValue, forKey: "syncState")
         d.set(s.syncStatus.lastSuccessAt, forKey: "syncLastSuccessAt")
         d.set(s.syncStatus.error, forKey: "syncError")
-        d.set(s.appliedRulesChecksum, forKey: "appliedRulesChecksum")
-        #if DEBUG
-        DnsFilterDebug.postSettingsChanged()  // experimental DNS filter reloads its lists
+        // appliedRulesChecksum is NOT written here: it records what Safari
+        // holds, and only an apply knows that (appliedChecksum below). A
+        // whole-settings save from an older copy must never overwrite it.
+        #if SITR_DNS_FILTER
+        // A running DNS filter rebuilds its snapshot from these keys. Every
+        // persist comes through here: UI changes and household sync,
+        // foreground or background (SyncScheduler.syncAndApply).
+        CFNotificationCenterPostNotification(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName(tunnelSettingsChangedNotification as CFString), nil, nil, true)
         #endif
     }
 }

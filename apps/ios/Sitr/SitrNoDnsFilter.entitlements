@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- ONLY for SITR_DNS_FILTER = NO (Configs/Shared.xcconfig): the app
+	     without the DNS filter. Sitr.entitlements minus the Network
+	     Extension entitlement; keep the rest identical to it. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.sitrshield.sitr</string>
+	</array>
+	<key>com.apple.developer.family-controls</key>
+	<true/>
+</dict>
+</plist>

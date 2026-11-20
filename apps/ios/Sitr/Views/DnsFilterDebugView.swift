@@ -1,14 +1,13 @@
-#if DEBUG
+#if DEBUG && SITR_DNS_FILTER
 import NetworkExtension
 import SitrCore
 import SwiftUI
 
-/// DEBUG-ONLY: installs, starts and inspects the experimental DNS filter
-/// (SitrTunnel packet tunnel). No on-demand rules on purpose: a broken
-/// tunnel stops all DNS on the phone and must not restart itself; the
-/// owner turns it off here or in Settings → VPN.
+/// DEBUG-ONLY: the DNS filter's diagnostics file, for device testing.
+/// Read-only on purpose: turning the filter on and off goes through the
+/// real DNS filter screen (gate, wait, PIN). Reached from that screen.
 struct DnsFilterDebugView: View {
-    @State private var manager: NETunnelProviderManager?
+    @EnvironmentObject var model: AppModel
     @State private var status: NEVPNStatus = .invalid
     @State private var diag: TunnelDiagnostics?
     @State private var baseline: TunnelDiagnostics?
@@ -17,18 +16,11 @@ struct DnsFilterDebugView: View {
 
     var body: some View {
         List {
-            Section("Experimental: DNS filter") {
-                Text("Prototype. Filters every app's DNS through an on-device VPN. Not part of any release.")
-                    .foregroundStyle(Theme.ink)
+            Section("Debug build only") {
                 LabeledContent("VPN status", value: Self.describe(status))
+                LabeledContent("Last Safari apply", value: model.lastSafariApplyMs.map { "\($0) ms" } ?? "none yet")
+                LabeledContent("App status reads (10 s)", value: "\(DnsFilterController.refreshTimes.filter { $0.timeIntervalSinceNow > -10 }.count)")
                 if let message { Text(message).foregroundStyle(.red) }
-                Button(manager == nil ? "Install and start" : "Start") { Task { await start() } }
-                    .disabled(status == .connected || status == .connecting)
-                Button("Stop") { manager?.connection.stopVPNTunnel() }
-                    .disabled(status != .connected && status != .connecting)
-                if manager != nil {
-                    Button("Remove VPN configuration", role: .destructive) { Task { await remove() } }
-                }
             }
             .sitrRows()
             if let d = diag {
@@ -36,6 +28,16 @@ struct DnsFilterDebugView: View {
                     LabeledContent("State", value: d.state)
                     LabeledContent("Updated", value: d.updatedAt.formatted(date: .omitted, time: .standard))
                     LabeledContent("Upstreams", value: d.upstreams.isEmpty ? "none" : d.upstreams.joined(separator: ", "))
+                    if let m = d.memoryLast {
+                        LabeledContent("Memory (peak)", value: "\(m.footprintBytes >> 20) MB (\(d.peakFootprintBytes >> 20) MB)")
+                    }
+                    if let p = d.paths.last {
+                        LabeledContent("Last network", value: "\(p.interfaces.joined(separator: ", ")) via \(p.method ?? "pending")")
+                        LabeledContent("First answer after resume", value: p.firstAnswerMs.map { "\($0) ms" } ?? "none yet")
+                        LabeledContent(
+                            "Failed: timeout / send / distinct",
+                            value: "\(p.failedTimeout ?? 0) / \(p.failedSendError ?? 0) / \(p.failedQueryHashes?.count ?? 0)")
+                    }
                     let c = d.counters
                     LabeledContent("Seen / blocked / SafeSearch", value: "\(c.seen) / \(c.blocked) / \(c.rewritten)")
                     LabeledContent("Forwarded / cache / failed", value: "\(c.forwarded) / \(c.cacheHits) / \(c.failed)")
@@ -59,51 +61,28 @@ struct DnsFilterDebugView: View {
         .sitrScreenBackground()
         .task { await load() }
         .onReceive(timer) { _ in refresh() }
-        .onReceive(NotificationCenter.default.publisher(for: .NEVPNStatusDidChange)) { _ in refresh() }
     }
 
     private func load() async {
         DnsFilterDebug.writeBaseline()
-        manager = try? await NETunnelProviderManager.loadAllFromPreferences().first
         refresh()
     }
 
     private func refresh() {
-        status = manager?.connection.status ?? .invalid
         diag = TunnelDiagnostics.url("tunnel.json").flatMap(TunnelDiagnostics.read)
         baseline = TunnelDiagnostics.url("app-baseline.json").flatMap(TunnelDiagnostics.read)
-        if status == .disconnected, let m = manager {
-            m.connection.fetchLastDisconnectError { error in
-                if let error { Task { @MainActor in message = "Last disconnect: \(error.localizedDescription)" } }
+        Task {
+            guard let m = try? await NETunnelProviderManager.loadAllFromPreferences().first else {
+                status = .invalid
+                return
+            }
+            status = m.connection.status
+            if status == .disconnected {
+                m.connection.fetchLastDisconnectError { error in
+                    if let error { Task { @MainActor in message = "Last disconnect: \(error.localizedDescription)" } }
+                }
             }
         }
-    }
-
-    private func start() async {
-        message = nil
-        do {
-            let m = manager ?? NETunnelProviderManager()
-            let proto = NETunnelProviderProtocol()
-            proto.providerBundleIdentifier = "com.sitrshield.sitr.tunnel"
-            proto.serverAddress = "On-device DNS filter"
-            m.protocolConfiguration = proto
-            m.localizedDescription = "Sitr DNS filter (experimental)"
-            m.isEnabled = true
-            m.isOnDemandEnabled = false
-            try await m.saveToPreferences()  // first time: the system permission sheet
-            try await m.loadFromPreferences()  // required before starting a fresh config
-            try m.connection.startVPNTunnel()
-            manager = m
-        } catch {
-            message = error.localizedDescription
-        }
-        refresh()
-    }
-
-    private func remove() async {
-        try? await manager?.removeFromPreferences()
-        manager = nil
-        refresh()
     }
 
     static func describe(_ s: NEVPNStatus) -> String {
@@ -129,12 +108,6 @@ enum DnsFilterDebug {
         let raw = SystemResolvers.read()
         d.record(.init(at: Date(), trigger: "app launch", method: "res_ninit in app", raw: raw, usable: SystemResolvers.usable(raw), ms: 0))
         d.write(to: url)
-    }
-
-    /// Tells a running tunnel to rebuild its snapshot from the App Group settings.
-    static func postSettingsChanged() {
-        CFNotificationCenterPostNotification(
-            CFNotificationCenterGetDarwinNotifyCenter(), CFNotificationName(tunnelSettingsChangedNotification as CFString), nil, nil, true)
     }
 }
 #endif

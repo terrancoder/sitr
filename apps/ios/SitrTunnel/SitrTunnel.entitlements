@@ -2,8 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- DEBUG-ONLY prototype (DNS filter feasibility). Release never signs
-	     or embeds this extension: see Configs/Tunnel.xcconfig. -->
+	<!-- The DNS filter extension. No Family Controls here: that is the
+	     app's alone. -->
 	<key>com.apple.developer.networking.networkextension</key>
 	<array>
 		<string>packet-tunnel-provider</string>

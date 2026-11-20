@@ -23,36 +23,13 @@ struct SettingsAboutView: View {
             }
             .sitrRows()
             Section("Privacy") {
-                Text(
-                    """
-                    Filtering happens entirely on this device, using Safari's \
-                    content-blocker engine — which is structurally incapable \
-                    of seeing your browsing. Sitr transmits no browsing \
-                    history, no URLs, no identifiers, no telemetry, no crash \
-                    reports — in every tier.
-
-                    If you use Sitr Family, the only network request is an \
-                    end-to-end encrypted settings blob to sync.sitrshield.com \
-                    — unreadable by the server, tied to no account or email. \
-                    Without a household, the app makes zero network requests.
-                    """
-                )
-                .foregroundStyle(Theme.ink)
+                Text(DnsFilterText.available ? Self.privacyWithDnsFilter : Self.privacy)
+                    .foregroundStyle(Theme.ink)
             }
             .sitrRows()
             Section("Honest limits on iOS") {
-                Text(
-                    """
-                    The Safari blocker protects Safari. The optional Screen \
-                    Time filter extends to WebKit browsers system-wide. \
-                    SafeSearch cannot be enforced on iOS at all — we say so \
-                    rather than imply otherwise. In individual mode, Screen \
-                    Time can be revoked by the device owner: friction, not a \
-                    lock. Child mode (Family Sharing) requires parent \
-                    approval to revoke — the strongest protection iOS offers.
-                    """
-                )
-                .foregroundStyle(Theme.ink)
+                Text(DnsFilterText.available ? Self.limitsWithDnsFilter : Self.limits)
+                    .foregroundStyle(Theme.ink)
             }
             .sitrRows()
             // Points at the one filter that can see pictures; Sitr can't
@@ -88,16 +65,75 @@ struct SettingsAboutView: View {
                 Link("Blocklist sources and credits", destination: SupportLinks.attribution)
             }
             .sitrRows()
-            #if DEBUG
-            Section("Debug builds only") {
-                NavigationLink("Experimental: DNS filter") { DnsFilterDebugView() }
-            }
-            .sitrRows()
-            #endif
         }
         .navigationTitle("About & privacy")
         .sitrScreenBackground()
     }
+
+    private static let privacy = """
+        Filtering happens entirely on this device, using Safari's \
+        content-blocker engine — which is structurally incapable \
+        of seeing your browsing. Sitr transmits no browsing \
+        history, no URLs, no identifiers, no telemetry, no crash \
+        reports — in every tier.
+
+        If you use Sitr Family, the only network request is an \
+        end-to-end encrypted settings blob to sync.sitrshield.com \
+        — unreadable by the server, tied to no account or email. \
+        Without a household, the app makes zero network requests.
+        """
+
+    /// True whether the DNS filter is on or off.
+    private static let privacyWithDnsFilter = """
+        Filtering happens entirely on this device. In Safari it uses \
+        Safari's content-blocker engine, which is structurally \
+        incapable of seeing your browsing. Sitr transmits no browsing \
+        history, no URLs, no identifiers, no telemetry, no crash \
+        reports — in every tier.
+
+        The optional DNS filter, when you turn it on, sees the names \
+        of the sites that apps on this device look up. It decides on \
+        this device; it logs and stores none of them, and sends none \
+        to Sitr or to any other company.
+
+        If you use Sitr Family, the only network request is an \
+        end-to-end encrypted settings blob to sync.sitrshield.com \
+        — unreadable by the server, tied to no account or email. \
+        Without a household, the app makes zero network requests. \
+        With the DNS filter on, allowed lookups go on to your \
+        network's own DNS server, unencrypted, so your network \
+        operator can see the names; that is not a request to Sitr or \
+        to anyone else.
+        """
+
+    private static let limits = """
+        The Safari blocker protects Safari. The optional Screen \
+        Time filter extends to WebKit browsers system-wide. \
+        SafeSearch cannot be enforced on iOS at all — we say so \
+        rather than imply otherwise. In individual mode, Screen \
+        Time can be revoked by the device owner: friction, not a \
+        lock. Child mode (Family Sharing) requires parent \
+        approval to revoke — the strongest protection iOS offers.
+        """
+
+    private static let limitsWithDnsFilter = """
+        The Safari blocker protects Safari. The optional DNS filter \
+        extends filtering to other apps by the site names they look \
+        up, and is the only way Sitr can enforce SafeSearch: with it \
+        on, \(DnsFilterText.safeSearchScope); without it, SafeSearch \
+        is not enforced. It does not cover apps that use their own \
+        encrypted DNS, lookups are not filtered for about half a \
+        second when the network changes (up to a few seconds if the new \
+        network is slow to announce its DNS server), another VPN app switches it \
+        off, and anyone with the device passcode can switch it off in \
+        iOS Settings (Sitr then shows it as off).
+
+        The optional Screen Time filter extends to WebKit browsers \
+        system-wide. In individual mode, Screen Time can be revoked \
+        by the device owner: friction, not a lock. Child mode (Family \
+        Sharing) requires parent approval to revoke — the strongest \
+        protection iOS offers.
+        """
 }
 
 /// The compiler-generated NOTICE.txt bundled next to the lists: CC BY /
@@ -203,10 +239,11 @@ struct DelaySettingsView: View {
                     Text(
                         """
                         When this is on, a change that loosens protection — \
-                        turning a category off, allowing or unblocking a site, \
+                        turning a category\(DnsFilterText.available ? " or the DNS filter" : "") off, \
+                        allowing or unblocking a site, \
                         leaving a household, shortening this wait — is held. \
                         Start the wait; when it runs out, changes stay open for \
-                        \(Delay.windowMs / 60_000) minutes. Restarting the phone \
+                        \(Delay.windowMs / 60_000) minutes. Restarting the device \
                         or changing its clock can restart or cancel the wait. There \
                         is no notification when it ends: check back here. The wait \
                         is local to this device: changes made on another device in \
@@ -220,8 +257,8 @@ struct DelaySettingsView: View {
                     Text(
                         """
                         It slows down changes made inside Sitr. It cannot stop \
-                        anyone switching the Sitr content blocker off in iOS \
-                        Settings, or deleting the app. For a child's device, \
+                        anyone switching the Sitr content blocker\(DnsFilterText.available ? " or the DNS filter" : "") \
+                        off in iOS Settings, or deleting the app. For a child's device, \
                         use a household with a guardian PIN, and Screen Time.
                         """
                     )

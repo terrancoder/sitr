@@ -28,7 +28,9 @@ public enum DnsMessage {
     public static let typeA = 1
     public static let typeCNAME = 5
     public static let typeAAAA = 28
+    public static let typeSVCB = 64
     public static let typeHTTPS = 65
+    public static let typeANY = 255
     public static let classIN = 1
 
     /// Parse a DNS QUERY payload: exactly one question, standard opcode,
@@ -99,6 +101,13 @@ public enum DnsMessage {
             if a != b { return false }
         }
         return true
+    }
+
+    /// A reply carrying only the header (QR, TC, RA, RD as asked, NOERROR)
+    /// and the question: "too big for this path". nil for an unparseable query.
+    public static func truncatedReply(to query: [UInt8]) -> [UInt8]? {
+        guard let q = parseQuery(query) else { return nil }
+        return [query[0], query[1], 0x80 | 0x02 | (query[2] & 0x01), 0x80, 0, 1, 0, 0, 0, 0, 0, 0] + q.questionBytes
     }
 
     /// The TC bit: the answer did not fit in the datagram.

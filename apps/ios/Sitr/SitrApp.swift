@@ -13,8 +13,8 @@ struct SitrApp: App {
         }
         Theme.applyChrome()
         Storage.pinRootSecretToThisDevice()
-        #if DEBUG
-        DnsFilterDebug.writeBaseline()  // experimental DNS filter diagnostics
+        #if DEBUG && SITR_DNS_FILTER
+        DnsFilterDebug.writeBaseline()  // DNS filter diagnostics, Debug builds only
         #endif
     }
 
@@ -26,6 +26,7 @@ struct SitrApp: App {
                 .sitrAppearance()
                 .onChange(of: scenePhase) { phase in
                     guard phase == .active else { return }
+                    DnsFilterController.resetStartingClock()
                     Task {
                         await model.reloadFromStore()
                         await model.refreshStatus()

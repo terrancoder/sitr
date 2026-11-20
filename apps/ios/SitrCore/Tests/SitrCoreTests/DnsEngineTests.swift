@@ -402,6 +402,33 @@ private final class FakeTransport: DnsUpstreamTransport, @unchecked Sendable {
         #expect(DnsMessage.isTruncated(try #require(await r.forward(query, accept: accept()))))
     }
 
+    /// A UDP answer over the 4096-byte cap was cut: re-fetched over TCP,
+    /// and if TCP cannot replace it the client gets a well-formed TC reply
+    /// (header + question only), never the cut bytes, and nothing is cached.
+    @Test func anOversizedUdpAnswerIsNeverServedCut() async throws {
+        let t = FakeTransport()
+        t.udpReplies["127.0.0.1"] = [reply(tail: 4200)]  // > 4096: cut by the read
+        let r = UpstreamResolver(transport: t)
+        await r.setUpstreams(["127.0.0.1"])
+        let tc = try #require(await r.forward(query, accept: accept()))
+        #expect(DnsMessage.isTruncated(tc) && DnsMessage.rcode(tc) == 0)
+        #expect(tc == DnsMessage.truncatedReply(to: query))
+        #expect(tc.count == 12 + question.count)
+        #expect(t.tcpAsked == [query])
+        // TCP within the cap replaces it.
+        t.tcpReplies["127.0.0.1"] = reply(tail: 3000)
+        #expect(try #require(await r.forward(query, accept: accept())).count == reply(tail: 3000).count)
+        // TCP over the cap: the TC reply again.
+        t.tcpReplies["127.0.0.1"] = reply(tail: 5000)
+        #expect(await r.forward(query, accept: accept()) == DnsMessage.truncatedReply(to: query))
+        // Through the engine: answered with TC, not cached.
+        let engine = DnsEngine()
+        let q = try #require(DnsMessage.parseQuery(query))
+        let answer = try #require(await engine.forward(q, payload: query, via: r, now: { 0 }))
+        #expect(DnsMessage.isTruncated(answer))
+        #expect(engine.cache.get(q.qname, q.qtype, id: q.id, now: 1) == nil)
+    }
+
     // UpstreamResolverTest.cacheNeverServesAReplyItCannotReId (+ expiry and LRU)
     @Test func cacheSemantics() {
         let cache = DnsCache(maxEntries: 2)

@@ -16,6 +16,15 @@ struct CategoriesView: View {
 
     var body: some View {
         List {
+            if model.safariUpdating {
+                Section {
+                    Label("Updating Safari rules…", systemImage: "arrow.triangle.2.circlepath")
+                        .foregroundStyle(Theme.ink)
+                    Text(SafariUpdatingText.line(dnsFilterOn: model.dnsFilterStatus == .on))
+                        .font(.caption).foregroundStyle(Theme.inkSoft)
+                }
+                .sitrRows()
+            }
             Section {
                 LabeledContent("Adult content blocking") {
                     Text("always on").foregroundStyle(Theme.green)
@@ -79,7 +88,7 @@ struct CategoriesView: View {
                                 })
                         )
                         .foregroundStyle(Theme.ink)
-                        Text(list.note).font(.caption).foregroundStyle(Theme.inkSoft)
+                        Text("\(list.note) \(DnsFilterText.reach)").font(.caption).foregroundStyle(Theme.inkSoft)
                     }
                 }
                 .sitrRows()
@@ -108,9 +117,14 @@ struct CategoriesView: View {
                     )
                     .foregroundStyle(Theme.ink)
                 }
-                // Say what it is: all of a site's media, in Safari only.
+                // Say what it is: all of a site's media, in Safari (and in
+                // its app through the DNS filter, which blocks the same
+                // <site>-media hosts by name).
                 Text(
-                    "Each switch blocks every picture and video on that site in Safari — Sitr cannot tell which ones are explicit, and it cannot reach the sites' apps. Posts and text still load.\n\nTo hide only media X marks as sensitive, use X's own setting: Settings and privacy → Privacy and safety → Content you see."
+                    (DnsFilterText.available
+                        ? "Each switch blocks every picture and video on that site in Safari, and in its app too while the DNS filter is on — Sitr cannot tell which ones are explicit. Posts and text still load."
+                        : "Each switch blocks every picture and video on that site in Safari — Sitr cannot tell which ones are explicit, and it cannot reach the sites' apps. Posts and text still load.")
+                        + "\n\nTo hide only media X marks as sensitive, use X's own setting: Settings and privacy → Privacy and safety → Content you see."
                 )
                 .font(.caption).foregroundStyle(Theme.inkSoft)
                 // Facebook, Instagram and TikTok get no switch (threat-model T12).
@@ -141,7 +155,7 @@ struct CategoriesView: View {
     static let optionalLists: [(key: String, label: String, note: String)] = [
         (
             "violence", "Gore and hate sites",
-            "Blocks a list of gore and extremist hate sites. The list is old and incomplete, so many such sites are not on it. Off unless you turn it on; on iOS it works in Safari only."
+            "Blocks a list of gore and extremist hate sites. The list is old and incomplete, so many such sites are not on it. Off unless you turn it on."
         )
     ]
 

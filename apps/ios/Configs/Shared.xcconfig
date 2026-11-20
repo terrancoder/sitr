@@ -7,7 +7,7 @@ SDKROOT = iphoneos
 TARGETED_DEVICE_FAMILY = 1,2
 GENERATE_INFOPLIST_FILE = YES
 CURRENT_PROJECT_VERSION = 1
-MARKETING_VERSION = 0.1.2
+MARKETING_VERSION = 0.3.0
 CODE_SIGN_STYLE = Automatic
 // Left empty so the repo never carries account-specific state. Set your
 // own in Configs/Local.xcconfig (gitignored, see the optional include at
@@ -16,6 +16,14 @@ DEVELOPMENT_TEAM =
 ENABLE_USER_SCRIPT_SANDBOXING = YES
 SWIFT_EMIT_LOC_STRINGS = YES
 PRODUCT_NAME = $(TARGET_NAME)
+
+// THE DNS-filter switch. YES (default): the app embeds and signs
+// SitrTunnel.appex, carries the packet-tunnel entitlement and shows the
+// DNS filter (Swift flag SITR_DNS_FILTER). NO: no appex, no Network
+// Extension entitlement, no DNS filter UI or code paths. One line, so the
+// app can ship without the tunnel if App Review refuses it; also works
+// per build: xcodebuild ... SITR_DNS_FILTER=NO
+SITR_DNS_FILTER = YES
 
 // Per-developer overrides — signing team, mainly. Optional: the '?' means
 // a missing file is not an error, so a fresh clone builds for the

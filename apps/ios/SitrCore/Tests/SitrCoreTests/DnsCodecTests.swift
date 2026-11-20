@@ -135,6 +135,31 @@ private func ipv4Udp(_ src: [UInt8], _ dst: [UInt8], _ sport: Int, _ dport: Int,
         #expect(refChecksum(reply, 20, udpLen, seed) == 0)
     }
 
+    /// The largest reply the resolver passes on fits the tunnel MTU in
+    /// one packet, over IPv4 and IPv6, and still parses back whole.
+    @Test func largestReplyFitsTheTunnelMtu() throws {
+        let big = [UInt8](repeating: 0xab, count: UpstreamResolver.maxReplyBytes)
+        let d4 = try #require(IpPacket.parseUdp(ipv4Udp([10, 111, 222, 2], [10, 111, 222, 1], 51000, 53, dnsQuery("big.example", 16))))
+        let r4 = IpPacket.buildUdpReply(d4, payload: big)
+        #expect(r4.count <= DnsTunnel.mtu)
+        #expect(try #require(IpPacket.parseUdp(r4)).payload == big)
+        var d6: UdpDatagram?
+        do {
+            let payload = dnsQuery("big.example", 16)
+            let udpLen = 8 + payload.count
+            var p = [UInt8](repeating: 0, count: 40 + udpLen)
+            p[0] = 0x60; p[4] = UInt8(udpLen >> 8); p[5] = UInt8(udpLen & 0xff); p[6] = 17; p[7] = 64
+            p[8] = 0xfd; p[23] = 2; p[24] = 0xfd; p[39] = 1
+            p[40] = UInt8(51000 >> 8); p[41] = UInt8(51000 & 0xff); p[43] = 53
+            p[44] = UInt8(udpLen >> 8); p[45] = UInt8(udpLen & 0xff)
+            p.replaceSubrange(48..<(48 + payload.count), with: payload)
+            d6 = IpPacket.parseUdp(p)
+        }
+        let r6 = IpPacket.buildUdpReply(try #require(d6), payload: big)
+        #expect(r6.count == DnsTunnel.mtu)
+        #expect(try #require(IpPacket.parseUdp(r6)).payload == big)
+    }
+
     // DnsCodecTest.parsesIpv6UdpAndBuildsCheckedReply
     @Test func parsesIpv6UdpAndBuildsCheckedReply() throws {
         let payload = dnsQuery("blocked.example", DnsMessage.typeAAAA)

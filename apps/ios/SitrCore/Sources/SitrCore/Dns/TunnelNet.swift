@@ -1,4 +1,4 @@
-/// Socket-level pieces of the DEBUG-only packet-tunnel prototype that do
+/// Socket-level pieces of the DNS filter (packet tunnel) that do
 /// not need NetworkExtension: resolver discovery, the POSIX upstream
 /// transport, SafeSearch target resolution and the in-flight bound.
 import CResolv
@@ -55,7 +55,8 @@ public struct PosixDnsTransport: DnsUpstreamTransport {
             let queue = DispatchQueue(label: "sitr.dns.udp")
             let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
             source.setEventHandler {
-                var buf = [UInt8](repeating: 0, count: UpstreamResolver.maxReplyBytes)
+                // One byte over the cap, so an oversized (cut) reply is seen as such.
+                var buf = [UInt8](repeating: 0, count: UpstreamResolver.maxReplyBytes + 1)
                 let n = recv(fd, &buf, buf.count, MSG_DONTWAIT)
                 if n > 0 {
                     continuation.yield(Array(buf[0..<n]))
@@ -252,5 +253,191 @@ public actor InFlightGate {
         } else {
             waiters.removeFirst().resume()
         }
+    }
+}
+
+// MARK: - Forward retry
+
+/// Whether a forward that got no answer is tried once more. Only while
+/// forwarding is on (the current network's resolvers are known), and only
+/// when the failure says nothing about the current upstream: the network
+/// changed while the query was in flight (it went to the previous
+/// network's resolver), or it failed fast (a send error, not a timeout),
+/// e.g. the route not yet usable just after the settings were re-applied.
+/// A timeout is also retried once while no upstream has answered at all on
+/// this network yet: right after joining, the first packets can be lost
+/// before the link is fully usable, which says nothing about the resolver.
+public enum ForwardRetry {
+    public static func shouldRetry(
+        sentGeneration: Int, generation: Int, forwarding: Bool, elapsed: TimeInterval, timeout: TimeInterval,
+        answeredOnThisNetwork: Bool = true
+    ) -> Bool {
+        forwarding && (sentGeneration != generation || elapsed < timeout / 4 || !answeredOnThisNetwork)
+    }
+}
+
+// MARK: - Network identity
+
+/// Whether the network really changed, as a key: the path status, the
+/// PRIMARY physical interface (the first of NWPath.availableInterfaces,
+/// name and type) and the path's gateways. A secondary interface coming
+/// and going (mobile data while on Wi-Fi) does not change it: the
+/// resolver in use did not change, and every rediscovery costs an
+/// unfiltered window.
+public enum NetworkKey {
+    public static func make(status: String, interfaces: [(name: String, type: String)], gateways: [String]) -> String {
+        let primary = interfaces.first.map { "\($0.name) \($0.type)" } ?? "none"
+        return "\(status) | \(primary) | \(gateways.sorted().joined(separator: ","))"
+    }
+}
+
+// MARK: - Rediscovery limits
+
+/// How often the tunnel may remove its settings to re-read the network's
+/// resolvers (each time is an unfiltered window). Per network (path
+/// generation): at most `readWaits.count` attempts, each giving the system
+/// longer to switch over; after that the tunnel gives up on this network
+/// and fails closed until the next real change. Plus one extra attempt
+/// when every forward keeps failing (`staleRetry`), given again on the
+/// same network only after a forward was answered since the last one
+/// (`answered`): a resolver that never answers gets one. Across all
+/// networks: at most `windowBudget` windows per `budgetPeriod`, whatever
+/// triggers them, so no loop (for example path updates caused by the
+/// tunnel's own settings) can open windows faster than that.
+public struct ResolverRediscovery: Sendable {
+    public static let readWaits: [TimeInterval] = [0.1, 0.5, 1.5]
+    public static let windowBudget = 3
+    public static let budgetPeriod: TimeInterval = 60
+
+    public enum Step: Equatable, Sendable {
+        /// Remove the settings `after` seconds from now and poll the
+        /// resolvers for up to `readWait` seconds.
+        case attempt(readWait: TimeInterval, after: TimeInterval)
+        /// No attempts left for this network.
+        case giveUp
+    }
+
+    private var generation: Int?
+    private var attempts = 0
+    private var staleUsed = false
+    private var windows: [TimeInterval] = []
+
+    public init() {}
+
+    public mutating func next(generation g: Int, now: TimeInterval) -> Step {
+        reset(g)
+        guard attempts < Self.readWaits.count else { return .giveUp }
+        let wait = Self.readWaits[attempts]
+        attempts += 1
+        return .attempt(readWait: wait, after: reserveWindow(now))
+    }
+
+    /// The extra rediscovery for this network, or nil if used and no
+    /// forward was answered since. Returns the delay before it may start.
+    public mutating func staleRetry(generation g: Int, now: TimeInterval) -> TimeInterval? {
+        reset(g)
+        guard !staleUsed else { return nil }
+        staleUsed = true
+        return reserveWindow(now)
+    }
+
+    /// A forward sent after the last stale re-read was answered: the
+    /// stale retry may be given again on this network.
+    public mutating func answered() { staleUsed = false }
+
+    private mutating func reset(_ g: Int) {
+        guard g != generation else { return }
+        (generation, attempts, staleUsed) = (g, 0, false)
+    }
+
+    private mutating func reserveWindow(_ now: TimeInterval) -> TimeInterval {
+        windows.removeAll { $0 <= now - Self.budgetPeriod }
+        var start = now
+        if windows.count >= Self.windowBudget {
+            start = max(now, windows[windows.count - Self.windowBudget] + Self.budgetPeriod)
+        }
+        windows.append(start)
+        return start - now
+    }
+}
+
+/// Every forward failing on an unchanged network: at least `minFailures`
+/// failures over at least `minDuration` seconds with no success between
+/// them means the resolver list is probably stale.
+public struct UpstreamHealth: Sendable {
+    public static let minFailures = 8
+    public static let minDuration: TimeInterval = 30
+    private var generation: Int?
+    private var firstFailure: TimeInterval?
+    public private(set) var failures = 0
+
+    public init() {}
+
+    public mutating func success() { (firstFailure, failures) = (nil, 0) }
+
+    /// Records a failure; true when the list should be re-learned.
+    public mutating func failure(generation g: Int, now: TimeInterval) -> Bool {
+        if g != generation { (generation, firstFailure, failures) = (g, nil, 0) }
+        failures += 1
+        let first = firstFailure ?? now
+        firstFailure = first
+        return failures >= Self.minFailures && now - first >= Self.minDuration
+    }
+}
+
+// MARK: - App-side status refresh
+
+/// At most one DNS-filter status refresh at a time: a request made while
+/// one runs is folded into a single follow-up run, never a parallel one.
+public struct CoalescedRefresh: Sendable {
+    private var running = false
+    private var again = false
+
+    public init() {}
+
+    /// True: start a refresh now. False: one is running and will run once more.
+    public mutating func begin() -> Bool {
+        if running {
+            again = true
+            return false
+        }
+        running = true
+        return true
+    }
+
+    /// Call when a run finishes. True: run once more (requested meanwhile).
+    public mutating func finish() -> Bool {
+        if again {
+            again = false
+            return true
+        }
+        running = false
+        return false
+    }
+}
+
+// MARK: - Safari rules bookkeeping (app side)
+
+/// What Safari holds after one apply, recorded WHATEVER the settings are by
+/// then: a result discarded because the settings changed meanwhile still
+/// changed Safari, and forgetting that let a later run skip a needed reload
+/// (Safari kept a reverted, looser list while status said "enforced").
+public enum SafariHeld {
+    public enum Outcome: Sendable { case applied(checksum: String), pendingReload, failed }
+
+    /// The checksum Safari now holds: the new one when applied, unknown
+    /// (nil) when written but not reloaded, unchanged when nothing changed.
+    public static func after(_ outcome: Outcome, before: String?) -> String? {
+        switch outcome {
+        case .applied(let checksum): return checksum
+        case .pendingReload: return nil
+        case .failed: return before
+        }
+    }
+
+    /// A reload is needed unless Safari provably holds the expected rules.
+    public static func needsReload(expected: String?, held: String?) -> Bool {
+        guard let expected, let held else { return true }
+        return expected != held
     }
 }

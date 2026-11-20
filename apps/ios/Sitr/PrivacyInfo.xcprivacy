@@ -2,15 +2,33 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Must agree with docs/privacy-policy.md: nothing tracked, nothing
-	     collected (the Family-sync blob is end-to-end encrypted, so it is
-	     not "collected" in Apple's sense). -->
+	<!-- Must agree with docs/privacy-policy.md and
+	     store-listing/app-privacy.md: nothing tracked. Collected: only
+	     while in a household, the household ID (derived on the device from
+	     the pairing code) is kept readable by the sync server as the key
+	     of the household's record: User ID, not linked, not tracking, App
+	     Functionality. The Family-sync blob itself is end-to-end encrypted
+	     and stored only as ciphertext, so it is not "collected" in Apple's
+	     sense. -->
 	<key>NSPrivacyTracking</key>
 	<false/>
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
 	<key>NSPrivacyCollectedDataTypes</key>
-	<array/>
+	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<dict>

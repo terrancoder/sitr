@@ -67,25 +67,19 @@ enum SyncScheduler {
         try? BGTaskScheduler.shared.submit(request)
     }
 
-    /// Background-refresh path. Same ENGINE-FIRST ordering as the UI:
-    /// sync, apply the merged config to Safari, and persist only when
-    /// Safari accepted it.
+    /// Background-refresh path. Same PERSIST-FIRST ordering as the UI
+    /// (AppModel.persistNow): the merged household reaches the DNS filter
+    /// at once; Safari follows, and its checksum is recorded only when it
+    /// accepted the rules (otherwise status shows red on the next check).
     static func syncAndApply() async {
         guard Storage.loadRootSecret() != nil else { return }
         let next = await syncNow(settings: SettingsStore.load())
-        let applied = await BlockerController.apply(next)
-        if case .success(let outcome) = applied {
-            var persisted = next
-            if case .applied(let checksum) = outcome {
-                persisted.appliedRulesChecksum = checksum
-            } else {
-                // Written but not reloaded — no checksum, so the next
-                // status check shows red rather than a false green.
-                persisted.appliedRulesChecksum = nil
-            }
-            SettingsStore.persist(persisted)
-            ScreenTimeController.apply(persisted)
-        }
+        SettingsStore.persist(next)
+        ScreenTimeController.apply(next)
+        let result = await BlockerController.apply(next)
+        // Only what Safari now holds is recorded; never the whole settings.
+        SettingsStore.appliedChecksum = SafariHeld.after(
+            BlockerController.held(after: result), before: SettingsStore.appliedChecksum)
     }
 
     /// One sync round + honest fair-use device enrollment (mirrors the

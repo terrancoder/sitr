@@ -2,7 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Shared container: the blocker reads the generated rules here. -->
+	<!-- Shared container: the blocker reads the generated rules here, the
+	     DNS filter reads the settings. -->
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.com.sitrshield.sitr</string>
@@ -12,5 +13,12 @@
 	     The feature is runtime-gated, so builds work either way. -->
 	<key>com.apple.developer.family-controls</key>
 	<true/>
+	<!-- The opt-in DNS filter: NETunnelProviderManager for SitrTunnel.
+	     Building without it: SITR_DNS_FILTER = NO (Configs/Shared.xcconfig),
+	     which signs with SitrNoDnsFilter.entitlements instead. -->
+	<key>com.apple.developer.networking.networkextension</key>
+	<array>
+		<string>packet-tunnel-provider</string>
+	</array>
 </dict>
 </plist>

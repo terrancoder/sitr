@@ -84,9 +84,7 @@ struct HouseholdView: View {
         }
         .sitrRows()
         Section {
-            Text(
-                "Households are created on a computer with the Sitr "
-                    + "extension, or on the Sitr Android app.")
+            Text("To join, ask the household's guardian for its pairing code.")
                 .font(.caption)
                 .foregroundStyle(Theme.inkSoft)
         }
@@ -175,6 +173,7 @@ struct HouseholdView: View {
                         }
                     }
                 }
+                .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             }
             .sitrRows()
 
@@ -248,6 +247,7 @@ struct HouseholdListEditor: View {
                 }
             }
         }
+        .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         if let error {
             Text(error).foregroundStyle(Theme.alert).font(.caption)
         }

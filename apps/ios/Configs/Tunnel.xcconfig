@@ -1,14 +1,14 @@
 #include "Shared.xcconfig"
 
-// SitrTunnel: DEBUG-ONLY feasibility prototype of the Android DNS filter
-// (packet tunnel). The app embeds it only in Debug (App.xcconfig
-// EXCLUDED_SOURCE_FILE_NAMES[config=Release]); Release still compiles
-// this target through the dependency but never signs it, so a Release
-// archive needs no Network Extension profile.
+// SitrTunnel: the opt-in DNS filter (packet tunnel). Embedded and signed
+// in Debug and Release. With SITR_DNS_FILTER = NO the app does not embed
+// it (App.xcconfig); the target dependency still compiles it, unsigned,
+// so that variant needs no Network Extension profile.
 PRODUCT_BUNDLE_IDENTIFIER = com.sitrshield.sitr.tunnel
 CODE_SIGN_ENTITLEMENTS = SitrTunnel/SitrTunnel.entitlements
 INFOPLIST_FILE = SitrTunnel/Info.plist
-INFOPLIST_KEY_CFBundleDisplayName = Sitr DNS (experimental)
+INFOPLIST_KEY_CFBundleDisplayName = Sitr DNS filter
 SKIP_INSTALL = YES
-CODE_SIGNING_ALLOWED[config=Release] = NO
-CODE_SIGN_ENTITLEMENTS[config=Release] =
+SITR_TUNNEL_SIGN_YES = YES
+SITR_TUNNEL_SIGN_NO = NO
+CODE_SIGNING_ALLOWED = $(SITR_TUNNEL_SIGN_$(SITR_DNS_FILTER))

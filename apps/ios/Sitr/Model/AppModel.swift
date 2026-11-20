@@ -12,7 +12,7 @@ final class AppModel: ObservableObject {
     @Published var settings: AppSettings
     @Published var blockerStatus: BlockerStatus = .unknown("not checked yet")
     @Published var screenTimeStatus: ScreenTimeStatus = .off
-    @Published var busy = false
+    @Published var dnsFilterStatus: DnsFilterStatus = DnsFilterText.available ? .off : .unavailable
     @Published var lastError: String?
     /// Why the last Safari reload did not take — shown on the red status
     /// card. Not persisted: the next apply attempt replaces it.
@@ -94,71 +94,105 @@ final class AppModel: ObservableObject {
     /// they were when the caller started — so two overlapping changes (two
     /// quick toggles, or an edit made while a sync is on the network) can
     /// no longer be computed from the same stale copy and undo each other.
+    /// Loosening changes reach this only after the gate, the wait and the
+    /// PIN (RootView.attempt).
     func mutate(_ transform: @escaping (inout AppSettings) -> Void) async {
         let previous = pending
         let task = Task { @MainActor in
             await previous?.value
             var next = settings
             transform(&next)
-            await apply(next)
+            persistNow(next)
         }
         pending = task
         await task.value
     }
 
-    /// Apply `next`'s configuration to Safari, and persist ONLY on
-    /// success; on failure surface the error and keep the old settings.
-    /// Called from `mutate` alone.
-    private func apply(_ next: AppSettings) async {
-        busy = true
-        defer { busy = false }
+    /// PERSIST FIRST: the screen shows the change at once and the DNS
+    /// filter gets it at once (SettingsStore.persist notifies it), so a
+    /// tightening change is enforced there while Safari still compiles.
+    /// Safari follows in the background (scheduleSafariApply). The applied
+    /// checksum stays the one Safari really holds, so status never claims
+    /// rules Safari has not accepted: it shows "Updating Safari rules…"
+    /// and, if Safari refuses them, the red card with the reason; the
+    /// settings stay as chosen. (Before 2026-11-18 a change was saved only
+    /// after Safari accepted it: switches looked dead for 16 s or more on a
+    /// phone, and a relaunch in that time lost the change.)
+    private func persistNow(_ next: AppSettings) {
+        var persisted = next
+        // A background sync may have saved a newer household since this copy
+        // was loaded: keep it unless this change edits the household itself
+        // (then this edit wins and its own sync carries it, as in runSync).
+        let stored = SettingsStore.load()
+        if next.household == settings.household, stored.household != settings.household {
+            persisted.household = stored.household
+            persisted.maxSeenRev = max(persisted.maxSeenRev, stored.maxSeenRev)
+            persisted.syncStatus = stored.syncStatus
+        }
+        // What Safari holds comes from the store (written only by applies).
+        persisted.appliedRulesChecksum = stored.appliedRulesChecksum
+        settings = persisted
+        SettingsStore.persist(persisted)
+        ScreenTimeController.apply(persisted)
+        scheduleSafariApply()
+    }
 
+    /// True while Safari is loading new rules.
+    @Published var safariUpdating = false
+    private var safariRun = CoalescedRefresh()
+    #if DEBUG
+    /// Last Safari apply (compile + reload), for the Diagnostics screen.
+    @Published var lastSafariApplyMs: Int?
+    #endif
+
+    /// One Safari apply at a time; changes made meanwhile fold into ONE
+    /// follow-up run with the settings as they are then.
+    private func scheduleSafariApply() {
+        guard safariRun.begin() else { return }
+        safariUpdating = true
+        Task { @MainActor in
+            repeat {
+                await applySafari()
+            } while safariRun.finish()
+            safariUpdating = false
+            blockerStatus = await StatusModel.blockerStatus(settings: settings)
+            screenTimeStatus = ScreenTimeController.status()
+        }
+    }
+
+    /// Compiles and reloads off the main actor. Always records what Safari
+    /// now holds (SafariHeld), even when the settings changed meanwhile, so
+    /// the follow-up run compares against the truth; the error shown is only
+    /// for the settings as they are.
+    private func applySafari() async {
+        let target = settings
+        let expected = await Task.detached(priority: .userInitiated) { BlockerController.expectedChecksum(target) }.value
         // Rules Safari already holds need no reload: a sync that changed
         // only its own status would otherwise recompile them every time.
-        if case .success(let expected) = BlockerController.expectedChecksum(next),
-            expected == settings.appliedRulesChecksum
-        {
-            var persisted = next
-            persisted.appliedRulesChecksum = expected
-            settings = persisted
-            SettingsStore.persist(persisted)
-        } else {
-            switch await BlockerController.apply(next) {
-            case .failure(let error):
-                if BlockerController.ruleInputsKey(next) == BlockerController.ruleInputsKey(settings) {
-                    // The change doesn't touch the rules (finishing
-                    // onboarding, a sync status): save it. Refusing it
-                    // trapped Finish in an alert loop when the list could
-                    // not be built; status shows the reason instead.
-                    var persisted = next
-                    persisted.appliedRulesChecksum = settings.appliedRulesChecksum
-                    settings = persisted
-                    SettingsStore.persist(persisted)
-                } else {
-                    // Nothing was written — the settings must not claim otherwise.
-                    lastError = describe(error)
-                }
-            case .success(let outcome):
-                var persisted = next
-                switch outcome {
-                case .applied(let checksum):
-                    persisted.appliedRulesChecksum = checksum
-                    reloadError = nil
-                case .pendingReload(let reason):
-                    // Switched off is not a failed reload: status says
-                    // "Blocker is off", and turning it on should heal.
-                    reloadError = reason == BlockerController.blockerOffReason ? nil : reason
-                    // Written but not live: record no checksum so the status
-                    // stays red until a reload succeeds.
-                    persisted.appliedRulesChecksum = nil
-                }
-                settings = persisted
-                SettingsStore.persist(persisted)
-            }
+        if case .success(let e) = expected, !SafariHeld.needsReload(expected: e, held: SettingsStore.appliedChecksum) { return }
+        let started = Date()
+        let result = await Task.detached(priority: .userInitiated) { await BlockerController.apply(target) }.value
+        #if DEBUG
+        let ms = Int(Date().timeIntervalSince(started) * 1000)
+        lastSafariApplyMs = ms
+        UserDefaults.standard.set(ms, forKey: "SitrDebugLastSafariApplyMs")
+        #endif
+        let held = SafariHeld.after(BlockerController.held(after: result), before: SettingsStore.appliedChecksum)
+        SettingsStore.appliedChecksum = held  // only this key, never the whole settings
+        settings.appliedRulesChecksum = held
+        guard BlockerController.ruleInputsKey(target) == BlockerController.ruleInputsKey(settings) else { return }
+        switch result {
+        case .failure(let error):
+            // Settings stay as chosen; the red card says why.
+            reloadError = describe(error)
+        case .success(.applied):
+            reloadError = nil
+        case .success(.pendingReload(let reason)):
+            // Switched off is not a failed reload: status says "Blocker is
+            // off", and turning it on should heal. Written but not live: no
+            // checksum (above), so status stays red until a reload succeeds.
+            reloadError = reason == BlockerController.blockerOffReason ? nil : reason
         }
-        ScreenTimeController.apply(settings)
-        blockerStatus = await StatusModel.blockerStatus(settings: settings)
-        screenTimeStatus = ScreenTimeController.status()
     }
 
     private func describe(_ error: BlockerController.ApplyError) -> String {
@@ -182,6 +216,7 @@ final class AppModel: ObservableObject {
         await pending?.value
         blockerStatus = await StatusModel.blockerStatus(settings: settings)
         screenTimeStatus = ScreenTimeController.status()
+        await refreshDnsFilter()
         // "Stale" means Safari is on but is not known to hold these rules:
         // they changed while the blocker was off, or an update brought new
         // lists. Re-applying is the whole fix, so do it instead of asking.
@@ -189,11 +224,36 @@ final class AppModel: ObservableObject {
         // both doing it.)
         // A reload that already failed is not retried on every foreground
         // (on a 100k-rule list each try takes tens of seconds); "Fix" does.
-        if blockerStatus == .stale, !healing, reloadError == nil {
+        if blockerStatus == .stale, !healing, !safariUpdating, reloadError == nil {
             healing = true
             await mutate { _ in }
             healing = false
         }
+    }
+
+    // MARK: - DNS filter
+
+    private var dnsRefresh = CoalescedRefresh()
+
+    /// One status refresh at a time; requests during one fold into a single
+    /// follow-up. Never blocks: every step is an await.
+    func refreshDnsFilter() async {
+        guard dnsRefresh.begin() else { return }
+        repeat {
+            dnsFilterStatus = await DnsFilterController.status()
+        } while dnsRefresh.finish()
+    }
+
+    /// Free: turning protection on never needs the gate.
+    func turnDnsFilterOn() async {
+        if let error = await DnsFilterController.turnOn() { lastError = error }
+        await refreshDnsFilter()
+    }
+
+    /// Loosening: call only from inside attempt(.disableCategory, …).
+    func turnDnsFilterOff() async {
+        if let error = await DnsFilterController.turnOff() { lastError = error }
+        await refreshDnsFilter()
     }
 
     // MARK: - Sync

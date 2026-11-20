@@ -1,5 +1,4 @@
-/// What the DEBUG-only packet-tunnel prototype (apps/ios/SitrTunnel) filters
-/// with: the checksum-verified compiler lists plus the app's settings,
+/// What the DNS filter (apps/ios/SitrTunnel) filters with: the checksum-verified compiler lists plus the app's settings,
 /// assembled into a `DecisionSnapshot` the way the Android app's
 /// SitrApp.rebuildEngine does (no managed-config layer on iOS).
 import CryptoKit
@@ -12,6 +11,13 @@ public enum DnsTunnel {
     public static let tunnelV6 = "fd66:f83a:c650::2"
     public static let resolverV6 = "fd66:f83a:c650::1"
     public static let syntheticResolvers: Set<String> = [resolverV4, resolverV6]
+    /// The tunnel interface's MTU: the largest reply the resolver passes on
+    /// (4096 bytes, after a TCP re-fetch of a truncated answer) plus the
+    /// IPv6 (40) and UDP (8) headers, so every reply fits in one packet.
+    /// Only DNS crosses this interface. With 1500, replies over ~1450 bytes
+    /// (e.g. a large TXT record) were written as one oversized packet and
+    /// never arrived.
+    public static let mtu = UpstreamResolver.maxReplyBytes + 40 + 8
 }
 
 /// The plain-domain artifacts in apps/shared/blocklists/android, loaded
@@ -59,16 +65,24 @@ public struct BlocklistBundle: Sendable {
         }
     }
 
-    /// Port of rebuildEngine: adult always; gambling and dating unless
-    /// disabled (the household's list wins when joined); each site in
-    /// `mediaOff` adds `<site>-media.domains`. Other listed files (e.g.
-    /// doh.domains) are loaded but not enabled, as on Android today.
+    /// The opt-in lists (Android OptionalLists): device-local, off unless
+    /// switched on. "violence" is the Safari blocker's opt-in list too;
+    /// "doh" (encrypted-DNS bypass) exists only for the DNS filter.
+    public static let optionalLists = ["violence", "doh"]
+
+    /// Port of rebuildEngine, the same inputs as the Safari blocker
+    /// (BlockerController.enabledFragments): adult always; gambling and
+    /// dating unless disabled (the household's list wins when joined);
+    /// each site in `mediaOff` adds `<site>-media.domains`; each opt-in
+    /// list switched on adds `<id>.domains`. strict-search-hosts.json is
+    /// not used: iOS has no Strict Search switch.
     public func snapshot(_ settings: TunnelSettings) -> DecisionSnapshot {
         let disabled = Set(settings.household?.disabledCategories ?? settings.disabledCategories)
         var stems = ["adult"]
         if !disabled.contains("sitr_gambling") { stems.append("gambling") }
         if !disabled.contains("sitr_dating") { stems.append("dating") }
         stems += settings.mediaOff.sorted().map { "\($0)-media" }
+        stems += Self.optionalLists.filter(settings.optionalOn.contains)
         return DecisionSnapshot(
             householdAllow: Set(settings.household?.allowDomains ?? []),
             householdBlock: Set(settings.household?.blockDomains ?? []),
@@ -84,16 +98,18 @@ public struct BlocklistBundle: Sendable {
 public struct TunnelSettings: Equatable {
     public var disabledCategories: [String] = []
     public var mediaOff: Set<String> = []
+    public var optionalOn: Set<String> = []
     public var userAllow: [String] = []
     public var userBlock: [String] = []
     public var household: HouseholdState?
 
     public init(
-        disabledCategories: [String] = [], mediaOff: Set<String> = [],
+        disabledCategories: [String] = [], mediaOff: Set<String> = [], optionalOn: Set<String> = [],
         userAllow: [String] = [], userBlock: [String] = [], household: HouseholdState? = nil
     ) {
         self.disabledCategories = disabledCategories
         self.mediaOff = mediaOff
+        self.optionalOn = optionalOn
         self.userAllow = userAllow
         self.userBlock = userBlock
         self.household = household
@@ -102,6 +118,7 @@ public struct TunnelSettings: Equatable {
     public init(defaults d: UserDefaults) {
         disabledCategories = d.stringArray(forKey: "disabledCategories") ?? []
         mediaOff = Set(d.stringArray(forKey: "mediaOff") ?? [])
+        optionalOn = Set(d.stringArray(forKey: "optionalListsOn") ?? [])
         userAllow = d.stringArray(forKey: "userAllow") ?? []
         userBlock = d.stringArray(forKey: "userBlock") ?? []
         if let json = d.string(forKey: "householdState"),
@@ -113,7 +130,15 @@ public struct TunnelSettings: Equatable {
     }
 }
 
-/// Darwin notification the DEBUG app posts after persisting settings.
+/// False when the App Group settings cannot be read yet (before the first
+/// unlock after a reboot the defaults file is still protected): the app
+/// writes deviceId on its first launch, before the filter can be on.
+public func tunnelSettingsReadable(_ d: UserDefaults) -> Bool {
+    d.string(forKey: "deviceId") != nil
+}
+
+/// Darwin notification the app posts after every settings persist
+/// (SettingsStore.persist, which the UI and background sync both use).
 public let tunnelSettingsChangedNotification = "com.sitrshield.sitr.settings-changed"
 
 func sha256Hex(_ data: Data) -> String {

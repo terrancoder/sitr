@@ -16,9 +16,9 @@ let package = Package(
     ],
     targets: [
         .target(name: "SitrCore", dependencies: ["CResolv"], swiftSettings: [.swiftLanguageMode(.v5)]),
-        // libresolv shim for the DEBUG-only DNS tunnel prototype's
-        // resolver discovery (Dns/TunnelNet.swift). System library only.
-        .target(name: "CResolv"),
+        // libresolv shim for the DNS filter's resolver discovery
+        // (Dns/TunnelNet.swift). System library, public API only.
+        .target(name: "CResolv", linkerSettings: [.linkedLibrary("resolv")]),
         .testTarget(
             name: "SitrCoreTests",
             dependencies: ["SitrCore"],
