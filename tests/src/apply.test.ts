@@ -89,3 +89,17 @@ test("managed-forced categories are never disabled by household state", async ()
   assert.ok(r.ok);
   assert.deepEqual(disables, [["sitr_dating"]]);
 });
+
+test("a household apply never enables a category the device disabled", async () => {
+  const sets: Array<{ enableRulesetIds?: string[]; disableRulesetIds?: string[] }> = [];
+  const deps = {
+    ...stubDeps([]),
+    async updateEnabledRulesets(u: { enableRulesetIds?: string[]; disableRulesetIds?: string[] }) {
+      sets.push(u);
+    },
+    readDeviceDisabled: async () => ["sitr_gambling" as const],
+  };
+  const r = await applyHouseholdState(emptyHouseholdState("dev", 1), [], deps);
+  assert.ok(r.ok);
+  assert.deepEqual(sets, [{ enableRulesetIds: ["sitr_dating"], disableRulesetIds: ["sitr_gambling"] }]);
+});

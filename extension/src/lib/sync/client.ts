@@ -192,7 +192,13 @@ export async function syncOnce(
     const serverRev = remote.value.state?.rev;
     if (serverRev === merged.rev && remote.value.state === merged) {
       return ok({
-        state: merged,
+        // A full tie merges to the server's object. Same content: hand back
+        // the caller's own object, so "changed" (state !== local) is false
+        // and the service worker does not rewrite storage — a rewrite may
+        // fire storage.onChanged and queue another round, forever, on a
+        // browser that reports unchanged writes. Both sides are sanitizer
+        // output (fixed key order), so JSON equality is value equality.
+        state: JSON.stringify(merged) === JSON.stringify(input.local) ? input.local : merged,
         maxSeenRev: Math.max(maxSeen, merged.rev),
         status: { state: "ok", lastSuccessAt: deps.now() },
         etag: remote.value.etag,

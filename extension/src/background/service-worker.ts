@@ -49,7 +49,7 @@ import {
 } from "../lib/household.js";
 import { fromB64 } from "../lib/pin.js";
 import { MAX_SEEN_REV_KEY, coalesced, syncOnce } from "../lib/sync/client.js";
-import { applyHouseholdState } from "../lib/sync/apply.js";
+import { applySyncOutcome } from "../lib/sync/apply.js";
 import { SYNC_STATUS_KEY } from "../lib/sync/status.js";
 
 /**
@@ -286,30 +286,32 @@ async function syncRound(): Promise<void> {
     },
     { fetch: fetch.bind(globalThis), now: () => Date.now() },
   );
-  if (outcome.status.state === "ok" && outcome.state !== local.value) {
-    const policy = await readManagedPolicy();
-    const applied = await applyHouseholdState(
-      outcome.state,
-      policy.forcedCategories,
-      {
-        getDynamicRules: () => chrome.declarativeNetRequest.getDynamicRules(),
-        updateDynamicRules: (u) =>
-          chrome.declarativeNetRequest.updateDynamicRules(
-            u as chrome.declarativeNetRequest.UpdateRuleOptions,
-          ),
-        updateEnabledRulesets: (u) =>
-          chrome.declarativeNetRequest.updateEnabledRulesets(u),
-        persist: async (state) => {
-          await chrome.storage.local.set({ [HOUSEHOLD_STATE_KEY]: state });
-        },
+  // Engine and storage from the outcome (applySyncOutcome): rules
+  // re-asserted every successful round, an unchanged round writes nothing.
+  const policy = await readManagedPolicy();
+  const applied = await applySyncOutcome(
+    outcome,
+    local.value,
+    policy.forcedCategories,
+    {
+      getDynamicRules: () => chrome.declarativeNetRequest.getDynamicRules(),
+      updateDynamicRules: (u) =>
+        chrome.declarativeNetRequest.updateDynamicRules(
+          u as chrome.declarativeNetRequest.UpdateRuleOptions,
+        ),
+      updateEnabledRulesets: (u) =>
+        chrome.declarativeNetRequest.updateEnabledRulesets(u),
+      persist: async (state) => {
+        await chrome.storage.local.set({ [HOUSEHOLD_STATE_KEY]: state });
       },
-    );
-    if (!applied.ok) {
-      await chrome.storage.local.set({
-        [SYNC_STATUS_KEY]: { state: "error", error: applied.error },
-      });
-      return;
-    }
+      readDeviceDisabled,
+    },
+  );
+  if (!applied.ok) {
+    await chrome.storage.local.set({
+      [SYNC_STATUS_KEY]: { state: "error", error: applied.error },
+    });
+    return;
   }
   await chrome.storage.local.set({
     [SYNC_STATUS_KEY]: outcome.status,
