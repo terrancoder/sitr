@@ -108,7 +108,8 @@ chosen time (5 minutes to 24 hours), and then has a 10-minute window to make
 it. Shortening the wait or turning it off is itself held. It runs after the
 gate (a managed lock still refuses outright; a child device refuses
 every loosening change except leaving the household, which needs the
-household's guardian PIN and is refused when the household has none) and
+household's guardian PIN and is refused when the household has none,
+unless the device never received its household) and
 before the PIN. Joining a household is held like any loosening change on every
 platform (the household's settings replace this device's by sync), and in
 the extension it first asks for the browser's own PIN when one is set.

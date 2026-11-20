@@ -107,7 +107,7 @@ Home → Allow & block lists → Report a site. "Ask to block a site" and "Repor
 
 9. CHILD ROLE (do this last)
 
-A device joined as a child cannot loosen anything, by design; it can leave the household only with the household's guardian PIN.
+A device joined as a child cannot loosen anything, by design; it can leave the household only with the household's guardian PIN (before its first sync, without one).
 a. Sitr Family → Leave household (asks for the PIN).
 b. Join again with the same pairing code, this time choosing "A child".
 c. Filter categories → switch Gambling off. It is refused: "This is managed by your guardian."
