@@ -157,7 +157,7 @@ authorized by a parent or guardian through a parental control app"
 |---|---|
 | Why does your app need the Accessibility Services API? | **App functionality** only |
 | Do you collect and/or share personal or sensitive data using the accessibility capabilities? | **No** — window text is read in memory on the device and discarded; nothing leaves the phone. Must match Data safety and the privacy policy |
-| Video link | Unlisted YouTube link to `assets/video/sitr-accessibility-review.mp4` (gitignored; re-recorded 2026-11-11 on the `sitr-video` emulator with the 0.2.2 release build, whose disclosure names the Private DNS dialog, private space setup and the other settings pages that show Sitr's name; 1:47, captions burned in. Script, step times and captions are in `build/review-video/a11y-0.2.2/`. Older videos are kept as `sitr-accessibility-review-0.2.1.mp4` and `-0.2.0.mp4`) |
+| Video link | Unlisted YouTube link to `assets/video/sitr-accessibility-review.mp4` (gitignored; re-recorded 2026-11-20 on the `sitr-video` emulator with the 0.3.0 release build (versionCode 8), whose disclosure says Sitr reads "the text and type of the window" and names "setting up or opening a private space"; 1:54, 720 × 1770, captions burned in. Script, step times and captions are in `build/review-video/a11y-0.3.0/`. Older videos are kept as `sitr-accessibility-review-0.2.2.mp4`, `-0.2.1.mp4` and `-0.2.0.mp4`) |
 
 Description wording if asked: "Sitr is a parental control. When a guardian
 turns on the optional child lock (protected by the guardian PIN), a fixed,
@@ -190,19 +190,30 @@ user that already exists is not filtered, so remove it before you lock the
 phone."
 
 **Video (required parts, per answer/10964491)** — record on a phone with the
-release build, ≈60–90 s, captions on:
-1. Open Sitr on the device.
-2. Home → Child lock (household with a PIN already set) → step 2 "Turn on
-   accessibility guard" → the disclosure dialog, shown whole.
-3. Decline: tap "No thanks" — back on the Child lock screen, nothing opens;
-   tap "Turn on accessibility guard" again to show the disclosure returns.
-4. Consent: tap "I agree" → Accessibility settings → "Sitr child lock" →
-   switch on → Allow.
-5. Core feature: back in Sitr tap "Lock this phone", then long-press the
-   Sitr icon → App info, and again → Uninstall: each closes at once with
-   "Locked by Sitr — ask your guardian." Then open the lock with the PIN.
-   (Don't go through Settings → Apps: that whole page closes because Sitr
-   is listed under Recent apps, which looks like a crash on video.)
+release build, under 2 minutes, captions on (the 2026-11-20 recording
+follows this list):
+1. Sitr's Child lock screen (household with a guardian PIN already set,
+   step 1 always-on VPN already on).
+2. Step 2 "Turn on accessibility guard" → the disclosure dialog, shown
+   whole for about 15 s.
+3. Consent: tap "I agree" → Accessibility settings → "Sitr child lock"
+   (its description) → switch on → Allow.
+4. Back in Sitr tap "Lock this phone".
+5. Core feature, each closed with "Locked by Sitr — ask your guardian.":
+   Sitr's App info, the uninstall prompt for Sitr, Sitr's VPN settings,
+   the Private DNS dialog (Settings → Network & internet), "Reset Mobile
+   Network Settings" (System → Reset options), and the private space setup
+   (Security & privacy → Private space, after the screen-lock PIN; never
+   press SET UP).
+6. Screens that stay open: Network & internet, Wi-Fi (Internet) and the
+   Reset options list. Show Wi-Fi before private space: on the emulator,
+   after the private space setup is closed, Settings kept closing for the
+   rest of that recording.
+7. End on the Child lock screen with "Guard mode is on".
+   (Open App info by its link or the launcher, not Settings → Apps: that
+   whole page closes because Sitr is listed under Recent apps, which looks
+   like a crash on video. The decline step and the PIN unlock were left
+   out to stay under 2 minutes.)
 
 If the use changes later, Play requires submitting this form again.
 
