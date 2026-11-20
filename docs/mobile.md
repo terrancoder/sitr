@@ -181,7 +181,8 @@ system resolver.
   "starting" card, never green, and after 15 seconds without success it
   shows the filter as stopped (red). If the filter cannot read a
   network's DNS server after three tries, it blocks lookups that need
-  that server rather than let them through and keeps trying for about
+  that server rather than let them through (except for about two
+  seconds during each new try) and keeps trying for about
   16 minutes, and after that only when the network changes; until a try
   works, sites do not load on that network and Home shows a gold "Sites
   can't load on this network" card. Home shows exactly one status card, in this

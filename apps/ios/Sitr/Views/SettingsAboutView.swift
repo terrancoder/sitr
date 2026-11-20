@@ -124,7 +124,9 @@ struct SettingsAboutView: View {
         is not enforced. It does not cover apps that use their own \
         encrypted DNS, lookups are not filtered for about half a \
         second when the network changes (up to a few seconds if the new \
-        network is slow to announce its DNS server), another VPN app switches it \
+        network is slow to announce its DNS server, and up to about two \
+        seconds each time it reads that server again on the same \
+        network), another VPN app switches it \
         off, and anyone with the device passcode can switch it off in \
         iOS Settings (Sitr then shows it as off).
 

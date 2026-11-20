@@ -135,7 +135,7 @@ struct HomeStatusView: View {
                     .font(.title3.bold())
                     .foregroundStyle(Theme.gold)
                     .accessibilityIdentifier("status.noResolver")
-                Text("The DNS filter is on but could not read this network's DNS server, so it blocks lookups rather than let them through unfiltered. It keeps trying for about 16 minutes, and after that only when the network changes. To use this network without it, open the DNS filter row below and turn the filter off.")
+                Text("The DNS filter is on but could not read this network's DNS server, so it blocks lookups rather than let them through unfiltered, except for about two seconds during each new try. It keeps trying for about 16 minutes, and after that only when the network changes. To use this network without it, open the DNS filter row below and turn the filter off.")
                     .font(.subheadline)
                     .foregroundStyle(Theme.ink)
             case .dnsStarting:

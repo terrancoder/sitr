@@ -94,7 +94,10 @@ simulator except iPhone 2b (real phone, above). Both 2d frames on both
 devices and iPad 7 were retaken on 2026-11-20 and show the current text:
 "Why iOS says VPN" now says iOS lists the filter under VPN in Settings
 and shows a VPN badge in Control Center (2d frames retaken again for
-this), and the "up to a few seconds" network-change limit. Every file
+this), and the "up to a few seconds" network-change limit. Since
+2026-11-20 the limits also name about two seconds per re-read of the
+network's DNS server, so both `02d-dns-filter-disclosure-limits.png`
+frames and iPad 7 show the earlier limits text; every other file
 matches the current app.
 
 - iPhone: 11 files. Upload set (10, App Store Connect's limit): 1, 2, 2b,
