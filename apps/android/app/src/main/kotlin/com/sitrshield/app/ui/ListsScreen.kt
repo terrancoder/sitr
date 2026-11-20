@@ -28,6 +28,7 @@ import com.sitrshield.app.UiCtx
 import com.sitrshield.core.SitrResult
 import com.sitrshield.core.domains.DomainInput
 import com.sitrshield.core.gate.MutationKind
+import com.sitrshield.core.rules.DecisionSnapshot
 
 /**
  * Device allow/block lists. These never leave the device. Per the
@@ -42,8 +43,8 @@ fun ListsScreen(ctx: UiCtx) {
     Text(
         "These lists apply on this device only and never leave it. " +
             "Household lists are managed on the Sitr Family screen. " +
-            "A site you always allow opens even when a category blocks " +
-            "it — adult sites included.",
+            "An allowed site opens even when a category blocks it, except " +
+            "sites on the adult list: those stay blocked.",
         style = MaterialTheme.typography.bodyMedium,
     )
     Spacer(Modifier.height(12.dp))
@@ -51,6 +52,7 @@ fun ListsScreen(ctx: UiCtx) {
     DomainListEditor(
         title = "Always allow these sites",
         domains = ctx.settings.userAllow,
+        refuse = ctx.app::adultListed,
         onAdd = { domain, done ->
             ctx.attempt(MutationKind.ADD_DEVICE_ALLOW_RULE, "Allow $domain") {
                 ctx.actions.addDeviceDomain(allow = true, domain = domain)
@@ -137,7 +139,12 @@ fun DomainListEditor(
     domains: List<String>,
     onAdd: (String, () -> Unit) -> Unit,
     onRemove: (String) -> Unit,
+    /** True for a name that may not be added: an allow entry for an
+     *  adult-listed site. Checked BEFORE onAdd, so before the gate: no
+     *  wait and no PIN for an entry that would be refused. */
+    refuse: (String) -> Boolean = { false },
 ) {
+    val context = LocalContext.current
     // Saveable: a rotation must not throw away a half-typed domain.
     var input by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
@@ -161,12 +168,23 @@ fun DomainListEditor(
             }
             when (val normalized = DomainInput.normalize(input)) {
                 is SitrResult.Err -> error = normalized.message
-                is SitrResult.Ok -> onAdd(normalized.value) { input = "" }
+                is SitrResult.Ok ->
+                    if (refuse(normalized.value)) error = DecisionSnapshot.ADULT_ALLOW_REFUSAL
+                    else onAdd(normalized.value) { input = "" }
             }
         }) { Text("Add") }
     }
     error?.let {
         Text(it, style = MaterialTheme.typography.bodySmall, color = ProtectionRed)
+    }
+    if (error == DecisionSnapshot.ADULT_ALLOW_REFUSAL) {
+        TextButton(onClick = {
+            try {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ReportLinks.UNBLOCK)))
+            } catch (_: ActivityNotFoundException) {
+                error = "No browser can open this link."
+            }
+        }) { Text("Report a wrongly blocked site") }
     }
     Column {
         for (domain in domains) {

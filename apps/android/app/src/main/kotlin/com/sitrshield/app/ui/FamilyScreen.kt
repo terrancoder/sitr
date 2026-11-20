@@ -269,10 +269,11 @@ private fun InHousehold(ctx: UiCtx) {
         DomainListEditor(
             title = "Household allow list",
             domains = household.allowDomains,
+            refuse = ctx.app::adultListed,
             onAdd = { domain, done ->
-                // An allow rule beats every category block on every
-                // device, so adding one is loosening: same kind the
-                // extension gates it with (PIN when set).
+                // An allow rule beats every category block except the
+                // adult list on every device, so adding one is loosening:
+                // same kind the extension gates it with (PIN when set).
                 ctx.attempt(
                     MutationKind.ADD_DEVICE_ALLOW_RULE,
                     "Allow $domain on every household device",

@@ -174,6 +174,15 @@ class SitrApp : Application() {
 
     fun managedPolicy() = ManagedConfig.read(this)
 
+    /**
+     * Whether an allow entry for `domain` must be refused: the name or a
+     * parent of it is on the adult list. Fails closed — with the list
+     * unverified every name counts as listed (the filter does not run then
+     * either).
+     */
+    fun adultListed(domain: String): Boolean =
+        categorySets["adult"]?.let { DecisionSnapshot.covers(it, domain) } ?: true
+
     private fun rebuildEngine(settings: Settings) {
         val managed = ManagedConfig.read(this)
         // Household config wins over device-level toggles when joined;
@@ -182,16 +191,18 @@ class SitrApp : Application() {
         val disabled = (settings.household?.disabledCategories
             ?: settings.disabledCategories)
             .filter { it !in managed.forcedCategories }
+        // Adult is its own layer, checked before every allow entry (no allow
+        // of any layer opens it); gambling and dating stay with the lists
+        // an allow entry still opens.
         val enabledCategoryFiles = buildList {
-            add("adult")
             if ("sitr_gambling" !in disabled) add("gambling")
             if ("sitr_dating" !in disabled) add("dating")
         }
         // References only — no copy, however long the lists grow.
         val staticBlock = buildList {
             for (file in enabledCategoryFiles) categorySets[file]?.let { add(it) }
-            // Strict Search folds into the same static layer, so a user
-            // allow rule can still override it like any other block.
+            // Strict Search folds into the same static layer, so an allow
+            // entry can still override it like gambling or dating.
             if (settings.strictSearch) strictSearchSet?.let { add(it) }
             for (site in settings.mediaOff) mediaHosts[site]?.let { add(it) }
             addAll(OptionalLists.enabledSets(settings.optionalLists, optionalSets))
@@ -205,6 +216,7 @@ class SitrApp : Application() {
                 userAllow = settings.userAllow.toSet(),
                 userBlock = settings.userBlock.toSet(),
                 staticBlock = staticBlock,
+                alwaysBlock = listOfNotNull(categorySets["adult"]),
             ),
             safeSearchMap,
         )
