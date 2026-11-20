@@ -61,7 +61,7 @@ import {
   PIN_ITERATIONS,
 } from "../../../extension/dist/lib/pin.js";
 import { mintToken, privateKeyFromB64 } from "../../../server/sync/dist/mint.js";
-import { EntitlementChecker } from "../../../server/sync/dist/entitlement.js";
+import { EntitlementChecker, checkToken } from "../../../server/sync/dist/entitlement.js";
 
 function outDirArg(): string {
   const i = process.argv.indexOf("--out");
@@ -754,11 +754,11 @@ function genEntitlement(): object {
   ];
   for (const c of cases) {
     assert.equal(
-      checker.check(c.token === "" ? undefined : c.token, ENT_NOW).kind,
+      checkToken(checker, c.token === "" ? undefined : c.token, ENT_NOW).kind,
       c.outcome,
       c.name,
     );
-    assert.equal(open.check(c.token, ENT_NOW).kind, "ok");
+    assert.equal(checkToken(open, c.token, ENT_NOW).kind, "ok");
   }
 
   return {

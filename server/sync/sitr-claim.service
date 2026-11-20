@@ -1,11 +1,13 @@
 # systemd unit for the Sitr entitlement claim service — the ONLY process
-# holding the Ed25519 minting key and the Polar token. Runs separately from
-# sitr-sync so a compromise of the blob-parsing process never yields the key.
+# holding the Ed25519 minting key, the claim key, the Polar token and the
+# claim database. Runs separately from sitr-sync so a compromise of the
+# blob-parsing process never yields any of them. It refuses to start on
+# configuration that cannot work (server/sync/README.md, Start-up checks).
 # Install: copy to /etc/systemd/system/, put the secrets in
 # /etc/sitr/claim.env (root:root 0600), then
 #   systemctl enable --now sitr-claim
 [Unit]
-Description=Sitr entitlement claim service (Polar checkout -> signed token)
+Description=Sitr entitlement claim service (claims, Apple notifications -> signed tokens)
 After=network-online.target
 Wants=network-online.target
 
@@ -14,10 +16,15 @@ Type=simple
 User=sitr-claim
 DynamicUser=yes
 Environment=SITR_CLAIM_PORT=8788
-# SITR_ENTITLEMENT_PRIVKEY, SITR_POLAR_TOKEN (and optionally
-# SITR_CLAIM_ORIGIN, SITR_ENTITLEMENT_DAYS, SITR_TRUSTED_PROXY) live here:
+StateDirectory=sitr-claim
+Environment=SITR_CLAIM_DB=/var/lib/sitr-claim/claims.sqlite
+# SITR_ENTITLEMENT_PRIVKEY, SITR_CLAIM_KEY, SITR_POLAR_TOKEN,
+# SITR_POLAR_PRODUCTS, SITR_APPLE_* (and optionally SITR_CLAIM_ORIGIN,
+# SITR_ENTITLEMENT_DAYS (at most 7; the service refuses to start above),
+# SITR_V1_CUTOVER, SITR_TRUSTED_PROXY) live here (server/sync/README.md
+# lists them all):
 EnvironmentFile=/etc/sitr/claim.env
-ExecStart=/usr/bin/node /opt/sitr/server/sync/dist/claim-server.js
+ExecStart=/usr/bin/node --experimental-sqlite --no-warnings=ExperimentalWarning /opt/sitr/server/sync/dist/claim-server.js
 Restart=on-failure
 # Hardening
 NoNewPrivileges=yes

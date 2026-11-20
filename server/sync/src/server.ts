@@ -8,53 +8,28 @@
  * the internet-facing blob parser never yields the minting key.
  */
 import { createServer } from "node:http";
-import { configFromEnv } from "./config.js";
+import { configFromEnv, type Config } from "./config.js";
 import { SyncStore } from "./store.js";
-import { SyncHandler, type SyncRequest } from "./http.js";
-import { clientIp } from "./net.js";
+import { SyncHandler, syncListener } from "./http.js";
 
-const config = configFromEnv(process.env);
-const store = new SyncStore(config.dbPath);
-const handler = new SyncHandler(store, config);
+let config: Config;
+let store: SyncStore;
+let handler: SyncHandler;
+try {
+  config = configFromEnv(process.env);
+  try {
+    store = new SyncStore(config.dbPath);
+  } catch {
+    throw new Error("SITR_SYNC_DB: cannot open or create the database (does its directory exist and is it writable?)");
+  }
+  handler = new SyncHandler(store, config);
+} catch (e) {
+  // Our own messages: they name variables, never values.
+  console.error(`sitr-sync: ${(e as Error).message}`);
+  process.exit(1);
+}
 
-const server = createServer((req, res) => {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  req.on("data", (chunk: Buffer) => {
-    size += chunk.length;
-    if (size > config.maxBlobBytes + 1024) {
-      res.writeHead(413, { "Cache-Control": "no-store" });
-      res.end();
-      req.destroy();
-      return;
-    }
-    chunks.push(chunk);
-  });
-  req.on("end", () => {
-    if (res.writableEnded) return;
-    const request: SyncRequest = {
-      method: req.method ?? "GET",
-      path: req.url ?? "/",
-      ip: clientIp(
-        req.socket.remoteAddress,
-        req.headers["x-forwarded-for"],
-        config.trustedProxy,
-      ),
-      headers: {
-        authorization: req.headers.authorization,
-        "if-match": req.headers["if-match"],
-        "if-none-match": req.headers["if-none-match"],
-        "x-sitr-entitlement": Array.isArray(req.headers["x-sitr-entitlement"])
-          ? req.headers["x-sitr-entitlement"][0]
-          : req.headers["x-sitr-entitlement"],
-      },
-      body: new Uint8Array(Buffer.concat(chunks)),
-    };
-    const response = handler.handle(request);
-    res.writeHead(response.status, response.headers);
-    res.end(Buffer.from(response.body));
-  });
-});
+const server = createServer(syncListener(handler, config));
 
 setInterval(
   () => {

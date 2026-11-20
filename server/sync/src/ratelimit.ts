@@ -15,15 +15,25 @@ export class WindowCounter {
     private readonly limit: number,
   ) {}
 
-  /** Returns true when the caller is within limits (and counts the hit). */
-  allow(key: string, now: number): boolean {
+  private roll(now: number): void {
     if (now - this.windowStart >= this.windowMs) {
       this.windowStart = now;
       this.counts = new Map();
     }
+  }
+
+  /** Returns true when the caller is within limits (and counts the hit). */
+  allow(key: string, now: number): boolean {
+    this.roll(now);
     const n = (this.counts.get(key) ?? 0) + 1;
     this.counts.set(key, n);
     return n <= this.limit;
+  }
+
+  /** True when `key` has used its whole allowance this window; counts nothing. */
+  blocked(key: string, now: number): boolean {
+    this.roll(now);
+    return (this.counts.get(key) ?? 0) >= this.limit;
   }
 }
 

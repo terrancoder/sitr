@@ -121,19 +121,14 @@ test("create rate limit is per-IP and hourly", () => {
   const limit = configFromEnv({}).createsPerIpPerHour;
   for (let i = 0; i < limit; i++) {
     const id = createHash("sha256").update(`h${i}`).digest("hex").slice(0, 32);
-    const r = h.handle(put(new Uint8Array([1]), { "if-none-match": "*" }, "198.51.100.9"));
-    void id; // ids can repeat — create limiter counts attempts per IP
+    const r = h.handle({ ...put(new Uint8Array([1]), { "if-none-match": "*" }, "198.51.100.9"), path: `/v1/blob/${id}` });
     assert.notEqual(r.status, 429, `create ${i}`);
     now.t += 500; // stay inside the hour, avoid per-id minute limit
   }
-  const blocked = h.handle(
-    put(new Uint8Array([1]), { "if-none-match": "*" }, "198.51.100.9"),
-  );
+  const blocked = h.handle({ ...put(new Uint8Array([1]), { "if-none-match": "*" }, "198.51.100.9"), path: `/v1/blob/${"e".repeat(32)}` });
   assert.equal(blocked.status, 429);
   // A different IP is unaffected.
-  const other = h.handle(
-    put(new Uint8Array([1]), { "if-none-match": "*" }, "198.51.100.10"),
-  );
+  const other = h.handle({ ...put(new Uint8Array([1]), { "if-none-match": "*" }, "198.51.100.10"), path: `/v1/blob/${"e".repeat(32)}` });
   assert.notEqual(other.status, 429);
 });
 

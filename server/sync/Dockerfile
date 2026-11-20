@@ -1,7 +1,10 @@
 # Build and run the Sitr sync server. Build context = repository root:
 #   docker build -f server/sync/Dockerfile -t sitr-sync .
 #   docker run -p 8787:8787 -v sitr-sync-data:/data -e SITR_SYNC_DB=/data/blobs.sqlite sitr-sync
-FROM node:22-alpine AS build
+# Pinned to one Node release that satisfies server/sync/package.json
+# "engines" (>= 22.10, for X509Certificate.validFromDate). Bump it on purpose,
+# in both FROM lines, after checking the release notes.
+FROM node:22.23.4-alpine AS build
 WORKDIR /src
 COPY package.json package-lock.json ./
 COPY server/sync/package.json server/sync/
@@ -11,7 +14,7 @@ COPY tsconfig.base.json* ./
 COPY server/sync server/sync
 RUN npx tsc -p server/sync/tsconfig.json
 
-FROM node:22-alpine
+FROM node:22.23.4-alpine
 RUN adduser -D -H sitr
 USER sitr
 WORKDIR /app

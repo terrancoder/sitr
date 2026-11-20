@@ -46,7 +46,7 @@ import {
   verifyPin,
   type PinRecord,
 } from "../../extension/dist/lib/pin.js";
-import { EntitlementChecker } from "../../server/sync/dist/entitlement.js";
+import { EntitlementChecker, checkToken as check } from "../../server/sync/dist/entitlement.js";
 
 const fixture = (name: string): any =>
   JSON.parse(
@@ -229,7 +229,7 @@ test("entitlement fixture: verification outcomes with the committed test key", (
   const open = new EntitlementChecker(undefined);
   for (const c of fx.cases) {
     const header = c.token === "" ? undefined : c.token;
-    assert.equal(checker.check(header, fx.now).kind, c.outcome, c.name);
-    assert.equal(open.check(header, fx.now).kind, "ok", c.name);
+    assert.equal(check(checker, header, fx.now).kind, c.outcome, c.name);
+    assert.equal(check(open, header, fx.now).kind, "ok", c.name);
   }
 });

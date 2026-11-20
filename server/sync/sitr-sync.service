@@ -13,6 +13,9 @@ DynamicUser=yes
 StateDirectory=sitr-sync
 Environment=SITR_SYNC_PORT=8787
 Environment=SITR_SYNC_DB=/var/lib/sitr-sync/blobs.sqlite
+# Optional Environment= lines: SITR_ENTITLEMENT_PUBKEY, SITR_V1_CUTOVER,
+# SITR_TRUSTED_PROXY (server/sync/README.md). Never the claim service's
+# secrets (SITR_ENTITLEMENT_PRIVKEY, SITR_CLAIM_KEY, SITR_POLAR_TOKEN).
 ExecStart=/usr/bin/node --experimental-sqlite --no-warnings=ExperimentalWarning /opt/sitr/server/sync/dist/server.js
 Restart=on-failure
 # Hardening

@@ -11,32 +11,58 @@
  * The write counter backs the ETag / If-Match optimistic concurrency and
  * is unrelated to the household `rev` inside the encrypted blob.
  */
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync, type StatementSync } from "node:sqlite";
 import { timingSafeEqual } from "node:crypto";
+import { DAY } from "./entitlement.js";
+
+/** Runs `fn` in one BEGIN IMMEDIATE transaction; any throw rolls back. */
+export function transaction<T>(db: DatabaseSync, fn: () => T): T {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const r = fn();
+    db.exec("COMMIT");
+    return r;
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
+}
 
 export type GetOutcome =
-  | { kind: "ok"; blob: Uint8Array; etag: number }
+  | { kind: "ok"; blob: Uint8Array; etag: number; entExp: number | null }
   | { kind: "not-found" }
-  | { kind: "unauthorized" };
-
-export type PutOutcome =
-  | { kind: "ok"; etag: number; created: boolean }
-  | { kind: "conflict"; etag: number }
   | { kind: "unauthorized" };
 
 export type DeleteOutcome = { kind: "ok" } | { kind: "unauthorized" };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+export type LookupOutcome =
+  | { kind: "ok"; etag: number; entExp: number | null; test: boolean }
+  | { kind: "not-found" }
+  | { kind: "unauthorized" };
+
+/** Entitlement changes a PUT commits together with the blob write. */
+export interface PutEntitlement {
+  /** New `ent_exp`; undefined leaves it as it is. */
+  entExp?: number | null;
+  /** Create only. */
+  testDeleteDay?: number | null;
+  /** A `used_tokens` row to insert. */
+  used?: { hash: Uint8Array; exp: number } | undefined;
+}
 
 interface Row {
   auth_hash: Uint8Array;
-  blob: Uint8Array;
+  blob?: Uint8Array;
   write_counter: number;
   last_write_day: number;
+  ent_exp: number | null;
+  test_delete_day: number | null;
 }
 
 export class SyncStore {
   private readonly db: DatabaseSync;
+  /** Statements of the request path, prepared once. */
+  private readonly q: Record<"meta" | "full" | "isUsed" | "markUsed" | "insert" | "update", StatementSync>;
 
   constructor(dbPath: string) {
     this.db = new DatabaseSync(dbPath);
@@ -56,16 +82,62 @@ export class SyncStore {
         write_counter  INTEGER NOT NULL,
         last_write_day INTEGER NOT NULL
       ) STRICT;
+      CREATE TABLE IF NOT EXISTS used_tokens (
+        token_hash BLOB    PRIMARY KEY,
+        exp        INTEGER NOT NULL
+      ) STRICT, WITHOUT ROWID;
     `);
+    // Version 2 migration (docs/sync-protocol.md §Stored data): existing rows
+    // become legacy households (ent_exp NULL). Safe to run on every start.
+    const cols = (
+      this.db.prepare("PRAGMA table_info(blobs)").all() as unknown as { name: string }[]
+    ).map((c) => c.name);
+    for (const col of ["ent_exp", "test_delete_day"]) {
+      if (!cols.includes(col)) this.db.exec(`ALTER TABLE blobs ADD COLUMN ${col} INTEGER`);
+    }
+    const meta = "auth_hash, write_counter, last_write_day, ent_exp, test_delete_day";
+    this.q = {
+      meta: this.db.prepare(`SELECT ${meta} FROM blobs WHERE id = ?`),
+      full: this.db.prepare(`SELECT blob, ${meta} FROM blobs WHERE id = ?`),
+      isUsed: this.db.prepare("SELECT 1 FROM used_tokens WHERE token_hash = ?"),
+      markUsed: this.db.prepare("INSERT INTO used_tokens (token_hash, exp) VALUES (?, ?)"),
+      insert: this.db.prepare(
+        "INSERT INTO blobs (id, auth_hash, blob, write_counter, last_write_day, ent_exp, test_delete_day) VALUES (?, ?, ?, 1, ?, ?, ?)",
+      ),
+      update: this.db.prepare(
+        "UPDATE blobs SET blob = ?, write_counter = ?, last_write_day = ?, ent_exp = ? WHERE id = ? AND write_counter = ?",
+      ),
+    };
   }
 
-  private row(id: string): Row | undefined {
-    const got = this.db
-      .prepare(
-        "SELECT auth_hash, blob, write_counter, last_write_day FROM blobs WHERE id = ?",
-      )
-      .get(id) as unknown as Row | undefined;
-    return got;
+  /** Runs `fn` in one BEGIN IMMEDIATE transaction (the handler's PUT). */
+  tx<T>(fn: () => T): T {
+    return transaction(this.db, fn);
+  }
+
+  private markUsed(used: PutEntitlement["used"]): void {
+    if (used !== undefined) this.q.markUsed.run(used.hash, used.exp);
+  }
+
+  isUsed(hash: Uint8Array): boolean {
+    return this.q.isUsed.get(hash) !== undefined;
+  }
+
+  lookup(id: string, authHash: Uint8Array): LookupOutcome {
+    const row = this.row(id);
+    if (row === undefined) return { kind: "not-found" };
+    if (!this.authorized(row, authHash)) return { kind: "unauthorized" };
+    return {
+      kind: "ok",
+      etag: row.write_counter,
+      entExp: row.ent_exp,
+      test: row.test_delete_day !== null,
+    };
+  }
+
+  /** The row's metadata; the blob itself only when `withBlob`. */
+  private row(id: string, withBlob = false): Row | undefined {
+    return (withBlob ? this.q.full : this.q.meta).get(id) as unknown as Row | undefined;
   }
 
   private authorized(row: Row, authHash: Uint8Array): boolean {
@@ -76,49 +148,40 @@ export class SyncStore {
   }
 
   get(id: string, authHash: Uint8Array): GetOutcome {
-    const row = this.row(id);
+    const row = this.row(id, true);
     if (row === undefined) return { kind: "not-found" };
     if (!this.authorized(row, authHash)) return { kind: "unauthorized" };
     return {
       kind: "ok",
-      blob: new Uint8Array(row.blob),
+      blob: new Uint8Array(row.blob!),
       etag: row.write_counter,
+      entExp: row.ent_exp,
     };
   }
 
   /**
-   * First PUT for an id creates the row and binds the auth hash. Later
-   * PUTs require the same auth hash AND `ifMatch` equal to the current
-   * write counter (optimistic concurrency; null ifMatch on create only).
+   * Writes a PUT the handler has already decided on, inside the handler's
+   * tx(): `current` is the row it looked up and authorised (an update whose
+   * ETag matched), or null to create. Returns the new ETag.
    */
   put(
     id: string,
     authHash: Uint8Array,
     blob: Uint8Array,
-    ifMatch: number | null,
+    current: { etag: number; entExp: number | null } | null,
     now: number,
-  ): PutOutcome {
-    const day = Math.floor(now / DAY_MS);
-    const row = this.row(id);
-    if (row === undefined) {
-      this.db
-        .prepare(
-          "INSERT INTO blobs (id, auth_hash, blob, write_counter, last_write_day) VALUES (?, ?, ?, 1, ?)",
-        )
-        .run(id, authHash, blob, day);
-      return { kind: "ok", etag: 1, created: true };
+    ent: PutEntitlement = {},
+  ): number {
+    const day = Math.floor(now / DAY);
+    this.markUsed(ent.used);
+    if (current === null) {
+      this.q.insert.run(id, authHash, blob, day, ent.entExp ?? null, ent.testDeleteDay ?? null);
+      return 1;
     }
-    if (!this.authorized(row, authHash)) return { kind: "unauthorized" };
-    if (ifMatch === null || ifMatch !== row.write_counter) {
-      return { kind: "conflict", etag: row.write_counter };
-    }
-    const next = row.write_counter + 1;
-    this.db
-      .prepare(
-        "UPDATE blobs SET blob = ?, write_counter = ?, last_write_day = ? WHERE id = ? AND write_counter = ?",
-      )
-      .run(blob, next, day, id, row.write_counter);
-    return { kind: "ok", etag: next, created: false };
+    const next = current.etag + 1;
+    const r = this.q.update.run(blob, next, day, ent.entExp === undefined ? current.entExp : ent.entExp, id, current.etag);
+    if (Number(r.changes) !== 1) throw new Error("the row changed inside its own transaction");
+    return next;
   }
 
   delete(id: string, authHash: Uint8Array): DeleteOutcome {
@@ -129,12 +192,17 @@ export class SyncStore {
     return { kind: "ok" };
   }
 
-  /** Delete blobs idle longer than `idleExpiryMs`. Returns rows removed. */
+  /**
+   * Delete blobs idle longer than `idleExpiryMs` and test households past
+   * their `test_delete_day`; prune expired `used_tokens`. Returns blob rows
+   * removed.
+   */
   gc(now: number, idleExpiryMs: number): number {
-    const cutoffDay = Math.floor((now - idleExpiryMs) / DAY_MS);
+    const cutoffDay = Math.floor((now - idleExpiryMs) / DAY);
     const r = this.db
-      .prepare("DELETE FROM blobs WHERE last_write_day < ?")
-      .run(cutoffDay);
+      .prepare("DELETE FROM blobs WHERE last_write_day < ? OR test_delete_day < ?")
+      .run(cutoffDay, Math.floor(now / DAY));
+    this.db.prepare("DELETE FROM used_tokens WHERE exp < ?").run(now);
     return Number(r.changes);
   }
 
