@@ -160,7 +160,13 @@ but a modified client that holds the code can still replace the household
 state, PIN included. A guardian must keep the pairing code as secret as
 the PIN. A child device can leave its household only with the
 household's guardian PIN (a PIN the device held before joining does not
-count); leaving removes it from the household's device list. Closing this needs loosening changes to be signed with a key only
+count); leaving removes it from the household's device list. The one
+exception is a device that never received a household: while its stored
+state is still the join placeholder (joined, never synced) and holds no
+PIN, it may leave without a PIN and without the wait, whatever its role;
+a managed lock still refuses. It has no household rules to give up, and
+the check is made on the stored state at the moment of leaving, so a
+screen opened before the household arrived cannot use it afterwards. Closing this needs loosening changes to be signed with a key only
 the PIN holder can derive — a sync-protocol change, not yet made. Without the child lock,
 an unmanaged Android phone still can't stop uninstall, and managed
 devices (EMM or Family Link) remain the alternative.

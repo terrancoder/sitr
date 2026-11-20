@@ -8,7 +8,8 @@
 
 export const SYNC_STATUS_KEY = "syncStatus";
 
-export type SyncState = "never" | "ok" | "error" | "offline";
+/** "not-found": a device that joined found no household for its code. */
+export type SyncState = "never" | "ok" | "error" | "offline" | "not-found";
 
 export interface SyncStatus {
   state: SyncState;
@@ -22,7 +23,13 @@ export function sanitizeSyncStatus(raw: unknown): SyncStatus {
   if (typeof raw !== "object" || raw === null) return NEVER_SYNCED;
   const o = raw as Record<string, unknown>;
   const state = o["state"];
-  if (state !== "never" && state !== "ok" && state !== "error" && state !== "offline") {
+  if (
+    state !== "never" &&
+    state !== "ok" &&
+    state !== "error" &&
+    state !== "offline" &&
+    state !== "not-found"
+  ) {
     return NEVER_SYNCED;
   }
   return {
@@ -34,6 +41,11 @@ export function sanitizeSyncStatus(raw: unknown): SyncStatus {
   };
 }
 
+export const NO_HOUSEHOLD_FOR_CODE =
+  "No household found for this code yet. Check the code with the person who " +
+  "created the household. If the code is right, sync that device first; " +
+  "otherwise leave and join again.";
+
 export function describeSyncStatus(status: SyncStatus): string {
   switch (status.state) {
     case "never":
@@ -44,6 +56,8 @@ export function describeSyncStatus(status: SyncStatus): string {
         : "Sync: up to date.";
     case "offline":
       return "Sync: offline — filtering still fully active on this device.";
+    case "not-found":
+      return NO_HOUSEHOLD_FOR_CODE;
     case "error":
       return `Sync: failed (${status.error ?? "unknown error"}) — filtering still fully active on this device.`;
   }

@@ -78,7 +78,7 @@ Base URL: `https://sync.sitrshield.com`. All requests carry
 | Route | Semantics |
 |---|---|
 | `GET /v1/blob/{householdId}` | 200 with blob (binary) + `ETag: "<rev>"`; 404 if none; 401 wrong auth |
-| `PUT /v1/blob/{householdId}` | body = blob. First PUT creates the row and binds SHA-256(auth) to the id. Requires `If-Match: "<rev>"` of the last seen ETag (or `If-None-Match: *` on create). 200 with new ETag; 409 on concurrent write; 401 wrong auth; 413 > 64 KiB; 429 rate-limited |
+| `PUT /v1/blob/{householdId}` | body = blob. First PUT creates the row and binds SHA-256(auth) to the id. Requires `If-Match: "<rev>"` of the last seen ETag (or `If-None-Match: *` on create). Only the device that created the household sends that first PUT: a device that joined by pairing code and has not yet received the household (its join placeholder, rev 1 with `updatedAt` 0) writes nothing on 404 and waits for a later sync. 200 with new ETag; 409 on concurrent write; 401 wrong auth; 413 > 64 KiB; 429 rate-limited |
 | `DELETE /v1/blob/{householdId}` | removes the row. 204; 401 wrong auth. No current client sends it, and no client can rotate a household's secret; a blob no device writes any more is deleted after about 18 months idle (§What the operator learns) |
 
 The ETag value is an opaque server-side write counter; clients echo it
@@ -125,7 +125,11 @@ the operator opts in.
 Because the check runs only on creation, only clients that create
 households handle tokens. The extension and the Android app accept a
 pasted token for household creation. The iOS app is join-only and never
-handles tokens: joining an existing household needs none.
+handles tokens: joining an existing household needs none. A joining device
+never creates a household: when its first pull answers 404 it writes
+nothing, reports that no household exists for the code yet, and tries
+again at its next sync, so a mistyped code with a valid checksum creates
+nothing on any server. Leaving before the first sync sends nothing either.
 
 **Acquiring a token.** Checkout happens on the website via a merchant of
 record (Polar). As designed, the site then calls
@@ -839,7 +843,8 @@ order of keys; only the signer fixes the order (§Token format). A version
 
 **Create** (`PUT` to an ID with no row, with `If-None-Match: *`, or in
 enforcing mode also with `If-Match`; the latter is also a fix in the live
-version 1 code):
+version 1 code). Only a device that created the household sends it; a
+joining device never creates one (§API):
 
 - A usable token, early or not: in one transaction, insert the household
   with `ent_exp = exp`, set `test_delete_day = today + 7` when the token

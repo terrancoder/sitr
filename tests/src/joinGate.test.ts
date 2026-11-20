@@ -21,6 +21,8 @@ import { HOUSEHOLD_ROLE_KEY, HOUSEHOLD_SECRET_KEY } from "../../extension/dist/l
 import { PIN_KEY, createPinRecord, toB64 } from "../../extension/dist/lib/pin.js";
 import { encodePairingCode, generateRootSecret } from "../../extension/dist/lib/sync/crypto.js";
 import {
+  ALREADY_IN_HOUSEHOLD,
+  createHousehold,
   joinHousehold,
   withGate,
   type GateUi,
@@ -179,4 +181,29 @@ test("withGate re-checks the wait AFTER a correct PIN", async () => {
   const done = await withGate("disableCategory", ctx("guardian"), async () => void (ran = true), ui(["1234"], closes));
   assert.deepEqual([done, ran, holds, errors], [false, false, ["idle"], []]);
   assert.equal(prompts.length, 1);
+});
+
+test("P3: a join is refused when a household is already stored, even from a page that still shows the form", async () => {
+  const other = toB64(generateRootSecret());
+  store[HOUSEHOLD_SECRET_KEY] = other; // joined (or created) from another tab
+  store[HOUSEHOLD_ROLE_KEY] = "guardian";
+  const c = ctx(); // this tab loaded before that: no household in its copy
+  assert.equal(await joinHousehold(c, code, "child", ui([])), false);
+  assert.deepEqual(errors, [ALREADY_IN_HOUSEHOLD]);
+  assert.equal(ALREADY_IN_HOUSEHOLD, "This browser is already in a household. Leave it first.");
+  assert.equal(store[HOUSEHOLD_SECRET_KEY], other);
+  assert.equal(store[HOUSEHOLD_ROLE_KEY], "guardian");
+  assert.equal(c.role, undefined);
+});
+
+test("P3: creating a household is refused when one is already stored, so a stale tab cannot replace it", async () => {
+  const other = toB64(generateRootSecret());
+  store[HOUSEHOLD_SECRET_KEY] = other;
+  store[HOUSEHOLD_ROLE_KEY] = "child";
+  const c = ctx();
+  assert.equal(await createHousehold(c), false);
+  assert.deepEqual(errors, [ALREADY_IN_HOUSEHOLD]);
+  assert.equal(store[HOUSEHOLD_SECRET_KEY], other);
+  assert.equal(store[HOUSEHOLD_ROLE_KEY], "child");
+  assert.equal(c.role, undefined);
 });

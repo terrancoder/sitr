@@ -178,6 +178,17 @@ export async function syncOnce(
     if (!remote.ok) {
       return err(remote.error);
     }
+    // A joiner never creates the household: with no server copy, its
+    // placeholder stays local and the round writes nothing (a wrong code
+    // must not create a household, and the creator pushes its own later).
+    if (remote.value.state === undefined && isJoinPlaceholder(input.local)) {
+      return ok({
+        state: input.local,
+        maxSeenRev: input.maxSeenRev,
+        status: { state: "not-found" },
+        etag: undefined,
+      });
+    }
     let merged = input.local;
     let maxSeen = input.maxSeenRev;
     if (remote.value.state !== undefined) {
@@ -249,8 +260,7 @@ export async function syncOnce(
  * concurrent write put it back. Best effort: offline or an error leaves
  * the place taken. Never sends DELETE — the last device leaving leaves the
  * household's record with an empty device list. A join placeholder sends
- * nothing: it was never enrolled, and a round would PUT it if the server
- * had no record.
+ * nothing: it was never enrolled, and it has nothing to take off a list.
  */
 export async function unenroll(input: SyncInput, deps: SyncDeps): Promise<SyncOutcome> {
   if (isJoinPlaceholder(input.local)) {

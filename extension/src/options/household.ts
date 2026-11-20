@@ -26,6 +26,7 @@ import {
 } from "../lib/sync/crypto.js";
 import { applyHouseholdState } from "../lib/sync/apply.js";
 import { MAX_SEEN_REV_KEY, unenroll, type SyncDeps } from "../lib/sync/client.js";
+import { SYNC_STATUS_KEY } from "../lib/sync/status.js";
 import { DISABLED_CATEGORIES_KEY, sanitizeDisabled } from "../lib/categories.js";
 import {
   NO_ATTEMPTS,
@@ -105,6 +106,10 @@ async function deviceId(): Promise<string> {
 
 /* ------------------------------ PIN ceremony --------------------------- */
 
+function isPinlessPlaceholder(s: HouseholdState): boolean {
+  return isJoinPlaceholder(s) && s.pin === undefined;
+}
+
 async function loadPinState(localOnly = false, householdOnly = false) {
   const stored = await chrome.storage.local.get([
     PIN_KEY,
@@ -121,6 +126,9 @@ async function loadPinState(localOnly = false, householdOnly = false) {
   // this browser kept from before it joined.
   const household = sanitizeHouseholdState(stored[HOUSEHOLD_STATE_KEY]);
   return {
+    // Leaving a household never received: read here, at the moment of
+    // leaving, never from the page's copy (gate.ts LEAVE_JOIN_PLACEHOLDER_GATED_AS).
+    joinPlaceholder: household.ok && isPinlessPlaceholder(household.value),
     record:
       (household.ok && !localOnly ? household.value.pin : undefined) ??
       (householdOnly ? undefined : sanitizePinRecord(stored[PIN_KEY])),
@@ -143,6 +151,10 @@ async function heldByDelay(kind: DelayAction, ui: GateUi): Promise<boolean> {
   return true;
 }
 
+/** A leave allowed before the first sync, after which the household arrived. */
+export const HOUSEHOLD_ARRIVED =
+  "The household has just arrived on this browser. Reopen this page, then leave again.";
+
 /** A child device leaves only with the household's PIN (gate.ts). */
 export const LEAVE_NEEDS_PIN =
   "Leaving needs the guardian PIN. Ask your guardian to set one in the household.";
@@ -152,18 +164,21 @@ export const LEAVE_NEEDS_PIN =
  * delay, then the PIN — the order decideMutation fixes. Holds (and offers
  * to start the wait) when the delay says so; prompts for the PIN when the
  * gate requires it; persists failed-attempt state BEFORE reporting
- * failure. Returns false when the action did not run.
+ * failure. Returns false when the action did not run. `action` is told
+ * whether it runs as leaving a join placeholder (no PIN was asked), so the
+ * leave can check the stored state again.
  */
 export async function withGate(
   kind: DelayAction,
   ctx: HouseholdContext,
-  action: () => Promise<void>,
+  action: (asJoinPlaceholder: boolean) => Promise<void>,
   ui: GateUi = PAGE_UI,
 ): Promise<boolean> {
-  const { record, attempts } = await loadPinState(
+  const { record, attempts, joinPlaceholder } = await loadPinState(
     kind === "joinHousehold",
     kind === "leaveHousehold" && ctx.role === "child",
   );
+  if (kind === "leaveHousehold" && joinPlaceholder) kind = "leaveJoinPlaceholder";
   const delay = await readDelay();
   const step = decideMutation(
     kind,
@@ -213,7 +228,7 @@ export async function withGate(
     // The PIN prompt can sit open past the window: re-check before acting.
     if (await heldByDelay(kind, ui)) return false;
   }
-  await action();
+  await action(kind === "leaveJoinPlaceholder");
   return true;
 }
 
@@ -279,8 +294,24 @@ async function requestSyncOrigin(ctx: HouseholdContext): Promise<boolean> {
   }
 }
 
+export const ALREADY_IN_HOUSEHOLD =
+  "This browser is already in a household. Leave it first.";
+
+/**
+ * Read now, not from the page: a tab opened before an earlier create or
+ * join still shows those forms. Shows why, returns true.
+ */
+async function refuseIfInHousehold(ctx: HouseholdContext): Promise<boolean> {
+  if ((await chrome.storage.local.get(HOUSEHOLD_SECRET_KEY))[HOUSEHOLD_SECRET_KEY] === undefined) {
+    return false;
+  }
+  ctx.showError(ALREADY_IN_HOUSEHOLD);
+  return true;
+}
+
 export async function createHousehold(ctx: HouseholdContext): Promise<boolean> {
   if (!(await requestSyncOrigin(ctx))) return false;
+  if (await refuseIfInHousehold(ctx)) return false;
   const secret = generateRootSecret();
   const state = emptyHouseholdState(await deviceId(), Date.now());
   const applied = await applyHouseholdState(
@@ -322,6 +353,7 @@ export async function joinHousehold(
   }
   let joined = false;
   await withGate("joinHousehold", ctx, async () => {
+    if (await refuseIfInHousehold(ctx)) return;
     // Until the first sync pull, start from the empty shared state authored
     // at epoch 0 — so the REAL household state always wins the LWW merge on
     // the first pull, whatever its rev or timestamp.
@@ -352,10 +384,13 @@ export async function joinHousehold(
  * with the key held only in memory — key first, so a sync round still on
  * the network finds no household and cannot bring it back. Offline, the
  * device leaves anyway and its place stays taken (options.html says so).
+ * `asJoinPlaceholder`: allowed with no PIN because the household had not
+ * arrived (withGate); refused if it has arrived since.
  */
 export async function leaveHousehold(
   ctx: HouseholdContext,
   sync: SyncDeps = { fetch: fetch.bind(globalThis), now: () => Date.now() },
+  asJoinPlaceholder = false,
 ): Promise<void> {
   const before = await chrome.storage.local.get([
     HOUSEHOLD_SECRET_KEY,
@@ -363,6 +398,13 @@ export async function leaveHousehold(
     MAX_SEEN_REV_KEY,
     "entitlementToken",
   ]);
+  if (asJoinPlaceholder) {
+    const stored = sanitizeHouseholdState(before[HOUSEHOLD_STATE_KEY]);
+    if (stored.ok && !isPinlessPlaceholder(stored.value)) {
+      ctx.showError(HOUSEHOLD_ARRIVED);
+      return;
+    }
+  }
   const me = await deviceId();
   const cleared = { ...emptyHouseholdState(me, Date.now()) };
   cleared.allowDomains = [];
@@ -383,6 +425,7 @@ export async function leaveHousehold(
     HOUSEHOLD_SECRET_KEY,
     HOUSEHOLD_ROLE_KEY,
     HOUSEHOLD_STATE_KEY,
+    SYNC_STATUS_KEY, // not shown under the next household
   ]);
   ctx.role = undefined;
   ctx.state = undefined;

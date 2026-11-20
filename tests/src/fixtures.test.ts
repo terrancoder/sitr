@@ -25,6 +25,7 @@ import {
   type HouseholdState,
 } from "../../extension/dist/lib/household.js";
 import {
+  LEAVE_JOIN_PLACEHOLDER_GATED_AS,
   gateMutation,
   type MutationKind,
   type HouseholdRole,
@@ -35,6 +36,7 @@ import {
   JOIN_HOUSEHOLD_WAITS_AS,
   SHORTEN_DELAY_GATED_AS,
   WINDOW_MS,
+  decideMutation,
   delayChangeAction,
   evaluate,
   needsWait,
@@ -174,6 +176,29 @@ test("gate fixture: exhaustive authority table", () => {
       hasPin: c.hasPin,
     });
     assert.deepEqual(verdict, c.verdict, `${c.kind} / ${JSON.stringify(c)}`);
+  }
+});
+
+test("gate fixture: leaving a join placeholder is gated as leaveJoinPlaceholderGatedAs", () => {
+  const fx = fixture("gate.json");
+  assert.equal(fx.leaveJoinPlaceholderGatedAs, "enableCategory");
+  assert.equal(fx.leaveJoinPlaceholderGatedAs, LEAVE_JOIN_PLACEHOLDER_GATED_AS);
+  const rows = fx.cases.filter((c: { kind: string }) => c.kind === fx.leaveJoinPlaceholderGatedAs);
+  assert.equal(rows.length, 12);
+  for (const c of rows) {
+    const ctx = {
+      managed: { ...EMPTY_MANAGED_POLICY, lockOptions: c.managedLockOptions },
+      role: (c.role ?? undefined) as HouseholdRole | undefined,
+      hasPin: c.hasPin,
+    };
+    // Managed lock refuses; otherwise go: no PIN, no wait, in every phase.
+    const expected = c.managedLockOptions
+      ? { step: "refused", reason: "managed-locked" }
+      : { step: "go" };
+    assert.deepEqual(c.verdict.allowed ? { step: "go" } : { step: "refused", reason: c.verdict.reason }, expected);
+    for (const phase of ["off", "idle", "waiting", "open"] as const) {
+      assert.deepEqual(decideMutation("leaveJoinPlaceholder", ctx, phase), expected, JSON.stringify(c));
+    }
   }
 });
 

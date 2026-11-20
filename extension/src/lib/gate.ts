@@ -94,3 +94,12 @@ export function gateMutation(
  * wait (it loosens nothing).
  */
 export const REFRESH_DEVICE_LIST_GATED_AS: MutationKind = "changePin";
+
+/**
+ * Leaving a household this device never received (gate.json
+ * "leaveJoinPlaceholderGatedAs"): the STORED state is a join placeholder
+ * (isJoinPlaceholder) with no PIN in it. Gated exactly like enabling a
+ * category — refused on a managed lock, otherwise allowed for any role,
+ * no PIN, no wait. A synced household's leave stays "leaveHousehold".
+ */
+export const LEAVE_JOIN_PLACEHOLDER_GATED_AS: MutationKind = "enableCategory";

@@ -49,7 +49,9 @@ Android: `SyncHttp.kt`. All three send only GET and PUT, and none
 deletes the server blob; iOS is join-only. When a device leaves a
 household it sends one more PUT of the household's state without its
 own entry, so the other devices stop listing it (if the server cannot be
-reached, its place stays taken). A guardian's "Refresh device list" is
+reached, its place stays taken). A device that joined but never received
+the household sends nothing, neither on leaving nor when the server has
+no household for its code. A guardian's "Refresh device list" is
 an ordinary PUT that sets the list to that device alone; every device
 still in use adds itself again at its next sync. The Safari build for macOS
 runs the extension codebase inside Safari — same file, same single call site, a new runtime

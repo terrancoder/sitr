@@ -489,8 +489,8 @@ function wireHousehold(): void {
     clearError();
     void (async () => {
       // A child device too: the gate asks for the household's PIN.
-      await withGate("leaveHousehold", hh, async () => {
-        await leaveHousehold(hh);
+      await withGate("leaveHousehold", hh, async (asJoinPlaceholder) => {
+        await leaveHousehold(hh, undefined, asJoinPlaceholder);
         await hh.onChanged();
       });
     })().catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));

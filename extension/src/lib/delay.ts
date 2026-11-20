@@ -8,6 +8,7 @@
  * EARLY.
  */
 import {
+  LEAVE_JOIN_PLACEHOLDER_GATED_AS,
   LOOSENING,
   gateMutation,
   type GateContext,
@@ -34,9 +35,14 @@ export interface DelayEvaluation {
  * The delay's own actions. Making the delay shorter (or off) is a
  * loosening; making it longer (or turning it on) is not an action at all.
  * Joining a household is a loosening too: the household's settings arrive
- * by sync and replace this device's own.
+ * by sync and replace this device's own. Leaving a household this device
+ * never received is "leaveJoinPlaceholder" (LEAVE_JOIN_PLACEHOLDER_GATED_AS).
  */
-export type DelayAction = MutationKind | "shortenDelay" | "joinHousehold";
+export type DelayAction =
+  | MutationKind
+  | "shortenDelay"
+  | "joinHousehold"
+  | "leaveJoinPlaceholder";
 
 /** storage.local keys — device-local, never in the household blob. */
 export const DELAY_MINUTES_KEY = "loosenDelayMinutes";
@@ -82,6 +88,7 @@ export function evaluate(
 export function needsWait(action: DelayAction, phase: DelayPhase): boolean {
   if (phase === "off" || phase === "open") return false;
   if (action === "joinHousehold") return needsWait(JOIN_HOUSEHOLD_WAITS_AS, phase);
+  if (action === "leaveJoinPlaceholder") return needsWait(LEAVE_JOIN_PLACEHOLDER_GATED_AS, phase);
   return action === "shortenDelay" || LOOSENING.has(action);
 }
 
@@ -121,6 +128,9 @@ export function decideMutation(
   ctx: GateContext,
   phase: DelayPhase,
 ): MutationStep {
+  if (action === "leaveJoinPlaceholder") {
+    return decideMutation(LEAVE_JOIN_PLACEHOLDER_GATED_AS, ctx, phase);
+  }
   if (action === "joinHousehold") {
     if (needsWait(action, phase)) return { step: "wait" };
     return ctx.hasPin ? { step: "pin" } : { step: "go" };

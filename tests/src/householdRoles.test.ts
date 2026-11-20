@@ -27,8 +27,10 @@ import {
 } from "../../extension/dist/lib/household.js";
 import { PIN_KEY, createPinRecord, toB64 } from "../../extension/dist/lib/pin.js";
 import { syncOnce } from "../../extension/dist/lib/sync/client.js";
+import { NO_HOUSEHOLD_FOR_CODE, describeSyncStatus, sanitizeSyncStatus } from "../../extension/dist/lib/sync/status.js";
 import { generateRootSecret } from "../../extension/dist/lib/sync/crypto.js";
 import {
+  HOUSEHOLD_ARRIVED,
   LEAVE_NEEDS_PIN,
   WAITING_FOR_FIRST_SYNC,
   leaveHousehold,
@@ -295,4 +297,125 @@ test("C2 end to end: after a refresh, a device still in use enrols again at its 
   // The guardian sees it; "gone" never syncs again and its place stays free.
   const g2 = await round("guardian", g1.state, g1.maxSeenRev);
   assert.deepEqual(g2.state.devices, ["child", "guardian"]);
+});
+
+/* ------------- P1/P2/P4: a device that never received a household ------------- */
+
+/** The join placeholder stored as joinHousehold leaves it. */
+function placeholderIn(role: "guardian" | "child", extra: Partial<HouseholdState> = {}): HouseholdContext {
+  const s = { ...emptyHouseholdState("me", 0), ...extra };
+  store[HOUSEHOLD_SECRET_KEY] = toB64(generateRootSecret());
+  store[HOUSEHOLD_ROLE_KEY] = role;
+  store[HOUSEHOLD_STATE_KEY] = s;
+  store[DEVICE_ID_KEY] = "me";
+  return ctx(role, s);
+}
+
+/** Counts requests: leaving a placeholder must send none. */
+let requests = 0;
+const counting = { ...offline, fetch: (async () => { requests++; throw new TypeError("offline"); }) as typeof fetch };
+
+/** As options.ts wires the Leave button. */
+const leaveAsPage = (c: HouseholdContext, answers: Array<string | null>) =>
+  withGate("leaveHousehold", c, (asJoinPlaceholder) => leaveHousehold(c, counting, asJoinPlaceholder), ui(answers));
+
+test("P1: a guardian or child placeholder leaves with no PIN and no wait, sending nothing; a managed lock refuses", async () => {
+  for (const role of ["guardian", "child"] as const) {
+    store = {};
+    errors = [];
+    prompts = [];
+    requests = 0;
+    const c = placeholderIn(role);
+    store[PIN_KEY] = pin.ok ? pin.value : undefined; // this browser's own PIN does not count
+    store[DELAY_MINUTES_KEY] = 5; // wait on, not requested: a loosening would be held
+    assert.equal(await leaveAsPage(c, []), true, role);
+    assert.deepEqual([prompts, errors, requests], [[], [], 0], role);
+    for (const k of [HOUSEHOLD_SECRET_KEY, HOUSEHOLD_ROLE_KEY, HOUSEHOLD_STATE_KEY]) assert.ok(!(k in store), k);
+
+    store = {};
+    errors = [];
+    const m = placeholderIn(role);
+    m.managed = LOCKED;
+    assert.equal(await leaveAsPage(m, []), false, role);
+    assert.deepEqual(errors, ["Settings are locked by your organization's administrator."]);
+    assert.equal(store[HOUSEHOLD_ROLE_KEY], role);
+  }
+});
+
+test("P1: a rev-1, updatedAt-0 state that holds a PIN is not a free leave", async () => {
+  const c = placeholderIn("child", { pin: pin.ok ? pin.value : undefined });
+  assert.equal(await leaveAsPage(c, [null]), false);
+  assert.deepEqual(prompts, ["Enter the guardian PIN:"]);
+  assert.equal(store[HOUSEHOLD_ROLE_KEY], "child");
+});
+
+test("P2: a page loaded before the first sync cannot leave freely once the real household is stored", async () => {
+  const c = placeholderIn("child"); // the page's copy stays the placeholder
+  const real = sanitizeHouseholdState({
+    ...emptyHouseholdState("guardian-1", 1000),
+    rev: 4,
+    devices: ["guardian-1", "me"],
+    pin: pin.ok ? pin.value : undefined,
+  });
+  assert.ok(real.ok);
+  store[HOUSEHOLD_STATE_KEY] = real.value; // the worker's sync arrived
+  assert.equal(await leaveAsPage(c, [null]), false);
+  assert.deepEqual(prompts, ["Enter the guardian PIN:"]);
+  assert.equal(store[HOUSEHOLD_ROLE_KEY], "child");
+
+  // The leave itself checks again: a free pass granted just before the
+  // household arrived is refused.
+  await leaveHousehold(c, counting, true);
+  assert.deepEqual(errors, [HOUSEHOLD_ARRIVED]);
+  assert.deepEqual(store[HOUSEHOLD_STATE_KEY], real.value);
+  assert.equal(store[HOUSEHOLD_ROLE_KEY], "child");
+});
+
+test("P4: a placeholder that finds no household writes nothing and reports not-found; the creator's push is found later", async () => {
+  const handler = new SyncHandler(new SyncStore(":memory:"), configFromEnv({}), () => 1_000_000);
+  const methods: string[] = [];
+  const fetchIt = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const headers = new Headers(init?.headers);
+    methods.push(init?.method ?? "GET");
+    const res = handler.handle({
+      method: init?.method ?? "GET",
+      path: url.pathname,
+      ip: "192.0.2.1",
+      headers: {
+        authorization: headers.get("authorization") ?? undefined,
+        "if-match": headers.get("if-match") ?? undefined,
+        "if-none-match": headers.get("if-none-match") ?? undefined,
+        "x-sitr-entitlement": undefined,
+      },
+      body: init?.body === undefined ? new Uint8Array(0) : new Uint8Array(init.body as ArrayBufferLike & Uint8Array),
+    });
+    return new Response(res.body.length > 0 ? (res.body as unknown as BodyInit) : null, {
+      status: res.status,
+      headers: res.headers,
+    });
+  }) as typeof fetch;
+  const secret = generateRootSecret();
+  const deps = { fetch: fetchIt, now: () => 5000, baseUrl: "https://sync.test" };
+  const placeholder = emptyHouseholdState("joiner", 0);
+
+  const out = await syncOnce({ rootSecret: secret, local: placeholder, maxSeenRev: 0, deviceId: "joiner" }, deps);
+  assert.deepEqual(methods, ["GET"]); // no PUT: the open server created nothing
+  assert.equal(out.state, placeholder);
+  assert.equal(out.maxSeenRev, 0);
+  assert.deepEqual(out.status, { state: "not-found" });
+  assert.equal(describeSyncStatus(out.status), NO_HOUSEHOLD_FOR_CODE);
+  assert.deepEqual(sanitizeSyncStatus(out.status), out.status); // survives storage
+  assert.equal(
+    NO_HOUSEHOLD_FOR_CODE,
+    "No household found for this code yet. Check the code with the person who created the household. " +
+      "If the code is right, sync that device first; otherwise leave and join again.",
+  );
+
+  // The creator, offline until now, pushes its own state; the joiner finds it.
+  const created = { ...emptyHouseholdState("creator", 1000), blockDomains: ["x.example"] };
+  assert.equal((await syncOnce({ rootSecret: secret, local: created, maxSeenRev: 0, deviceId: "creator" }, deps)).status.state, "ok");
+  const later = await syncOnce({ rootSecret: secret, local: placeholder, maxSeenRev: 0, deviceId: "joiner" }, deps);
+  assert.equal(later.status.state, "ok");
+  assert.deepEqual(later.state.blockDomains, ["x.example"]);
 });

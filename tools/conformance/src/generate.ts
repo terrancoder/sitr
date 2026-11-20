@@ -36,6 +36,7 @@ import {
   type HouseholdState,
 } from "../../../extension/dist/lib/household.js";
 import {
+  LEAVE_JOIN_PLACEHOLDER_GATED_AS,
   REFRESH_DEVICE_LIST_GATED_AS,
   gateMutation,
   type MutationKind,
@@ -481,10 +482,22 @@ function genGate(): object {
   const child = (hasPin: boolean) => ({ managed: EMPTY_MANAGED_POLICY, role: "child" as const, hasPin });
   assert.deepEqual(gateMutation("leaveHousehold", child(true)), { allowed: true, requiresPin: true });
   assert.deepEqual(gateMutation("leaveHousehold", child(false)), { allowed: false, reason: "child-device" });
+  // Leaving a join placeholder: managed lock refuses, otherwise allowed with
+  // no PIN and no wait, in every context (P1).
+  for (const c of cases.filter((c) => c.kind === LEAVE_JOIN_PLACEHOLDER_GATED_AS)) {
+    assert.deepEqual(
+      c.verdict,
+      c.managedLockOptions ? { allowed: false, reason: "managed-locked" } : { allowed: true, requiresPin: false },
+    );
+  }
+  for (const phase of ["off", "idle", "waiting", "open"] as const) {
+    assert.equal(needsWait(LEAVE_JOIN_PLACEHOLDER_GATED_AS, phase), false);
+  }
   return {
     version: 1,
-    note: "generated — edit tools/conformance, run npm run fixtures. Exhaustive: every context x every mutation kind. A child device leaving without a household PIN is refused as child-device; show \"Leaving needs the guardian PIN. Ask your guardian to set one in the household.\" for it. \"Refresh device list\" has no row: it is gated exactly as refreshDeviceListGatedAs.",
+    note: "generated — edit tools/conformance, run npm run fixtures. Exhaustive: every context x every mutation kind. A child device leaving without a household PIN is refused as child-device; show \"Leaving needs the guardian PIN. Ask your guardian to set one in the household.\" for it. \"Refresh device list\" has no row: it is gated exactly as refreshDeviceListGatedAs. Leaving a household this device never received has no row either: when the household state READ FROM STORAGE at the moment of leaving (never one cached by an open screen) is a join placeholder (rev 1, updatedAt 0) with no pin field, leaveHousehold is gated exactly as leaveJoinPlaceholderGatedAs, for any role: refused as managed-locked under a managed lock, otherwise allowed with no PIN and no wait (that kind never waits, see delay.json needsWait). A browser's or phone's own PIN does not count; check the stored state again inside the function that performs the leave.",
     refreshDeviceListGatedAs: REFRESH_DEVICE_LIST_GATED_AS,
+    leaveJoinPlaceholderGatedAs: LEAVE_JOIN_PLACEHOLDER_GATED_AS,
     cases,
   };
 }

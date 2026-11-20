@@ -158,7 +158,7 @@ test("offline leaves the place taken", async () => {
   assert.equal(calls, 1);
 });
 
-test("a join placeholder sends nothing (a round would create the household from it)", async () => {
+test("leaving a join placeholder sends nothing to the server", async () => {
   const secret = generateRootSecret();
   const server = makeServer();
   const c = server.client();
@@ -279,13 +279,14 @@ test("leaving from the options page takes this device off the list, writes no ho
   joined(secret, remote, 5);
   store["entitlementToken"] = "token-2";
   store[DISABLED_CATEGORIES_KEY] = ["sitr_gambling"];
+  store["syncStatus"] = { state: "not-found" }; // must not show under the next join
   const c = server.client();
 
   await leaveHousehold(ctx(), { fetch: c.fetch, now: () => NOW, baseUrl: BASE });
 
   assert.deepEqual((await onServer(server, secret))?.devices, ["device-a"]);
   assert.equal(c.calls.at(-1)?.headers.get("x-sitr-entitlement"), "token-2");
-  for (const k of [HOUSEHOLD_SECRET_KEY, HOUSEHOLD_ROLE_KEY, HOUSEHOLD_STATE_KEY]) {
+  for (const k of [HOUSEHOLD_SECRET_KEY, HOUSEHOLD_ROLE_KEY, HOUSEHOLD_STATE_KEY, "syncStatus"]) {
     assert.ok(!(k in store), k);
   }
   // A cleared state persisted while the secret is still stored would start a round.
