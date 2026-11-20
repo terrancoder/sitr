@@ -3,9 +3,10 @@ import Foundation
 import SitrCore
 
 /// THE APP'S ONLY NETWORK CALL SITE — the URLSession transport handed to
-/// SitrCore's SyncClient, iOS twin of the extension's single fetch()
-/// (docs/data-flow.md). No household → zero network requests, enforced by
-/// the early return in syncNow.
+/// SitrCore's SyncClient and, for Sitr Family claims only, its ClaimClient;
+/// iOS twin of the extension's single fetch() (docs/data-flow.md). No
+/// household and no purchase → zero network requests, enforced by the
+/// early return in syncNow and by Family.claim needing a transaction.
 struct URLSessionTransport: SyncTransport {
     /// Ephemeral: nothing about a sync (the blob, the household's URL,
     /// cookies) is written to disk by the URL loading system.
@@ -26,7 +27,8 @@ struct URLSessionTransport: SyncTransport {
         return SyncHTTPResponse(
             status: http?.statusCode ?? 0,
             etagHeader: http?.value(forHTTPHeaderField: "ETag"),
-            body: data
+            body: data,
+            entitlementExpiresHeader: http?.value(forHTTPHeaderField: "X-Sitr-Entitlement-Expires")
         )
     }
 }
@@ -79,7 +81,7 @@ enum SyncScheduler {
         // `synced` wholesale reverted a change made during the round-trip.
         // On the main actor, where AppModel saves, so the two cannot interleave.
         let merged: AppSettings? = await MainActor.run {
-            guard Storage.loadRootSecret() == secret else { return nil }  // left meanwhile
+            guard stillInHousehold(secret) else { return nil }  // left meanwhile
             var current = SettingsStore.load()
             merge(into: &current, started: started, synced: synced)
             SettingsStore.persist(current)
@@ -110,26 +112,37 @@ enum SyncScheduler {
 
     /// One sync round + honest fair-use device enrollment (mirrors the
     /// extension's service worker and the Android SyncWorker).
+    /// Sitr Family: a claim first when one is due (§When to claim), then
+    /// the held token on the write; the answer's `E` and any `402 lapsed`
+    /// go back into the claim state.
     static func syncNow(settings: AppSettings) async -> AppSettings {
-        guard let secret = Storage.loadRootSecret() else { return settings }
+        // A key found in iCloud Keychain is not membership: joining it goes
+        // through the gate (HouseholdView), which sets the household first.
+        guard let secret = Storage.loadRootSecret(), let local = settings.household,
+            let householdId = Family.householdId(secret)
+        else { return settings }
+
+        await Family.renewIfDue(householdId: householdId)
+        let claimState = Family.loadState()
+        let token = ClaimPlan.tokenToSend(claimState)?.raw
+        let force = ClaimPlan.forcesWrite(claimState)
 
         let client = SyncClient(
             transport: URLSessionTransport(),
-            now: { Date().timeIntervalSince1970 * 1000 }
+            now: { Date().timeIntervalSince1970 * 1000 },
+            baseURL: Endpoints.sync
         )
-        let local =
-            settings.household
-            ?? Household.emptyState(
-                deviceId: settings.deviceId,
-                now: Date().timeIntervalSince1970 * 1000)
 
         let outcome = await client.syncOnce(
             SyncInput(
                 rootSecret: secret,
                 local: local,
                 maxSeenRev: settings.maxSeenRev,
-                deviceId: settings.deviceId
+                deviceId: settings.deviceId,
+                entitlement: token,
+                forceWrite: force
             ))
+        observe(outcome, householdId: householdId, forced: force ? token : nil)
 
         var next = settings
         next.household = outcome.state
@@ -140,7 +153,7 @@ enum SyncScheduler {
         // ponytail: a leave landing after this check still races.
         if outcome.status.state == .ok,
             !outcome.state.devices.contains(settings.deviceId),
-            Storage.loadRootSecret() == secret
+            stillInHousehold(secret)
         {
             if outcome.state.devices.count >= Household.maxHouseholdDevices {
                 next.syncStatus = SyncStatus(
@@ -160,13 +173,31 @@ enum SyncScheduler {
                         rootSecret: secret,
                         local: bumped,
                         maxSeenRev: outcome.maxSeenRev,
-                        deviceId: settings.deviceId
+                        deviceId: settings.deviceId,
+                        entitlement: token
                     ))
                 next.household = second.state
                 next.maxSeenRev = second.maxSeenRev
                 next.syncStatus = second.status
+                observe(second, householdId: householdId)
             }
         }
         return next
+    }
+
+    /// "Did the user leave meanwhile?" The stored key alone no longer says:
+    /// with iCloud Keychain on, it stays after a leave. Also true only while
+    /// the stored settings still hold a household.
+    static func stillInHousehold(_ secret: Data) -> Bool {
+        Storage.loadRootSecret() == secret && SettingsStore.load().household != nil
+    }
+
+    static func observe(_ outcome: SyncOutcome, householdId: String, forced: String? = nil) {
+        Family.update {
+            $0 = ClaimPlan.observe(
+                entExp: outcome.entExp, lapsedResponse: outcome.refusal == .lapsed,
+                succeeded: outcome.status.state == .ok, state: $0, householdId: householdId,
+                now: Family.nowMs, forced: forced)
+        }
     }
 }

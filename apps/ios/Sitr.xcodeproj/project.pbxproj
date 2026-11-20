@@ -20,6 +20,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		534954520000000000000204 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 534954520000000000000170 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 534954520000000000000171;
+			remoteInfo = Sitr;
+		};
 		5349545200000000000000A1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 534954520000000000000170 /* Project object */;
@@ -86,6 +93,8 @@
 		5349545200000000000000F7 /* Blocker.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Blocker.xcconfig; sourceTree = "<group>"; };
 		5349545200000000000000F8 /* UITests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = UITests.xcconfig; sourceTree = "<group>"; };
 		5349545200000000000000FA /* SitrUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SitrUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		534954520000000000000201 /* SitrAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SitrAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		534954520000000000000202 /* AppTests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppTests.xcconfig; sourceTree = "<group>"; };
 		5349545200000000000000F9 /* SitrMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SitrMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5349545200000000000000FB /* SitrWebExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SitrWebExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		5349545200000000000000FC /* Mac.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Mac.xcconfig; sourceTree = "<group>"; };
@@ -136,6 +145,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		534954520000000000000203 /* SitrAppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SitrAppTests;
+			sourceTree = "<group>";
+		};
 		534954520000000000000151 /* Sitr */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -184,6 +198,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		534954520000000000000207 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5349545200000000000000C2 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -233,6 +254,7 @@
 				5349545200000000000001AA /* SitrTunnel */,
 				534954520000000000000153 /* SitrUITests */,
 				534954520000000000000154 /* SitrMac */,
+				534954520000000000000203 /* SitrAppTests */,
 				534954520000000000000155 /* SitrWebExtension */,
 				534954520000000000000162 /* Configs */,
 				5349545200000000000000F3 /* safari */,
@@ -253,6 +275,7 @@
 				5349545200000000000000FC /* Mac.xcconfig */,
 				5349545200000000000000FD /* MacExt.xcconfig */,
 				5349545200000000000000F8 /* UITests.xcconfig */,
+				534954520000000000000202 /* AppTests.xcconfig */,
 			);
 			path = Configs;
 			sourceTree = "<group>";
@@ -266,6 +289,7 @@
 				5349545200000000000000F9 /* SitrMac.app */,
 				5349545200000000000000FB /* SitrWebExtension.appex */,
 				5349545200000000000000FA /* SitrUITests.xctest */,
+				534954520000000000000201 /* SitrAppTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -273,6 +297,27 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		534954520000000000000209 /* SitrAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 53495452000000000000020C /* Build configuration list for PBXNativeTarget "SitrAppTests" */;
+			buildPhases = (
+				534954520000000000000206 /* Sources */,
+				534954520000000000000207 /* Frameworks */,
+				534954520000000000000208 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				534954520000000000000205 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				534954520000000000000203 /* SitrAppTests */,
+			);
+			name = SitrAppTests;
+			productName = SitrAppTests;
+			productReference = 534954520000000000000201 /* SitrAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		534954520000000000000171 /* Sitr */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 534954520000000000000182 /* Build configuration list for PBXNativeTarget "Sitr" */;
@@ -419,6 +464,9 @@
 					5349545200000000000000A9 = {
 						TestTargetID = 534954520000000000000171;
 					};
+					534954520000000000000209 = {
+						TestTargetID = 534954520000000000000171;
+					};
 				};
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
@@ -444,11 +492,19 @@
 				534954520000000000000173 /* SitrMac */,
 				534954520000000000000174 /* SitrWebExtension */,
 				5349545200000000000000A9 /* SitrUITests */,
+				534954520000000000000209 /* SitrAppTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		534954520000000000000208 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5349545200000000000000C6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -516,6 +572,13 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		534954520000000000000206 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5349545200000000000001AD /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -561,6 +624,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		534954520000000000000205 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 534954520000000000000171 /* Sitr */;
+			targetProxy = 534954520000000000000204 /* PBXContainerItemProxy */;
+		};
 		5349545200000000000000A2 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 534954520000000000000172 /* SitrBlocker */;
@@ -584,6 +652,20 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		53495452000000000000020A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 534954520000000000000202 /* AppTests.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		53495452000000000000020B /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 534954520000000000000202 /* AppTests.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
 		534954520000000000000191 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 5349545200000000000000F5 /* Shared.xcconfig */;
@@ -694,6 +776,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		53495452000000000000020C /* Build configuration list for PBXNativeTarget "SitrAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				53495452000000000000020A /* Debug */,
+				53495452000000000000020B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		534954520000000000000181 /* Build configuration list for PBXProject "Sitr" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

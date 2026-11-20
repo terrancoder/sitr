@@ -38,7 +38,20 @@
                ReferencedContainer = "container:Sitr.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "534954520000000000000209"
+               BuildableName = "SitrAppTests.xctest"
+               BlueprintName = "SitrAppTests"
+               ReferencedContainer = "container:Sitr.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
+      <StoreKitConfigurationFileReference
+         identifier = "../../Configs/Sitr.storekit">
+      </StoreKitConfigurationFileReference>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
@@ -60,6 +73,9 @@
             ReferencedContainer = "container:Sitr.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <StoreKitConfigurationFileReference
+         identifier = "../../Configs/Sitr.storekit">
+      </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

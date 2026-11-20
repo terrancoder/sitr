@@ -24,6 +24,14 @@ ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
 SITR_ENTITLEMENTS_YES = Sitr/Sitr.entitlements
 SITR_ENTITLEMENTS_NO = Sitr/SitrNoDnsFilter.entitlements
 CODE_SIGN_ENTITLEMENTS = $(SITR_ENTITLEMENTS_$(SITR_DNS_FILTER))
+// Debug simulator builds: plus get-task-allow, for StoreKit local testing.
+SITR_ENTITLEMENTS_YES[config=Debug][sdk=iphonesimulator*] = Configs/Sitr-DebugSimulator.entitlements
+
+// Sitr Family local testing (docs/sync-protocol.md §How this is tested):
+// Debug builds read an Info.plist with a plain-HTTP exception for the
+// local claim and sync servers. Release reads Sitr/Info.plist, which has
+// none; the base-URL override code is compiled out (#if DEBUG, Family.swift).
+INFOPLIST_FILE[config=Debug] = Configs/Sitr-Debug-Info.plist
 SITR_EXCLUDE_YES =
 SITR_EXCLUDE_NO = SitrTunnel.appex
 EXCLUDED_SOURCE_FILE_NAMES = $(SITR_EXCLUDE_$(SITR_DNS_FILTER))

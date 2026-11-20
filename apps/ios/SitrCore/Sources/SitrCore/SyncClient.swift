@@ -18,11 +18,22 @@ public struct SyncHTTPResponse {
     public let status: Int
     public let etagHeader: String?
     public let body: Data
+    /// X-Sitr-Entitlement-Expires: the household's end `E` (epoch ms), sent
+    /// by an enforcing server (docs/sync-protocol.md §Telling clients the end).
+    public let entitlementExpiresHeader: String?
 
-    public init(status: Int, etagHeader: String?, body: Data) {
+    public init(status: Int, etagHeader: String?, body: Data, entitlementExpiresHeader: String? = nil) {
         self.status = status
         self.etagHeader = etagHeader
         self.body = body
+        self.entitlementExpiresHeader = entitlementExpiresHeader
+    }
+
+    var entExp: Double? {
+        guard let raw = entitlementExpiresHeader?.trimmingCharacters(in: .whitespaces),
+            !raw.isEmpty, raw.count <= 16, raw.allSatisfy({ $0.isASCII && $0.isNumber })
+        else { return nil }
+        return Double(raw)
     }
 }
 
@@ -44,24 +55,27 @@ public struct SyncInput {
     /// Highest rev this device has ever decrypted from the server.
     public let maxSeenRev: Int
     public let deviceId: String
-    /// Signed subscription token: sent with every push when set, checked
-    /// by the server only on creation.
-    /// The iOS app is join-only and never sets this — the parameter exists
-    /// for protocol parity (docs/sync-protocol.md §Entitlement).
+    /// Signed subscription token: sent with every push when set
+    /// (docs/sync-protocol.md §Using the token).
     public let entitlement: String?
+    /// Write the household even when nothing changed, so a new token
+    /// reaches the server.
+    public let forceWrite: Bool
 
     public init(
         rootSecret: Data,
         local: HouseholdState,
         maxSeenRev: Int,
         deviceId: String,
-        entitlement: String? = nil
+        entitlement: String? = nil,
+        forceWrite: Bool = false
     ) {
         self.rootSecret = rootSecret
         self.local = local
         self.maxSeenRev = maxSeenRev
         self.deviceId = deviceId
         self.entitlement = entitlement
+        self.forceWrite = forceWrite
     }
 }
 
@@ -72,6 +86,10 @@ public struct SyncOutcome: Equatable {
     public let status: SyncStatus
     /// ETag of the server copy after this sync (diagnostics only).
     public let etag: Int?
+    /// The household's end `E` from the last response that carried it.
+    public var entExp: Double? = nil
+    /// The sync server's 402 reason, when a write was refused with one.
+    public var refusal: SyncRefusal? = nil
 }
 
 public struct SyncClient {
@@ -106,6 +124,7 @@ public struct SyncClient {
     struct Remote {
         let state: HouseholdState?
         let etag: Int?
+        var entExp: Double? = nil
     }
 
     enum PullError: Error {
@@ -129,14 +148,14 @@ public struct SyncClient {
         } catch {
             return .failure(.offline)
         }
-        if response.status == 404 { return .success(Remote(state: nil, etag: nil)) }
+        if response.status == 404 { return .success(Remote(state: nil, etag: nil, entExp: response.entExp)) }
         guard (200..<300).contains(response.status) else {
             return .failure(.message("server responded \(response.status)"))
         }
         let etag = Self.parseEtag(response.etagHeader)
         switch Household.openState(blob: response.body, encKey: keys.encKey) {
         case .failure(let e): return .failure(.message(e.message))
-        case .success(let state): return .success(Remote(state: state, etag: etag))
+        case .success(let state): return .success(Remote(state: state, etag: etag, entExp: response.entExp))
         }
     }
 
@@ -144,6 +163,7 @@ public struct SyncClient {
         case offline
         case conflict
         case message(String)
+        case refused(SyncRefusal, entExp: Double?)
     }
 
     func push(
@@ -151,7 +171,7 @@ public struct SyncClient {
         state: HouseholdState,
         etag: Int?,
         entitlement: String?
-    ) async -> Result<Int, PushError> {
+    ) async -> Result<(etag: Int, entExp: Double?), PushError> {
         let sealed = Household.sealState(state, encKey: keys.encKey)
         guard case .success(let blob) = sealed else {
             if case .failure(let e) = sealed { return .failure(.message(e.message)) }
@@ -178,10 +198,13 @@ public struct SyncClient {
             return .failure(.offline)
         }
         if response.status == 409 { return .failure(.conflict) }
+        if response.status == 402, let reason = SyncRefusal.parse(response.body) {
+            return .failure(.refused(reason, entExp: response.entExp))
+        }
         guard (200..<300).contains(response.status) else {
             return .failure(.message("server responded \(response.status)"))
         }
-        return .success(Self.parseEtag(response.etagHeader) ?? 0)
+        return .success((Self.parseEtag(response.etagHeader) ?? 0, response.entExp))
     }
 
     /// One full sync round. Never throws. The returned state is always safe
@@ -206,6 +229,7 @@ public struct SyncClient {
             case retry
             case offline
             case message(String)
+            case refused(SyncRefusal, entExp: Double?)
         }
 
         func attempt() async -> Result<SyncOutcome, AttemptError> {
@@ -230,14 +254,15 @@ public struct SyncClient {
             }
             // Push only when the server copy differs from the merge result.
             if let remoteState = remote.state, remoteState.rev == merged.rev,
-                remoteState == merged
+                remoteState == merged, !input.forceWrite
             {
                 return .success(
                     SyncOutcome(
                         state: merged,
                         maxSeenRev: max(maxSeen, merged.rev),
                         status: SyncStatus(state: .ok, lastSuccessAt: now()),
-                        etag: remote.etag
+                        etag: remote.etag,
+                        entExp: remote.entExp
                     ))
             }
             let toPush: HouseholdState
@@ -255,21 +280,31 @@ public struct SyncClient {
             case .failure(.conflict): return .failure(.retry)
             case .failure(.offline): return .failure(.offline)
             case .failure(.message(let m)): return .failure(.message(m))
-            case .success(let etag):
+            case .failure(.refused(let r, let e)): return .failure(.refused(r, entExp: e ?? remote.entExp))
+            case .success(let pushed):
                 return .success(
                     SyncOutcome(
                         state: toPush,
                         maxSeenRev: max(maxSeen, toPush.rev),
                         status: SyncStatus(state: .ok, lastSuccessAt: now()),
-                        etag: etag
+                        etag: pushed.etag,
+                        entExp: pushed.entExp ?? remote.entExp
                     ))
             }
+        }
+
+        func refused(_ reason: SyncRefusal, _ entExp: Double?) -> SyncOutcome {
+            var out = failed(reason.message)
+            out.entExp = entExp
+            out.refusal = reason
+            return out
         }
 
         switch await attempt() {
         case .success(let outcome): return outcome
         case .failure(.offline): return failed("offline", offline: true)
         case .failure(.message(let m)): return failed(m)
+        case .failure(.refused(let r, let e)): return refused(r, e)
         case .failure(.retry):
             // One concurrent-write retry: re-pull, re-merge, re-push.
             switch await attempt() {
@@ -277,6 +312,7 @@ public struct SyncClient {
             case .failure(.retry): return failed("repeated version conflicts")
             case .failure(.offline): return failed("offline", offline: true)
             case .failure(.message(let m)): return failed(m)
+            case .failure(.refused(let r, let e)): return refused(r, e)
             }
         }
     }

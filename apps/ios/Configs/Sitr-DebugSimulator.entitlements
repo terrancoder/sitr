@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- DEBUG SIMULATOR BUILDS ONLY (App.xcconfig). Sitr.entitlements plus
+	     get-task-allow: StoreKit's local test environment (the scheme's
+	     Configs/Sitr.storekit, SKTestSession in SitrAppTests) works only for
+	     an app "installed for development", and simulator builds signed to
+	     run locally do not get this key otherwise. Keep the rest in step
+	     with Sitr/Sitr.entitlements. -->
+	<key>get-task-allow</key>
+	<true/>
+	<!-- Shared container: the blocker reads the generated rules here, the
+	     DNS filter reads the settings. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.sitrshield.sitr</string>
+	</array>
+	<!-- Screen Time. Development is self-service; DISTRIBUTION requires
+	     Apple's approval (Udocs/family-controls-entitlement-guide.md).
+	     The feature is runtime-gated, so builds work either way. -->
+	<key>com.apple.developer.family-controls</key>
+	<true/>
+	<!-- The opt-in DNS filter: NETunnelProviderManager for SitrTunnel.
+	     Building without it: SITR_DNS_FILTER = NO (Configs/Shared.xcconfig),
+	     which signs with SitrNoDnsFilter.entitlements instead. -->
+	<key>com.apple.developer.networking.networkextension</key>
+	<array>
+		<string>packet-tunnel-provider</string>
+	</array>
+</dict>
+</plist>

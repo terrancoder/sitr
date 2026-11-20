@@ -1,12 +1,14 @@
 import Foundation
 import SitrCore
+import StoreKit
 import SwiftUI
 
 /// The app's single source of truth. Every mutation is gate-checked
 /// through the ported authority ladder (child role > PIN; no managed
 /// layer on iOS v1) and applied ENGINE FIRST: BlockerController must
-/// accept the new rules before the settings persist. iOS is JOIN-ONLY —
-/// no entitlement token exists anywhere in this app.
+/// accept the new rules before the settings persist. Sitr Family: a device
+/// joins by pairing code, or subscribes in the app and creates a household
+/// (AppModel+Family.swift, docs/sync-protocol.md §Entitlement version 2).
 @MainActor
 final class AppModel: ObservableObject {
     @Published var settings: AppSettings
@@ -18,6 +20,24 @@ final class AppModel: ObservableObject {
     /// card. Not persisted: the next apply attempt replaces it.
     @Published var reloadError: String?
 
+    // Sitr Family (AppModel+Family.swift).
+    @Published var products: [Product] = []
+    @Published var subscribed = false
+    @Published var familyNotice: FamilyNotice = .none
+    @Published var familyEnd: Double?
+    @Published var familyMessage: String?
+    @Published var familyBusy = false
+    @Published var familyStopped = false
+    @Published var offersReplace = false
+    @Published var askReplace = false
+    @Published var newPairingCode: String?
+    @Published var iCloudKeyFound = false
+    @Published var keychainInICloud = Storage.keychainInICloud
+    var familyChain: Task<Void, Never>?
+    /// The transaction just bought, in memory only, for a "Create household"
+    /// retry: StoreKit can take a moment to list it in Transaction.latest.
+    var purchasedCredential: String?
+
     /// Tail of the mutation chain — see `mutate`.
     private var pending: Task<Void, Never>?
     private var healing = false
@@ -25,6 +45,7 @@ final class AppModel: ObservableObject {
     init() {
         settings = SettingsStore.load()
         screenTimeStatus = ScreenTimeController.status()
+        listenForTransactions()
     }
 
     // MARK: - Gate
@@ -283,33 +304,40 @@ final class AppModel: ObservableObject {
         // meanwhile (it was computed from the copy taken before the call).
         await mutate { current in
             // Left the household while the request was out.
-            guard Storage.loadRootSecret() == secret else { return }
+            guard SyncScheduler.stillInHousehold(secret) else { return }
             SyncScheduler.merge(into: &current, started: started, synced: result)
         }
         SyncScheduler.scheduleNext()
     }
 
-    // MARK: - Household actions (join-only on iOS)
+    // MARK: - Household actions
 
     func joinHousehold(code: String, asChild: Bool) async {
         switch PairingCode.decode(code) {
         case .failure(let error):
             lastError = error.message
         case .success(let secret):
-            guard Storage.saveRootSecret(secret) else {
-                lastError = "The household key could not be stored on this device."
-                return
-            }
-            await mutate { next in
-                // Epoch 0 (as the extension does): the real household must
-                // win the first merge, even one still at rev 1.
-                next.household = Household.emptyState(deviceId: next.deviceId, now: 0)
-                next.role = asChild ? "child" : "guardian"
-                next.maxSeenRev = 0
-                next.syncStatus = .neverSynced
-            }
-            await runSync()
+            await joinHousehold(secret: secret, asChild: asChild)
         }
+    }
+
+    /// By pairing code, or with the key found in iCloud Keychain; both come
+    /// here only through the gate, the wait and the PIN (attemptJoin).
+    func joinHousehold(secret: Data, asChild: Bool) async {
+        guard Storage.saveRootSecret(secret) else {
+            lastError = "The household key could not be stored on this device."
+            return
+        }
+        await mutate { next in
+            // Epoch 0 (as the extension does): the real household must
+            // win the first merge, even one still at rev 1.
+            next.household = Household.emptyState(deviceId: next.deviceId, now: 0)
+            next.role = asChild ? "child" : "guardian"
+            next.maxSeenRev = 0
+            next.syncStatus = .neverSynced
+        }
+        await runSync()
+        await refreshFamily()
     }
 
     func leaveHousehold() async {
@@ -317,6 +345,9 @@ final class AppModel: ObservableObject {
         let before = settings
         // Key first: a sync still on the network checks for it before
         // merging, so its late result cannot bring the household back.
+        // With iCloud Keychain on, the synced key stays (for the user's other
+        // devices), so those checks also require the household to be set
+        // (SyncScheduler.stillInHousehold).
         Storage.clearRootSecret()
         SyncScheduler.cancel()
         await mutate { next in
@@ -325,16 +356,22 @@ final class AppModel: ObservableObject {
             next.maxSeenRev = 0
             next.syncStatus = .neverSynced
         }
+        newPairingCode = nil
         // Then free this device's fair-use place, as Android does, with the
-        // key held only in memory. Offline, the place stays taken.
+        // key held only in memory. Offline, the place stays taken. A held
+        // Sitr Family token goes with the write; a lapsed household with no
+        // token refuses it (402) and the place stays taken until renewal.
         if let secret, let household = before.household {
             let client = SyncClient(
-                transport: URLSessionTransport(), now: { Date().timeIntervalSince1970 * 1000 })
+                transport: URLSessionTransport(), now: { Date().timeIntervalSince1970 * 1000 },
+                baseURL: Endpoints.sync)
             _ = await client.unenroll(
                 SyncInput(
                     rootSecret: secret, local: household,
-                    maxSeenRev: before.maxSeenRev, deviceId: before.deviceId))
+                    maxSeenRev: before.maxSeenRev, deviceId: before.deviceId,
+                    entitlement: ClaimPlan.tokenToSend(Family.loadState())?.raw))
         }
+        await refreshFamily()
     }
 
     func pairingCode() -> String? {

@@ -12,7 +12,7 @@ struct SitrApp: App {
             await SyncScheduler.syncAndApply()
         }
         Theme.applyChrome()
-        Storage.pinRootSecretToThisDevice()
+        Storage.applyKeychainMode()
         #if DEBUG && SITR_DNS_FILTER
         DnsFilterDebug.writeBaseline()  // DNS filter diagnostics, Debug builds only
         #endif
@@ -31,6 +31,7 @@ struct SitrApp: App {
                         await model.reloadFromStore()
                         await model.refreshStatus()
                         await model.runSync()
+                        await model.refreshFamily()
                     }
                 }
         }

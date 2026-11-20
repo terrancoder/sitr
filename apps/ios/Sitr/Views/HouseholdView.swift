@@ -1,14 +1,14 @@
 import CoreImage.CIFilterBuiltins
 import SitrCore
+import StoreKit
 import SwiftUI
 import VisionKit
 
-/// Sitr Family — JOIN-ONLY on iOS: households are created on a computer
-/// with the Sitr extension or on the Android app (factual, no purchase
-/// mention — there is no token UI in this app, by design). Pairing code
+/// Sitr Family: join a household by pairing code (or with the key found in
+/// iCloud Keychain), or subscribe in the app and create one. Pairing code
 /// entry is forgiving; scanning uses the system camera scanner. The
-/// pairing code reveal is guardian-only and PIN-gated: possession IS
-/// membership.
+/// pairing code reveal is guardian-only and PIN-gated (except right after
+/// this device created the household): possession IS membership.
 struct HouseholdView: View {
     @EnvironmentObject var model: AppModel
     let attempt: (MutationKind, String, @escaping () -> Void) -> Void
@@ -25,6 +25,19 @@ struct HouseholdView: View {
         }
         .navigationTitle("Sitr Family")
         .sitrScreenBackground()
+        .task { await model.refreshFamily() }
+        .alert("Renew on this device?", isPresented: $model.askReplace) {
+            Button("Renew here") { Task { await model.createHousehold(replace: true) } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(Self.replaceWarning)
+        }
+        .alert("Renew on this device?", isPresented: $confirmRenewHere) {
+            Button("Renew here") { Task { await model.renewOnThisDevice() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(Self.replaceWarning)
+        }
         .sheet(isPresented: $showScanner) {
             QRScannerView(
                 onScan: { scanned in
@@ -47,6 +60,13 @@ struct HouseholdView: View {
     @State private var code = ""
     @State private var asChild = false
     @State private var showScanner = false
+    @State private var confirmRenewHere = false
+
+    static let replaceWarning =
+        "Another device renews this subscription. Moving the renewal here can be done only once in 180 days."
+    static let privacyURL = URL(string: "https://sitrshield.com/privacy")!
+    /// Apple's standard licence agreement until Sitr publishes its own terms.
+    static let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
 
     @ViewBuilder private var joinSections: some View {
         Section {
@@ -89,6 +109,120 @@ struct HouseholdView: View {
                 .foregroundStyle(Theme.inkSoft)
         }
         .sitrRows()
+        if model.iCloudKeyFound {
+            Section("Household key in iCloud Keychain") {
+                Text("A household key from your other Apple devices is on this device.")
+                    .foregroundStyle(Theme.ink)
+                Button("Join this household") {
+                    attemptJoin {
+                        Task { await model.joinFromICloudKey(asChild: asChild) }
+                    }
+                }
+            }
+            .sitrRows()
+        }
+        subscribeSection
+        familyMessageSection
+        iCloudSection
+    }
+
+    // MARK: - Subscribe (Sitr Family)
+
+    @ViewBuilder private var subscribeSection: some View {
+        Section("Create a household") {
+            if model.subscribed {
+                Text("Your Sitr Family subscription is active.")
+                    .foregroundStyle(Theme.ink)
+                Button(model.familyBusy ? "Creating household…" : "Create household") {
+                    Task { await model.createHousehold() }
+                }
+                .disabled(model.familyBusy)
+            } else {
+                Text("Sitr Family: one household, its lists and settings on all its devices, end-to-end encrypted.")
+                    .foregroundStyle(Theme.ink)
+                if model.products.isEmpty {
+                    Text("Subscriptions are not available right now.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.inkSoft)
+                }
+                ForEach(model.products, id: \.id) { product in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(product.displayPrice + Self.perPeriod(product))
+                            .font(.title3.bold())
+                            .foregroundStyle(Theme.ink)
+                        Text(product.displayName).foregroundStyle(Theme.ink)
+                        Text(Self.length(product)).font(.caption).foregroundStyle(Theme.inkSoft)
+                        Button("Subscribe") { Task { await model.subscribe(product) } }
+                            .disabled(model.familyBusy)
+                            .accessibilityIdentifier("subscribe.\(product.id)")
+                    }
+                }
+            }
+            Button("Restore Purchases") { Task { await model.restorePurchases() } }
+            Text(
+                "Sitr keeps no account. Apple holds the purchase; this device keeps a random renewal key and "
+                    + "the current monthly token, and the sync server never learns who paid."
+            )
+            .font(.caption)
+            .foregroundStyle(Theme.inkSoft)
+            HStack {
+                Link("Privacy policy", destination: Self.privacyURL)
+                Spacer()
+                Link("Terms of use", destination: Self.termsURL)
+            }
+            .font(.caption)
+        }
+        .sitrRows()
+    }
+
+    @ViewBuilder private var familyMessageSection: some View {
+        if let message = model.familyMessage {
+            Section {
+                Text(message).foregroundStyle(Theme.alert)
+            }
+            .sitrRows()
+        }
+    }
+
+    @ViewBuilder private var iCloudSection: some View {
+        Section {
+            Toggle(
+                "Keep the household key in iCloud Keychain",
+                isOn: Binding(
+                    get: { model.keychainInICloud },
+                    set: { on in Task { await model.setKeychainInICloud(on) } })
+            )
+            .foregroundStyle(Theme.ink)
+            Text(
+                model.keychainInICloud
+                    ? "Your other Apple devices get the household key and the renewal key, so they can rejoin and renew."
+                    : "The keys stay on this device only. Turning this off removes the iCloud copies from your other devices too."
+            )
+            .font(.caption)
+            .foregroundStyle(Theme.inkSoft)
+        }
+        .sitrRows()
+    }
+
+    static func perPeriod(_ product: Product) -> String {
+        switch product.subscription?.subscriptionPeriod.unit {
+        case .month: return " / month"
+        case .year: return " / year"
+        default: return ""
+        }
+    }
+
+    static func length(_ product: Product) -> String {
+        guard let period = product.subscription?.subscriptionPeriod else { return "" }
+        let unit: String
+        switch period.unit {
+        case .day: unit = period.value == 1 ? "day" : "days"
+        case .week: unit = period.value == 1 ? "week" : "weeks"
+        case .month: unit = period.value == 1 ? "month" : "months"
+        case .year: unit = period.value == 1 ? "year" : "years"
+        @unknown default: unit = ""
+        }
+        return "Renews automatically every \(period.value == 1 ? "" : "\(period.value) ")\(unit) until cancelled."
     }
 
     // MARK: - In a household
@@ -119,17 +253,40 @@ struct HouseholdView: View {
             if waiting {
                 Text(Self.waitingForFirstSync).foregroundStyle(Theme.ink)
             }
-            Button("Sync now") { Task { await model.runSync() } }
+            if let end = model.familyEnd {
+                LabeledContent(
+                    "Household runs until",
+                    value: Date(timeIntervalSince1970: end / 1000).formatted(date: .abbreviated, time: .shortened)
+                )
+                .foregroundStyle(Theme.ink)
+            }
+            if let notice = Family.text(model.familyNotice) {
+                Text(notice).foregroundStyle(Theme.alert).accessibilityIdentifier("family.notice")
+            }
+            if model.offersReplace {
+                Button("Renew on this device") { confirmRenewHere = true }
+            }
+            if model.familyStopped {
+                Button("Try the subscription again") { Task { await model.retryFamilyClaim() } }
+            }
+            Button("Sync now") {
+                Task {
+                    await model.runSync()
+                    await model.refreshFamily()
+                }
+            }
         }
         .sitrRows()
+        familyMessageSection
 
         if isGuardian && !waiting {
             Section("Pairing") {
-                if let revealed = revealedCode {
+                if let revealed = revealedCode ?? model.newPairingCode {
                     Text(revealed)
                         .font(.system(.footnote, design: .monospaced))
                         .textSelection(.enabled)
                         .foregroundStyle(Theme.gold)
+                        .accessibilityIdentifier("pairing.code")
                     if let image = qrImage(for: revealed) {
                         Image(uiImage: image)
                             .interpolation(.none)
@@ -142,7 +299,10 @@ struct HouseholdView: View {
                             + "— treat it like a house key.")
                         .font(.caption)
                         .foregroundStyle(Theme.alert)
-                    Button("Hide") { revealedCode = nil }
+                    Button("Hide") {
+                        revealedCode = nil
+                        model.newPairingCode = nil
+                    }
                 } else {
                     Button("Show pairing code") {
                         requirePin("Show the pairing code") {
@@ -186,6 +346,8 @@ struct HouseholdView: View {
             }
             .sitrRows()
         }
+
+        iCloudSection
 
         Section {
             Button("Leave household", role: .destructive) {

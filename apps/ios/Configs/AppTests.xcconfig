@@ -1,0 +1,9 @@
+#include "Shared.xcconfig"
+
+// SitrAppTests: unit tests hosted in the app (Debug only in practice).
+// They drive StoreKit's local test environment with SKTestSession, which
+// reaches the app only from a hosted test, and skip unless the local
+// claim and sync servers are named (see SitrAppTests/FamilyFlowTests.swift).
+PRODUCT_BUNDLE_IDENTIFIER = com.sitrshield.sitr.apptests
+TEST_HOST = $(BUILT_PRODUCTS_DIR)/Sitr.app/Sitr
+BUNDLE_LOADER = $(TEST_HOST)
