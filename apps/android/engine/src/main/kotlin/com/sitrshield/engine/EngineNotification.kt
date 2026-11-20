@@ -154,19 +154,26 @@ object EngineNotification {
      * the update that matters. The service posts it once per state
      * change, so it cannot repeat.
      */
-    fun inactive(context: Context, reason: Protection.Reason): Notification =
-        builder(context, ALERT_CHANNEL_ID, R.drawable.ic_stat_unlocked)
+    fun inactive(context: Context, reason: Protection.Reason): Notification {
+        // Tapping opens Home, whose "Re-enable" button is one tap away.
+        // The Home card itself is not tappable, so only this text says "Tap".
+        val text = describe(reason) + when (reason) {
+            Protection.Reason.NOT_RUNNING, Protection.Reason.VPN_REVOKED -> " Tap to re-enable."
+            else -> ""
+        }
+        return builder(context, ALERT_CHANNEL_ID, R.drawable.ic_stat_unlocked)
             .setContentTitle("Sitr — PROTECTION INACTIVE")
-            .setContentText(describe(reason))
-            .setStyle(NotificationCompat.BigTextStyle().bigText(describe(reason)))
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setColor(RED)
             .setColorized(true)
             .build()
+    }
 
     fun describe(reason: Protection.Reason): String = when (reason) {
-        Protection.Reason.NOT_RUNNING -> "Filtering is off. Tap to re-enable."
+        Protection.Reason.NOT_RUNNING -> "Filtering is off."
         Protection.Reason.VPN_REVOKED ->
-            "The VPN was turned off or replaced by another app. Tap to re-enable."
+            "The VPN was turned off or replaced by another app."
         Protection.Reason.PRIVATE_DNS_STRICT ->
             "Private DNS is set to a fixed host, which conflicts with Sitr: " +
                 "protection is not active. Set Private DNS to Automatic or Off " +

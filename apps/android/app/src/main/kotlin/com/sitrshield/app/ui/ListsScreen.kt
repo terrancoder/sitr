@@ -34,7 +34,8 @@ import com.sitrshield.core.rules.DecisionSnapshot
  * Device allow/block lists. These never leave the device. Per the
  * ladder: adding an allow or removing a block is loosening (PIN-gated);
  * adding a block or removing an allow never is. Input runs through the
- * same normalizer as the extension.
+ * extension's normalizer, which here also refuses IP addresses and names
+ * already listed.
  */
 @Composable
 fun ListsScreen(ctx: UiCtx) {
@@ -42,6 +43,7 @@ fun ListsScreen(ctx: UiCtx) {
     Spacer(Modifier.height(4.dp))
     Text(
         "These lists apply on this device only and never leave it. " +
+            "If a site is in both lists, the allow entry wins. " +
             "Household lists are managed on the Sitr Family screen. " +
             "An allowed site opens even when a category blocks it, except " +
             "sites on the adult list: those stay blocked.",
@@ -166,7 +168,7 @@ fun DomainListEditor(
                 error = "Type a domain, for example example.com"
                 return@TextButton
             }
-            when (val normalized = DomainInput.normalize(input)) {
+            when (val normalized = DomainInput.normalize(input, domains)) {
                 is SitrResult.Err -> error = normalized.message
                 is SitrResult.Ok ->
                     if (refuse(normalized.value)) error = DecisionSnapshot.ADULT_ALLOW_REFUSAL
