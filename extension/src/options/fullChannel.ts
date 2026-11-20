@@ -74,7 +74,8 @@ export const CLAIM_UNAVAILABLE =
 export const RENEWS_HERE = "This browser renews the Family plan.";
 export const CODE_SAVED = "A subscription code is saved on this browser.";
 
-const pageFetch: typeof fetch = (...args) => fetch(...args);
+// A reference, not a call: lib/sync/client.ts stays the one network call site.
+const pageFetch: typeof fetch = fetch.bind(globalThis);
 
 const fill = (text: string, ms: number | null) =>
   ms === null ? text : text.replace("{date}", formatDay(ms));
