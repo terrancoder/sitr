@@ -11,12 +11,14 @@ import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.sitrshield.app.SitrApp
-import com.sitrshield.core.SitrResult
+import com.sitrshield.core.gate.HouseholdRole
 import com.sitrshield.core.household.Household
-import com.sitrshield.core.sync.SyncClient
+import com.sitrshield.core.sync.FamilyRound
 import com.sitrshield.core.sync.SyncInput
+import com.sitrshield.core.sync.SyncRun
 import com.sitrshield.core.sync.SyncStatus
 import java.util.concurrent.TimeUnit
+import kotlin.random.Random
 
 /**
  * Sync scheduling — every 30 minutes while a household exists (matching
@@ -25,7 +27,11 @@ import java.util.concurrent.TimeUnit
  * network — the zero-requests-without-household invariant, structurally
  * enforced and grep-verifiable.
  *
- * Ordering: syncOnce → engine apply → persist (via SitrApp.update).
+ * The round is a Sitr Family round (FamilyRound via SyncRun): it claims
+ * from the claim host only with a subscription code and only when a claim
+ * is due, inside this same run — no job of its own.
+ *
+ * Ordering: round → engine apply → persist (via SitrApp.update).
  * Sync outcomes write only household state + sync status; they cannot
  * touch protection status (EngineFacts has no sync input).
  */
@@ -38,39 +44,33 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
         val now = { System.currentTimeMillis().toDouble() }
         val local = settings.household
             ?: Household.emptyState(settings.deviceId, now())
-        val client = SyncClient(SyncHttp(), now)
-
-        var outcome = client.syncOnce(
+        // No code (or a child device): FamilyRound sends nothing to the
+        // claim host; with a code, only when a claim is due (Entitlement.next).
+        val subscription = app.secretStore.loadSubscription()
+        // The claim state is kept in memory during the run and written once,
+        // below, with the rest of the result.
+        var claims = settings.claims
+        val round = FamilyRound(
+            SyncHttp(), now, { Random.nextDouble() },
+            loadClaims = { claims }, saveClaims = { claims = it },
+            syncBaseUrl = Endpoints.sync(app), claimBaseUrl = Endpoints.claim(app),
+        )
+        var dropped = false
+        val outcome = SyncRun.run(
+            round,
             SyncInput(
                 rootSecret = secret,
                 local = local,
                 maxSeenRev = settings.maxSeenRev,
                 deviceId = settings.deviceId,
                 entitlement = settings.entitlementToken,
-            )
-        )
-
-        // Honest fair-use enrolment (Household.enrolDevice, as the
-        // extension's service worker): join the device list when missing —
-        // after a join, or after a guardian refreshed the list — below the
-        // 20-device cap; at the cap, surface it — filtering stays active.
-        if (outcome.status.state == SyncStatus.State.OK) {
-            when (val enrolled = Household.enrolDevice(outcome.state, settings.deviceId, now())) {
-                is SitrResult.Err -> outcome = outcome.copy(
-                    status = SyncStatus(SyncStatus.State.ERROR, error = enrolled.message)
-                )
-                is SitrResult.Ok -> enrolled.value?.let { state ->
-                    outcome = client.syncOnce(
-                        SyncInput(
-                            rootSecret = secret,
-                            local = state,
-                            maxSeenRev = outcome.maxSeenRev,
-                            deviceId = settings.deviceId,
-                            entitlement = settings.entitlementToken,
-                        )
-                    )
-                }
-            }
+            ),
+            subscription,
+            HouseholdRole.fromWire(settings.role),
+            now(),
+        ) {
+            // A code of an Institutions plan: deleted with its claim secret.
+            dropped = true
         }
 
         // Merge into the settings as they are NOW, not as they were when
@@ -78,16 +78,21 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
         // result written wholesale would undo anything changed meanwhile.
         var changedMeanwhile = false
         app.update { current ->
+            // Left the household while we were on the network — this
+            // result belongs to a household the device is no longer in.
+            if (app.secretStore.load()?.contentEquals(secret) != true) return@update current
+            // The code was entered, changed or removed meanwhile: that
+            // change reset the claim state; keep it.
+            val sameCode = app.secretStore.loadSubscription() == subscription
+            if (dropped && sameCode) app.secretStore.clearSubscription()
+            val withClaims = if (sameCode) current.copy(claims = claims) else current
             when {
-                // Left the household while we were on the network — this
-                // result belongs to a household the device is no longer in.
-                app.secretStore.load()?.contentEquals(secret) != true -> current
                 // Edited locally meanwhile: keep the edit, sync again from it.
                 current.household != settings.household -> {
                     changedMeanwhile = true
-                    current.copy(maxSeenRev = maxOf(current.maxSeenRev, outcome.maxSeenRev))
+                    withClaims.copy(maxSeenRev = maxOf(current.maxSeenRev, outcome.maxSeenRev))
                 }
-                else -> current.copy(
+                else -> withClaims.copy(
                     household = outcome.state,
                     maxSeenRev = outcome.maxSeenRev,
                     syncStatus = outcome.status,
@@ -96,7 +101,9 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
         }
         if (changedMeanwhile) kick(applicationContext)
         // Connectivity dropped mid-run: WorkManager retries with backoff
-        // once the network constraint holds again.
+        // once the network constraint holds again. A claim's failure never
+        // retries here: the claim state's own backoff (Entitlement.record)
+        // decides when the next periodic run claims again.
         return if (outcome.status.state == SyncStatus.State.OFFLINE) Result.retry()
         else Result.success()
     }

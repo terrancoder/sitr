@@ -7,6 +7,8 @@ import com.sitrshield.core.gate.DelayStamp
 import com.sitrshield.core.gate.PauseRecord
 import com.sitrshield.core.household.Household
 import com.sitrshield.core.household.HouseholdState
+import com.sitrshield.core.sync.ClaimState
+import com.sitrshield.core.sync.Entitlement
 import com.sitrshield.core.sync.SyncStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +51,10 @@ data class Settings(
     val household: HouseholdState? = null,
     val maxSeenRev: Int = 0,
     val entitlementToken: String? = null,
+    /** Sitr Family version 2: this device's claim state, including the
+     * household's last known end date and lapse (claims.end). Never in the
+     * household blob; the code and claim secret are in SecretStore. */
+    val claims: ClaimState = ClaimState(),
     val syncStatus: SyncStatus = SyncStatus.NEVER_SYNCED,
 )
 
@@ -102,6 +108,7 @@ class Repository(context: Context) {
             household = household,
             maxSeenRev = prefs.getInt("syncMaxSeenRev", 0),
             entitlementToken = prefs.getString("entitlementToken", null),
+            claims = Entitlement.loadClaimState(prefs.getString("claimState", null)),
             syncStatus = syncStatus,
         )
     }
@@ -127,6 +134,7 @@ class Repository(context: Context) {
             )
             .putInt("syncMaxSeenRev", next.maxSeenRev)
             .putString("entitlementToken", next.entitlementToken)
+            .putString("claimState", next.claims.toJson().toString())
             .putString(
                 "syncStatus",
                 JSONObject().apply {

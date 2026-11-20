@@ -2,6 +2,7 @@ package com.sitrshield.app
 
 import android.os.SystemClock
 import com.sitrshield.app.data.Settings
+import com.sitrshield.app.sync.Endpoints
 import com.sitrshield.app.sync.SyncHttp
 import com.sitrshield.app.sync.SyncWorker
 import com.sitrshield.core.SitrResult
@@ -21,7 +22,12 @@ import com.sitrshield.core.household.Household
 import com.sitrshield.core.household.HouseholdState
 import com.sitrshield.core.pin.Pin
 import com.sitrshield.core.pin.PinRecord
+import com.sitrshield.core.sync.ClaimClient
+import com.sitrshield.core.sync.ClaimState
+import com.sitrshield.core.sync.CodeInput
+import com.sitrshield.core.sync.Entitlement
 import com.sitrshield.core.sync.PairingCode
+import com.sitrshield.core.sync.Subscription
 import com.sitrshield.core.sync.SyncClient
 import com.sitrshield.core.sync.SyncCrypto
 import com.sitrshield.core.sync.SyncInput
@@ -40,6 +46,7 @@ import kotlin.concurrent.thread
 class HouseholdActions(private val app: SitrApp) {
     companion object {
         private const val LOCKED = "turn off the child lock first"
+        private const val CHILD_NO_CODE = "a child device does not hold a subscription code"
         const val WAITING_FOR_FIRST_SYNC =
             "Waiting for the first sync with your household. Connect to the " +
                 "internet and tap Sync now. The household's PIN and lists " +
@@ -164,6 +171,8 @@ class HouseholdActions(private val app: SitrApp) {
             is SitrResult.Ok -> decoded.value
         }
         app.secretStore.save(secret)
+        // A child-role device never holds a subscription code.
+        if (role == "child") app.secretStore.clearSubscription()
         app.update(kickSync = true) { s ->
             s.copy(
                 // Authored at epoch 0 (as the extension does), so the real
@@ -210,6 +219,8 @@ class HouseholdActions(private val app: SitrApp) {
                 role = null,
                 maxSeenRev = 0,
                 entitlementToken = null,
+                // The code and claim secret went with clear() above.
+                claims = ClaimState(),
                 syncStatus = SyncStatus.NEVER_SYNCED,
             )
         }
@@ -223,12 +234,58 @@ class HouseholdActions(private val app: SitrApp) {
         val household = before.household
         if (key != null && household != null) {
             thread(name = "sitr-unenroll") {
-                SyncClient(SyncHttp(), ::now).unenroll(
+                SyncClient(SyncHttp(), ::now, Endpoints.sync(app)).unenroll(
                     SyncInput(key, household, before.maxSeenRev, before.deviceId, before.entitlementToken)
                 )
             }
         }
         return SitrResult.Ok(Unit)
+    }
+
+    /**
+     * Sitr Family subscription code (docs/sync-protocol.md §Extension and
+     * Android). Call only after decide() let Gate.SUBSCRIPTION_GATED_AS
+     * through (refused under a managed lock and on a child device, then
+     * the PIN when set, no wait). Refused here too under the child lock and
+     * on a child-role device. A new code gets a new claim secret; the same
+     * code entered again keeps its secret, or this device would find the
+     * subscription bound to its own old one. Either way the claim state
+     * forgets this device's claims (Entitlement.forgetClaims), and the next
+     * sync run claims. Accepts a subscription code only: a version 1 token
+     * goes to createHousehold.
+     */
+    fun saveSubscriptionCode(input: String): SitrResult<Unit> {
+        codeRefusal()?.let { return SitrResult.Err(it) }
+        val code = when (val parsed = Entitlement.classifyCodeInput(input)) {
+            is CodeInput.Code -> parsed.code
+            else -> return SitrResult.Err(Entitlement.TEXTS.getValue("input-invalid"))
+        }
+        val held = app.secretStore.loadSubscription()
+        val claimSecret = held?.takeIf { it.code == code }?.claimSecret ?: ClaimClient.newClaimSecret()
+        app.secretStore.saveSubscription(Subscription(code, claimSecret))
+        app.update(kickSync = true) { it.copy(claims = Entitlement.forgetClaims(it.claims)) }
+        return SitrResult.Ok(Unit)
+    }
+
+    /**
+     * Gated as saveSubscriptionCode. The code and the claim secret are
+     * deleted together; the household runs until its end date
+     * (settings.claims.entExp), and this device no longer renews it.
+     */
+    fun removeSubscriptionCode(): SitrResult<Unit> {
+        codeRefusal()?.let { return SitrResult.Err(it) }
+        app.secretStore.clearSubscription()
+        app.update { it.copy(claims = Entitlement.forgetClaims(it.claims)) }
+        return SitrResult.Ok(Unit)
+    }
+
+    private fun codeRefusal(): String? {
+        val s = settings()
+        return when {
+            s.childLock -> LOCKED
+            HouseholdRole.fromWire(s.role) == HouseholdRole.CHILD -> CHILD_NO_CODE
+            else -> null
+        }
     }
 
     /**

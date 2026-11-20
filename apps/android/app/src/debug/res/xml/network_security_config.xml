@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only (src/debug): cleartext to the local development
+     servers on 127.0.0.1 (reached through `adb reverse`), nothing else.
+     The release build has no network security config at all, so the
+     platform default (no cleartext) applies. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

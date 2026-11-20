@@ -10,7 +10,9 @@ import java.net.URL
 /**
  * THE APP'S ONLY HTTP CALL SITE — the Android counterpart of the
  * extension's single fetch() in sync/client.ts. docs/data-flow.md invites
- * auditors to verify by grep; keep it true. Plain HttpURLConnection: no
+ * auditors to verify by grep; keep it true. It serves both hosts, the
+ * sync server and the claim service (Endpoints; docs/sync-protocol.md
+ * §One call site, two hosts). Plain HttpURLConnection: no
  * OkHttp, no interceptors, no caches (threat-model.md T4).
  */
 class SyncHttp : SyncTransport {
@@ -48,7 +50,12 @@ class SyncHttp : SyncTransport {
                 }
                 out.toByteArray()
             } ?: ByteArray(0)
-            return SyncHttpResponse(status, connection.getHeaderField("ETag"), bytes)
+            return SyncHttpResponse(
+                status,
+                connection.getHeaderField("ETag"),
+                bytes,
+                connection.getHeaderField("X-Sitr-Entitlement-Expires"),
+            )
         } finally {
             connection.disconnect()
         }

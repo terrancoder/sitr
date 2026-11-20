@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Debug builds only: the release build never compiles src/debug. -->
+<!-- Debug builds only: the release build never compiles src/debug. The
+     network security config allows cleartext to 127.0.0.1 only, for the
+     local development servers; release has none (platform default). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application>
+    <application android:networkSecurityConfig="@xml/network_security_config">
         <receiver
             android:name="com.sitrshield.app.DebugDelayReceiver"
+            android:exported="false" />
+        <receiver
+            android:name="com.sitrshield.app.DebugSyncReceiver"
             android:exported="false" />
     </application>
 </manifest>
