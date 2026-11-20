@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.sitrshield.core.gate.Delay
 import com.sitrshield.core.gate.DelayStamp
+import com.sitrshield.core.gate.PauseRecord
 import com.sitrshield.core.household.Household
 import com.sitrshield.core.household.HouseholdState
 import com.sitrshield.core.sync.SyncStatus
@@ -161,6 +162,24 @@ class Repository(context: Context) {
                     putLong("loosenDelayAtMono", value.atMono).putLong("loosenDelayAtWall", value.atWall)
                 }
             }.apply()
+        }
+
+    /**
+     * Pauses that still count against the allowance (Pause.live), as
+     * "atMono,atWall,usedMs;…". Device-local, outside Settings like the
+     * delay stamp; never synced. Stamps on both clocks, so neither a clock
+     * change nor a reboot can hand the allowance back.
+     */
+    var pauseRecords: List<PauseRecord>
+        get() = prefs.getString("pauseRecords", "")!!.split(';').mapNotNull { r ->
+            r.split(',').mapNotNull(String::toLongOrNull).takeIf { it.size == 3 }
+                ?.let { (mono, wall, used) -> PauseRecord(DelayStamp(mono, wall), used) }
+        }
+        set(value) {
+            prefs.edit().putString(
+                "pauseRecords",
+                value.joinToString(";") { "${it.at.atMono},${it.at.atWall},${it.usedMs}" },
+            ).apply()
         }
 
     /** Any change to the setting clears the request, in the same write. */

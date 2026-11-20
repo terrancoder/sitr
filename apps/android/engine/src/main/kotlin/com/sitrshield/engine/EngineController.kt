@@ -35,6 +35,12 @@ data class EngineFacts(
     /** Sitr is the always-on VPN, so no other app may take the slot.
      *  Null below Android 10, where the service can't tell. */
     val alwaysOn: Boolean? = null,
+    /** "Block connections without VPN" is on: a pause would cut the
+     *  phone off, so it is not offered. Null below Android 10. */
+    val lockdown: Boolean? = null,
+    /** Paused by the user until this elapsedRealtime (ms); 0 = not paused.
+     *  The tun is down for the whole pause. */
+    val pausedUntil: Long = 0,
 )
 
 /** The fail-visible verdict shown as notification + home status card. */
@@ -48,6 +54,7 @@ sealed class Protection {
         PRIVATE_DNS_STRICT,
         BLOCKLIST_LOAD_FAILED,
         NO_UPSTREAMS,
+        PAUSED,
     }
 }
 
@@ -81,6 +88,7 @@ object EngineController {
      */
     fun protection(f: EngineFacts = facts.value): Protection = when {
         f.revokedAt != 0L -> Protection.Inactive(Protection.Reason.VPN_REVOKED)
+        f.pausedUntil != 0L -> Protection.Inactive(Protection.Reason.PAUSED)
         !f.tunActive -> Protection.Inactive(Protection.Reason.NOT_RUNNING)
         !f.blocklistVerified -> Protection.Inactive(Protection.Reason.BLOCKLIST_LOAD_FAILED)
         f.privateDnsStrict -> Protection.Inactive(Protection.Reason.PRIVATE_DNS_STRICT)

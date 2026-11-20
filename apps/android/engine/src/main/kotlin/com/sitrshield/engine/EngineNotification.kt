@@ -95,6 +95,9 @@ object EngineNotification {
             .setContentIntent(contentIntent)
     }
 
+    /** Extra on the launch intent: open Home with the pause sheet showing. */
+    const val EXTRA_OPEN_PAUSE = "com.sitrshield.OPEN_PAUSE"
+
     fun active(context: Context): Notification =
         builder(context, CHANNEL_ID, R.drawable.ic_stat_locked)
             .setOnlyAlertOnce(true)
@@ -103,7 +106,47 @@ object EngineNotification {
             .setColor(GREEN)
             .setColorized(true) // honoured: this one belongs to the foreground service
             .setOngoing(true)
+            // Only opens the app at the pause sheet: the pause itself goes
+            // through the gate there (PIN, wait, child device).
+            .apply { openPauseSheet(context)?.let { addAction(0, "Pause", it) } }
             .build()
+
+    private fun openPauseSheet(context: Context): PendingIntent? =
+        context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+            PendingIntent.getActivity(
+                context, 1,
+                it.putExtra(EXTRA_OPEN_PAUSE, true)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        }
+
+    /**
+     * The whole pause: open padlock (not protected), the time it ends as a
+     * live countdown, and "Resume now" — a tightening, so no gate.
+     */
+    fun paused(context: Context, endsAtWall: Long): Notification {
+        val resume = PendingIntent.getService(
+            context, 2,
+            Intent(context, SitrVpnService::class.java).setAction(SitrVpnService.ACTION_RESUME),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val until = android.text.format.DateFormat.getTimeFormat(context)
+            .format(java.util.Date(endsAtWall))
+        return builder(context, CHANNEL_ID, R.drawable.ic_stat_unlocked)
+            .setOnlyAlertOnce(true)
+            .setContentTitle("Sitr — paused until $until")
+            .setContentText(describe(Protection.Reason.PAUSED))
+            .setWhen(endsAtWall)
+            .setShowWhen(true)
+            .setUsesChronometer(true)
+            .setChronometerCountDown(true)
+            .setColor(RED)
+            .setColorized(true)
+            .setOngoing(true)
+            .addAction(0, "Resume now", resume)
+            .build()
+    }
 
     /**
      * Deliberately NOT only-alert-once: this replaces the green
@@ -132,6 +175,8 @@ object EngineNotification {
             "The blocklist failed verification. Reinstall the app."
         Protection.Reason.NO_UPSTREAMS ->
             "The network offered no DNS server. Check the connection."
+        Protection.Reason.PAUSED ->
+            "Paused: nothing on this phone is filtered. Protection comes back by itself."
     }
 
     /** The user switched protection off on purpose: no warning is due. */

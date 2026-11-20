@@ -3,7 +3,9 @@ package com.sitrshield.app.ui
 import android.app.Activity
 import android.content.Intent
 import android.net.VpnService
+import android.os.SystemClock
 import android.provider.Settings
+import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -14,16 +16,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,6 +41,7 @@ import com.sitrshield.app.Screen
 import com.sitrshield.app.UiCtx
 import com.sitrshield.app.lock.ChildLock
 import com.sitrshield.core.gate.MutationKind
+import com.sitrshield.core.gate.Pause
 import com.sitrshield.engine.EngineController
 import com.sitrshield.engine.EngineNotification
 import com.sitrshield.engine.Protection
@@ -81,12 +89,33 @@ fun HomeScreen(ctx: UiCtx) {
         }
     }
 
+    // The status notification's "Pause" opens the app here, once.
+    var pauseSheet by remember {
+        val intent = (context as? Activity)?.intent
+        mutableStateOf(intent?.getBooleanExtra(EngineNotification.EXTRA_OPEN_PAUSE, false) == true)
+            .also { intent?.removeExtra(EngineNotification.EXTRA_OPEN_PAUSE) }
+    }
+
     Text("Sitr", style = MaterialTheme.typography.headlineMedium)
     Spacer(Modifier.height(12.dp))
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             when {
+                // First: always-on can run a pause with the switch off.
+                facts.pausedUntil != 0L -> {
+                    StatusTitle(
+                        "Paused until ${clockTime(context, facts.pausedUntil)}",
+                        locked = false, ProtectionRed,
+                    )
+                    Text(
+                        "Nothing on this phone is filtered until then. Protection " +
+                            "comes back by itself.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    // Tightening: no gate.
+                    Button(onClick = { SitrVpnService.resume(context) }) { Text("Resume now") }
+                }
                 !enabled -> {
                     StatusTitle("Filtering is off", locked = false, MaterialTheme.colorScheme.onSurface)
                     Text(
@@ -108,7 +137,10 @@ fun HomeScreen(ctx: UiCtx) {
                     // device, PIN when one is set. (The gate table has no
                     // kind of its own for it — the extension it is shared
                     // with has no global off switch.)
-                    OutlinedButton(onClick = ::turnOff) { Text("Turn off") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { pauseSheet = true }) { Text("Pause") }
+                        OutlinedButton(onClick = ::turnOff) { Text("Turn off") }
+                    }
                 }
                 protection is Protection.Inactive -> {
                     StatusTitle("PROTECTION INACTIVE", locked = false, ProtectionRed)
@@ -153,6 +185,10 @@ fun HomeScreen(ctx: UiCtx) {
                 }) { Text("Open notification settings") }
             }
         }
+    }
+
+    if (pauseSheet && protection is Protection.Active) {
+        PauseSheet(ctx, lockdown = facts.lockdown == true) { pauseSheet = false }
     }
 
     Spacer(Modifier.height(16.dp))
@@ -210,6 +246,67 @@ fun HomeScreen(ctx: UiCtx) {
             Modifier.fillMaxWidth(),
         ) { Text("About & privacy") }
     }
+}
+
+/** An elapsedRealtime instant as the time of day it falls on. */
+private fun clockTime(context: android.content.Context, elapsed: Long): String =
+    DateFormat.getTimeFormat(context).format(
+        java.util.Date(System.currentTimeMillis() + (elapsed - SystemClock.elapsedRealtime()))
+    )
+
+/**
+ * "Pause protection": says what a pause does BEFORE the user picks a
+ * length. Picking goes through the gate exactly like "Turn off"
+ * (refused on a child or locked device, the wait, the PIN), then the
+ * 15-in-60 allowance is checked again and the whole pause recorded.
+ */
+@Composable
+private fun PauseSheet(ctx: UiCtx, lockdown: Boolean, close: () -> Unit) {
+    val context = LocalContext.current
+    val waits = remember { ctx.actions.pauseWaits() }
+    // Lockdown may have been switched on since the service last looked.
+    LaunchedEffect(Unit) { SitrVpnService.refresh(context) }
+    fun later(ms: Long) = clockTime(context, SystemClock.elapsedRealtime() + ms)
+    val note = when {
+        lockdown -> "\"Block connections without VPN\" is on for Sitr, so a pause " +
+            "would cut this phone off from the internet. Turn that setting off to pause."
+        waits.getValue(5) > 0 -> "You have used this hour's pauses. You can pause again at " +
+            "${later(waits.getValue(5))}."
+        waits.getValue(15) > 0 -> "A 15-minute pause is possible again at " +
+            "${later(waits.getValue(15))}."
+        else -> null
+    }
+    AlertDialog(
+        onDismissRequest = close,
+        title = { Text("Pause protection") },
+        text = {
+            Text(
+                "While paused, Sitr's VPN is off. Nothing on this phone is filtered, " +
+                    "and apps that refuse to work while a VPN is on will work. " +
+                    "Protection comes back by itself when the time is up, even if " +
+                    "the phone is asleep.\n\nYou can pause for up to 15 minutes in " +
+                    "any hour. A pause counts in full even if you resume early." +
+                    (note?.let { "\n\n$it" } ?: ""),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        },
+        confirmButton = {
+            Row {
+                for (minutes in Pause.MINUTES_ALLOWED) {
+                    TextButton(
+                        enabled = !lockdown && waits.getValue(minutes) == 0L,
+                        onClick = {
+                            close()
+                            ctx.attempt(Pause.GATED_AS, "Pause protection") {
+                                ctx.actions.startPause(minutes)
+                            }
+                        },
+                    ) { Text("$minutes minutes") }
+                }
+            }
+        },
+        dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
+    )
 }
 
 /** The status title with the same padlock the status bar shows, in colour. */

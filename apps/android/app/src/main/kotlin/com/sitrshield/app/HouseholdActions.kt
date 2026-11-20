@@ -13,6 +13,8 @@ import com.sitrshield.core.gate.DelayStamp
 import com.sitrshield.core.gate.GateContext
 import com.sitrshield.core.gate.HouseholdRole
 import com.sitrshield.core.gate.MutationStep
+import com.sitrshield.core.gate.Pause
+import com.sitrshield.core.gate.PauseRecord
 import com.sitrshield.core.household.Household
 import com.sitrshield.core.household.HouseholdState
 import com.sitrshield.core.pin.Pin
@@ -22,6 +24,8 @@ import com.sitrshield.core.sync.SyncClient
 import com.sitrshield.core.sync.SyncCrypto
 import com.sitrshield.core.sync.SyncInput
 import com.sitrshield.core.sync.SyncStatus
+import com.sitrshield.engine.EngineController
+import com.sitrshield.engine.SitrVpnService
 import kotlin.concurrent.thread
 
 /**
@@ -77,6 +81,31 @@ class HouseholdActions(private val app: SitrApp) {
 
     fun cancelDelayRequest() {
         app.repository.loosenDelayStamp = null
+    }
+
+    /** Ms until each pause length fits the 15-in-60 allowance (0 = now). */
+    fun pauseWaits(): Map<Int, Long> {
+        val now = clocks()
+        val stored = app.repository.pauseRecords
+        val live = Pause.live(stored, now)
+        if (live != stored) app.repository.pauseRecords = live
+        return Pause.MINUTES_ALLOWED.associateWith { Pause.waitFor(it, live, now) }
+    }
+
+    /**
+     * Call only after decide() let Pause.GATED_AS through. Re-checks the
+     * allowance (the PIN dialog may have sat open), records the WHOLE
+     * pause before it starts, then takes the tun down.
+     */
+    fun startPause(minutes: Int): Boolean {
+        val now = clocks()
+        val live = Pause.live(app.repository.pauseRecords, now)
+        if (minutes !in Pause.MINUTES_ALLOWED || Pause.waitFor(minutes, live, now) > 0) return false
+        // The service refuses a pause under lockdown; never charge for one it won't run.
+        if (EngineController.facts.value.lockdown == true) return false
+        app.repository.pauseRecords = live + PauseRecord(DelayStamp(now), minutes * 60_000L)
+        SitrVpnService.pause(app, minutes * 60_000L)
+        return true
     }
 
     /** Call only after decide() let a shortening through; lengthening is free. */

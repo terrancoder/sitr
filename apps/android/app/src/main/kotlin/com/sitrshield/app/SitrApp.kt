@@ -11,7 +11,10 @@ import com.sitrshield.app.data.SecretStore
 import com.sitrshield.app.data.Settings
 import com.sitrshield.app.managed.ManagedConfig
 import com.sitrshield.app.sync.SyncWorker
+import android.os.SystemClock
 import com.sitrshield.core.categories.OptionalLists
+import com.sitrshield.core.gate.DelayClockReading
+import com.sitrshield.core.gate.Pause
 import com.sitrshield.core.dns.SafeSearchMap
 import com.sitrshield.core.dns.StrictSearchHosts
 import com.sitrshield.core.domainset.DomainSet
@@ -64,6 +67,13 @@ class SitrApp : Application() {
         // blocklistVerified check (always-on bypasses BootReceiver).
         loadArtifacts()
         rebuildEngine(repository.current())
+        // Prune the pause allowance at every process start (boot included),
+        // so after a reboot a remembered pause counts for an hour from boot,
+        // not from whenever the pause sheet is next opened.
+        repository.pauseRecords = Pause.live(
+            repository.pauseRecords,
+            DelayClockReading(SystemClock.elapsedRealtime(), System.currentTimeMillis()),
+        )
         if (secretStore.load() != null) SyncWorker.schedulePeriodic(this)
 
         // Managed configuration can change while the filter runs; without

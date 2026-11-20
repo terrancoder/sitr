@@ -1,7 +1,11 @@
 package com.sitrshield.engine
 
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.LinkProperties
@@ -10,8 +14,16 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelFileDescriptor
+import android.os.PowerManager
+import android.os.SystemClock
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
+import com.sitrshield.core.gate.DelayClockReading
+import com.sitrshield.core.gate.DelayStamp
+import com.sitrshield.core.gate.Pause
 
 /**
  * The DNS-only filter VPN (docs/architecture.md §Mobile engines,
@@ -27,6 +39,10 @@ import androidx.core.app.ServiceCompat
 class SitrVpnService : VpnService() {
     companion object {
         const val ACTION_STOP = "com.sitrshield.engine.STOP"
+        const val ACTION_PAUSE = "com.sitrshield.engine.PAUSE"
+        const val ACTION_RESUME = "com.sitrshield.engine.RESUME"
+        const val ACTION_REFRESH = "com.sitrshield.engine.REFRESH"
+        private const val EXTRA_PAUSE_MS = "pauseMs"
 
         /** Tun-side addresses; routes cover only the two resolver IPs. */
         private const val TUN_ADDR4 = "10.111.222.2"
@@ -43,6 +59,31 @@ class SitrVpnService : VpnService() {
                 Intent(context, SitrVpnService::class.java).setAction(ACTION_STOP)
             )
         }
+
+        /** Takes the tun down for `ms`; the gate and the allowance are the caller's. */
+        fun pause(context: Context, ms: Long) {
+            context.startService(
+                Intent(context, SitrVpnService::class.java)
+                    .setAction(ACTION_PAUSE).putExtra(EXTRA_PAUSE_MS, ms)
+            )
+        }
+
+        /**
+         * Re-reads always-on and lockdown into the facts. Android re-delivers
+         * a start when always-on is set, but not when lockdown is toggled
+         * later (seen on API 30), so the pause sheet asks before it shows.
+         */
+        fun refresh(context: Context) {
+            context.startService(
+                Intent(context, SitrVpnService::class.java).setAction(ACTION_REFRESH)
+            )
+        }
+
+        fun resume(context: Context) {
+            context.startService(
+                Intent(context, SitrVpnService::class.java).setAction(ACTION_RESUME)
+            )
+        }
     }
 
     private var tun: ParcelFileDescriptor? = null
@@ -54,11 +95,61 @@ class SitrVpnService : VpnService() {
     /** The verdict the notification currently shows (startForeground posts green). */
     private var shown: Protection? = null
 
+    /**
+     * The pause, in memory only: a process death or a reboot ends it, and
+     * whatever starts the service next (always-on, boot, the user) brings
+     * protection back. While it runs the service stays in the foreground
+     * with no tun — Android 12+ would refuse to start it again from the
+     * background — and a partial wake lock keeps the timer on time in
+     * Doze (Doze ignores wake locks only below foreground-service state).
+     */
+    private var pauseStart: DelayStamp? = null
+    private var pauseLength = 0L
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var timeReceiver: BroadcastReceiver? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private val checkPause = object : Runnable {
+        override fun run() {
+            val start = pauseStart ?: return
+            val left = Pause.remaining(start, pauseLength, clocks())
+            if (left > 0) handler.postDelayed(this, left) else endPause()
+        }
+    }
+
+    private fun refreshAlwaysOn() {
+        if (Build.VERSION.SDK_INT >= 29) {
+            EngineController.updateFacts { it.copy(alwaysOn = isAlwaysOn, lockdown = isLockdownEnabled) }
+        }
+    }
+
+    private fun clocks() = DelayClockReading(SystemClock.elapsedRealtime(), System.currentTimeMillis())
+
     /** Non-VPN networks the callback has reported, most recent last. */
     private val seen = LinkedHashMap<Network, LinkProperties>()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_REFRESH -> {
+                if (tun == null && pauseStart == null) stopSelf() else refreshAlwaysOn()
+                return START_STICKY
+            }
+            ACTION_PAUSE -> {
+                val ms = intent.getLongExtra(EXTRA_PAUSE_MS, 0)
+                refreshAlwaysOn() // lockdown is read live: a pause under it cuts the phone off
+                when {
+                    pauseStart != null -> {}
+                    tun == null -> stopSelf() // nothing running to pause
+                    ms > 0 && EngineController.facts.value.lockdown != true -> beginPause(ms)
+                }
+                return START_STICKY
+            }
+            ACTION_RESUME -> {
+                if (pauseStart != null) endPause() else if (tun == null) stopSelf()
+                return START_STICKY
+            }
+        }
         if (intent?.action == ACTION_STOP) {
+            clearPause()
             EngineController.updateFacts { it.copy(tunActive = false) }
             shutdown()
             // Also clears a red warning left behind by an earlier revoke.
@@ -68,6 +159,16 @@ class SitrVpnService : VpnService() {
         }
 
         EngineNotification.ensureChannel(this)
+        if (pauseStart != null) {
+            // Always-on (or a boot or update start) asking for the VPN
+            // mid-pause: the pause passed the gate, so it stands. A
+            // startForegroundService() still owes startForeground().
+            ServiceCompat.startForeground(
+                this, EngineNotification.NOTIFICATION_ID, pausedNotification(),
+                if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED else 0,
+            )
+            return START_STICKY
+        }
         ServiceCompat.startForeground(
             this,
             EngineNotification.NOTIFICATION_ID,
@@ -81,7 +182,7 @@ class SitrVpnService : VpnService() {
         if (tun != null) { // already running (always-on restart)
             // Setting always-on for a running VPN re-delivers this start.
             if (Build.VERSION.SDK_INT >= 29) {
-                EngineController.updateFacts { it.copy(alwaysOn = isAlwaysOn) }
+                EngineController.updateFacts { it.copy(alwaysOn = isAlwaysOn, lockdown = isLockdownEnabled) }
             }
             refreshNotification() // startForeground just painted it green
             return START_STICKY
@@ -94,7 +195,11 @@ class SitrVpnService : VpnService() {
             stopWithWarning(Protection.Reason.BLOCKLIST_LOAD_FAILED)
             return START_NOT_STICKY
         }
+        return if (startTunnel()) START_STICKY else START_NOT_STICKY
+    }
 
+    /** Establishes the tun and starts filtering; false when it could not (warning shown). */
+    private fun startTunnel(): Boolean {
         val established = Builder()
             .setSession("Sitr")
             .setMtu(1500)
@@ -119,7 +224,7 @@ class SitrVpnService : VpnService() {
                 it.copy(tunActive = false, revokedAt = System.currentTimeMillis())
             }
             stopWithWarning(Protection.Reason.VPN_REVOKED)
-            return START_NOT_STICKY
+            return false
         }
 
         tun = established
@@ -151,12 +256,74 @@ class SitrVpnService : VpnService() {
             it.copy(
                 tunActive = true, revokedAt = 0, hasUpstreams = true, privateDnsStrict = false,
                 alwaysOn = if (Build.VERSION.SDK_INT >= 29) isAlwaysOn else null,
+                lockdown = if (Build.VERSION.SDK_INT >= 29) isLockdownEnabled else null,
             )
         }
         followDefaultNetwork()
         registerNetworkCallback()
-        return START_STICKY
+        return true
     }
+
+    private fun beginPause(ms: Long) {
+        val now = clocks()
+        pauseStart = DelayStamp(now)
+        pauseLength = ms
+        shutdown() // the tun closes: other apps see no VPN at all
+        EngineController.updateFacts { it.copy(tunActive = false, pausedUntil = now.mono + ms) }
+        wakeLock = getSystemService(PowerManager::class.java)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "sitr:pause")
+            .apply { setReferenceCounted(false); acquire(ms + 60_000) }
+        handler.postDelayed(checkPause, ms)
+        // Backstop for the timer: an inexact allow-while-idle alarm (no
+        // permission; never fires before its time) delivers RESUME to this
+        // live, foreground process if the timer has not ended the pause.
+        getSystemService(AlarmManager::class.java).setAndAllowWhileIdle(
+            AlarmManager.ELAPSED_REALTIME_WAKEUP, now.mono + ms, resumeAlarm(),
+        )
+        // The wall clock moved: the stricter clock may end the pause now.
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) = checkPause.run()
+        }
+        ContextCompat.registerReceiver(
+            this, receiver, IntentFilter(Intent.ACTION_TIME_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        timeReceiver = receiver
+        refreshNotification()
+    }
+
+    /** Time is up or "Resume now": protection comes back with no tap. */
+    private fun endPause() {
+        clearPause()
+        if (!EngineController.facts.value.blocklistVerified) {
+            stopWithWarning(Protection.Reason.BLOCKLIST_LOAD_FAILED)
+            return
+        }
+        if (!startTunnel()) return
+        refreshNotification()
+    }
+
+    private fun resumeAlarm(): PendingIntent = PendingIntent.getService(
+        this, 3, Intent(this, SitrVpnService::class.java).setAction(ACTION_RESUME),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    private fun clearPause() {
+        handler.removeCallbacks(checkPause)
+        getSystemService(AlarmManager::class.java).cancel(resumeAlarm())
+        timeReceiver?.let(::unregisterReceiver)
+        timeReceiver = null
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
+        if (pauseStart == null) return
+        pauseStart = null
+        EngineController.updateFacts { it.copy(pausedUntil = 0) }
+    }
+
+    private fun pausedNotification() = EngineNotification.paused(
+        this,
+        System.currentTimeMillis() + (EngineController.facts.value.pausedUntil - SystemClock.elapsedRealtime()),
+    )
 
     /** The system or another VPN took the slot — the red-badge moment. */
     override fun onRevoke() {
@@ -180,6 +347,7 @@ class SitrVpnService : VpnService() {
     }
 
     override fun onDestroy() {
+        clearPause()
         shutdown()
         super.onDestroy()
     }
@@ -269,9 +437,10 @@ class SitrVpnService : VpnService() {
             if (p == shown) return
             shown = p
         }
-        val notification = when (p) {
-            is Protection.Active -> EngineNotification.active(this)
-            is Protection.Inactive -> EngineNotification.inactive(this, p.reason)
+        val notification = when {
+            p == Protection.Inactive(Protection.Reason.PAUSED) -> pausedNotification()
+            p is Protection.Active -> EngineNotification.active(this)
+            else -> EngineNotification.inactive(this, (p as Protection.Inactive).reason)
         }
         EngineNotification.post(this, notification)
     }
