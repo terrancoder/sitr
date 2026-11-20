@@ -135,7 +135,7 @@ test("claim: 200 with a verifiable token; CORS, no-store; one Polar call with th
   const s = setup();
   const r = await s.claim({ credential: SUB.toUpperCase() });
   assert.equal(r.status, 200);
-  assert.equal(r.headers["Access-Control-Allow-Origin"], "https://sitrshield.com");
+  assert.equal(r.headers["Access-Control-Allow-Origin"], "*"); // the extension calls it (tests/src/cors.test.ts)
   assert.equal(r.headers["Access-Control-Allow-Methods"], "POST, OPTIONS");
   assert.equal(r.headers["Access-Control-Allow-Headers"], "Content-Type");
   assert.equal(r.headers["Cache-Control"], "no-store");

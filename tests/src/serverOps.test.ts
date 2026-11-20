@@ -429,6 +429,57 @@ test("the deployed claim service ignores the dev server's StoreKit certificate s
   }
 });
 
+test("the deployed entry points ignore the dev server's clock offset", async (ctx) => {
+  for (const f of ["server.ts", "claim-server.ts", "config.ts", "http.ts", "claim.ts", "store.ts", "claim-store.ts"]) {
+    const src = readFileSync(new URL(`../../server/sync/src/${f}`, import.meta.url), "utf8");
+    assert.ok(!/SITR_DEV_/.test(src), f);
+  }
+  const OFFSET = String(40 * DAY);
+  const dir = mkdtempSync(join(tmpdir(), "sitr-devclock-"));
+  // A local Polar stand-in: the only host the claim service is pointed at.
+  const polar = createServer((_req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "active", product_id: "p", recurring_interval: "month", current_period_end: new Date(Date.now() + 5 * DAY).toISOString() }));
+  });
+  await new Promise<void>((ok) => polar.listen(0, "127.0.0.1", ok));
+  const children: ReturnType<typeof spawn>[] = [];
+  ctx.after(() => {
+    for (const c of children) c.kill();
+    polar.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const start = (file: string, env: Record<string, string>) =>
+    new Promise<void>((ok, no) => {
+      const child = spawn(process.execPath, ["--experimental-sqlite", "--no-warnings=ExperimentalWarning", dist(file)], {
+        env: { PATH: process.env["PATH"] ?? "", SITR_DEV_CLOCK_OFFSET_MS: OFFSET, ...env },
+      });
+      children.push(child);
+      child.stdout!.on("data", (d: Buffer) => d.toString().includes("listening") && ok());
+      child.on("exit", () => no(new Error(`${file} exited`)));
+    });
+  await start("server.js", { SITR_SYNC_PORT: "18904", SITR_SYNC_DB: join(dir, "s.sqlite"), SITR_ENTITLEMENT_PUBKEY: kp.publicB64 });
+  await start("claim-server.js", {
+    SITR_CLAIM_PORT: "18905", SITR_CLAIM_DB: join(dir, "c.sqlite"), SITR_ENTITLEMENT_PRIVKEY: kp.privateB64, SITR_CLAIM_KEY: CLAIM_KEY,
+    SITR_POLAR_TOKEN: "t", SITR_POLAR_PRODUCTS: "p=family:month", SITR_POLAR_API: `http://127.0.0.1:${(polar.address() as AddressInfo).port}`,
+  });
+  // A paid end 5 days ahead still claims: 40 days ahead it would be inactive.
+  const c = await fetch("http://127.0.0.1:18905/v1/entitlement/claim", {
+    method: "POST",
+    body: JSON.stringify({ source: "polar", credential: "00000000-0000-4000-8000-000000000001", claim_secret: Buffer.alloc(32, 1).toString("base64url") }),
+  });
+  assert.equal(c.status, 200);
+  // A token with a day left still creates: 40 days ahead it would be token-expired.
+  const token = mintTokenV2(privateKeyFromB64(kp.privateB64), {
+    v: 2, plan: "family", term: "month", per: Math.floor(Date.now() / DAY) * DAY - DAY, exp: Date.now() + DAY, jti: Buffer.alloc(16, 9).toString("base64url"),
+  });
+  const r = await fetch(`http://127.0.0.1:18904/v1/blob/${"1".repeat(32)}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${"2".repeat(64)}`, "If-None-Match": "*", "X-Sitr-Entitlement": token },
+    body: new Uint8Array([1]),
+  });
+  assert.equal(r.status, 201);
+});
+
 test("the dev claim server stops with the owner steps when the StoreKit certificate is missing", () => {
   const r = spawnSync(process.execPath, ["--experimental-sqlite", "--no-warnings=ExperimentalWarning",
     fileURLToPath(new URL("./devClaimServer.js", import.meta.url)), "/nonexistent/StoreKitTestCertificate.cer"], {

@@ -25,8 +25,10 @@ The Dockerfile pins `node:22.23.4-alpine`; bump it deliberately.
   a compromise of the blob parser never yields any of them.
 
 Neither process assumes it shares a host with the other. `SITR_CLAIM_ORIGIN`
-is the website's origin (the only browser origin the claim routes allow by
-CORS), not the sync host.
+is the website's origin (the browser origin the checkout exchange and the
+version 1 claim allow by CORS), not the sync host. The version 2 claim and
+every sync answer allow any origin without credentials, for the Safari
+extension (docs/sync-protocol.md §CORS).
 
 ## Production layout: two services, one image
 
@@ -89,7 +91,7 @@ Claim service (a route answers `503 claims-disabled` while what it needs is miss
 | `SITR_CLAIM_PER_IP_HOUR` | claims per IP hash per hour, all claim routes (60) |
 | `SITR_ENTITLEMENT_DAYS` | version 1 redeem deadline in days (default 7, at most 7: the sync server treats a token with more than 8 days left as an old, reusable one, so the claim service refuses to start above 7) |
 | `SITR_V1_CUTOVER` | as above; the version 1 route answers `410 v1-ended` from it |
-| `SITR_CLAIM_ORIGIN` | the website origin allowed by CORS (default `https://sitrshield.com`) |
+| `SITR_CLAIM_ORIGIN` | the website origin allowed by CORS on the exchange and version 1 routes (default `https://sitrshield.com`) |
 | `SITR_TRUSTED_PROXY` | see below |
 
 The claim service does not need `SITR_ENTITLEMENT_PUBKEY`.

@@ -28,6 +28,22 @@ export interface SyncResponse {
 export const NO_STORE = { "Cache-Control": "no-store" };
 export const EMPTY = new Uint8Array(0);
 
+/**
+ * CORS on every sync response, so a browser extension can call this host
+ * from a context where its host permission does not lift CORS (Safari's
+ * service worker; docs/sync-protocol.md §CORS). Any origin, never
+ * credentials: the household bearer travels in Authorization, not in a
+ * cookie, so a page gains nothing it could not do without a browser.
+ * Safari extension origins are per-install IDs and cannot be listed.
+ */
+export const SYNC_CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Authorization, If-Match, If-None-Match, X-Sitr-Entitlement, Content-Type",
+  "Access-Control-Expose-Headers": "ETag, X-Sitr-Entitlement-Expires",
+  "Access-Control-Max-Age": "600",
+};
+
 /** Parses `text` as a JSON object (not an array); null for anything else. */
 export function jsonObject(text: string): Record<string, unknown> | null {
   try {
@@ -141,6 +157,9 @@ export class SyncHandler {
     const idMatch = ID_RE.exec(req.path);
     if (idMatch === null) return text(404, "not found");
     const id = idMatch[1]!;
+    // A CORS preflight carries no Authorization: answered before the auth
+    // check and the rate limit (the headers are added by syncListener).
+    if (req.method === "OPTIONS") return { status: 204, headers: { ...NO_STORE }, body: EMPTY };
 
     const authMatch = AUTH_RE.exec(req.headers["authorization"] ?? "");
     if (authMatch === null) return text(401, "missing or malformed bearer token");
@@ -265,6 +284,7 @@ export function guarded(name: string, what: string, fn: () => void): void {
  * node:http wiring shared by both processes: collects the body up to
  * `maxBody` bytes (413 beyond), passes on only `headerNames`, and answers
  * 500 when the handler throws, with one log line that holds no request data.
+ * `always` is added to every response, these two included.
  */
 export function nodeListener(
   name: string,
@@ -272,6 +292,7 @@ export function nodeListener(
   trustedProxy: boolean,
   headerNames: readonly string[],
   handle: (req: SyncRequest) => SyncResponse | Promise<SyncResponse>,
+  always: Record<string, string> = {},
 ) {
   // A response that cannot be written (the client went away, a bad header)
   // is logged by its kind only; it never stops the process.
@@ -279,7 +300,7 @@ export function nodeListener(
     console.error(`${name}: response write failed (${e instanceof Error ? e.name : typeof e})`);
   const write = (res: ServerResponse, status: number, headers: Record<string, string>, body?: Buffer): void => {
     try {
-      if (!res.headersSent) res.writeHead(status, headers);
+      if (!res.headersSent) res.writeHead(status, { ...headers, ...always });
       res.end(body);
     } catch (e) {
       writeError(e);
@@ -338,4 +359,5 @@ export const syncListener = (handler: SyncHandler, config: Config) =>
     config.trustedProxy,
     ["authorization", "if-match", "if-none-match", "x-sitr-entitlement"],
     (r) => handler.handle(r),
+    SYNC_CORS,
   );

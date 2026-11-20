@@ -203,7 +203,11 @@ export class ClaimHandler {
   /* ---------------------- POST /v1/entitlement/claim --------------------- */
 
   private async claim(req: SyncRequest): Promise<SyncResponse> {
-    const cors = this.cors("POST, OPTIONS", { "Access-Control-Allow-Headers": "Content-Type" });
+    // Any origin, no credentials: the answer is useful only to whoever sent
+    // the subscription code and claim secret, and the extension calls this
+    // from Safari's service worker, where its host permission does not lift
+    // CORS (docs/sync-protocol.md §CORS). The other routes keep the site's origin.
+    const cors = this.cors("POST, OPTIONS", { "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Origin": "*" });
     const fail = (f: Fail): SyncResponse => {
       const { status, ...body } = f;
       return json(status, body, cors);
