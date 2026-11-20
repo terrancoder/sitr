@@ -49,7 +49,7 @@ enum DnsFilterText {
         case .on:
             return "On. Sites that apps on this device look up are filtered. \(safeSearchScope)."
         case .noResolver:
-            return "On, but the filter could not read this network's DNS server, so sites will not load on this network: the filter blocks lookups rather than let them through unfiltered. It tries again when the network changes. To use this network without the filter, turn it off."
+            return "On, but the filter could not read this network's DNS server, so sites will not load on this network: the filter blocks lookups rather than let them through unfiltered. It keeps trying for about 16 minutes, and after that only when the network changes. To use this network without the filter, turn it off."
         case .switchedOff:
             return "The DNS filter was switched off in iOS Settings, so other apps are not filtered and SafeSearch is not enforced. Turn it back on here, or stop using it."
         case .removed:
