@@ -26,6 +26,7 @@ import {
 } from "../../extension/dist/lib/household.js";
 import {
   LEAVE_JOIN_PLACEHOLDER_GATED_AS,
+  FAMILY_CODE_GATED_AS,
   gateMutation,
   type MutationKind,
   type HouseholdRole,
@@ -49,6 +50,29 @@ import {
   type PinRecord,
 } from "../../extension/dist/lib/pin.js";
 import { EntitlementChecker, checkToken as check } from "../../server/sync/dist/entitlement.js";
+import {
+  FIRST_BACKOFF_MS,
+  LEGACY_DAYS,
+  MAX_BACKOFF_MS,
+  claimOutcome,
+  classifyCodeInput,
+  created,
+  forcesWrite,
+  forgetClaims,
+  next,
+  normalizeSubscriptionCode,
+  notice,
+  observe,
+  offersReplace,
+  parseToken,
+  record,
+  retriesCreate,
+  sanitizeClaimState,
+  tokenToSend,
+  userRetry,
+  type ClaimState,
+} from "../../extension/dist/lib/entitlement.js";
+import { DAY, HOUR, parseSyncRefusal } from "../../extension/dist/lib/householdEnd.js";
 
 const fixture = (name: string): any =>
   JSON.parse(
@@ -202,6 +226,27 @@ test("gate fixture: leaving a join placeholder is gated as leaveJoinPlaceholderG
   }
 });
 
+test("gate fixture: a subscription code is gated as subscriptionGatedAs", () => {
+  const fx = fixture("gate.json");
+  assert.equal(fx.subscriptionGatedAs, "changePin");
+  assert.equal(fx.subscriptionGatedAs, FAMILY_CODE_GATED_AS);
+  const rows = fx.cases.filter((c: { kind: string }) => c.kind === fx.subscriptionGatedAs);
+  assert.equal(rows.length, 12);
+  for (const c of rows) {
+    // Refused under a managed lock and on a child device; otherwise the
+    // PIN exactly when one is set; never a wait.
+    const expected = c.managedLockOptions
+      ? { allowed: false, reason: "managed-locked" }
+      : c.role === "child"
+        ? { allowed: false, reason: "child-device" }
+        : { allowed: true, requiresPin: c.hasPin };
+    assert.deepEqual(c.verdict, expected, JSON.stringify(c));
+  }
+  for (const phase of ["off", "idle", "waiting", "open"] as const) {
+    assert.equal(needsWait(fx.subscriptionGatedAs, phase), false);
+  }
+});
+
 test("delay fixture: evaluate, needsWait and changing the delay", () => {
   const fx = fixture("delay.json");
   assert.deepEqual(fx.delayMinutesAllowed, [...DELAY_MINUTES]);
@@ -256,5 +301,86 @@ test("entitlement fixture: verification outcomes with the committed test key", (
     const header = c.token === "" ? undefined : c.token;
     assert.equal(check(checker, header, fx.now).kind, c.outcome, c.name);
     assert.equal(check(open, header, fx.now).kind, "ok", c.name);
+  }
+});
+
+test("claim fixture: tokens, the code field, claim answers and sync 402 reasons", () => {
+  const fx = fixture("claim.json");
+  assert.deepEqual(fx.constants, {
+    dayMs: DAY,
+    hourMs: HOUR,
+    firstBackoffMs: FIRST_BACKOFF_MS,
+    maxBackoffMs: MAX_BACKOFF_MS,
+    windowOpensDaysBeforeE: 10,
+    windowNoDelayDaysBeforeE: 5,
+    noticeDaysBeforeE: 2,
+    legacyDays: LEGACY_DAYS,
+  });
+  for (const c of fx.tokens) assert.deepEqual(parseToken(c.raw), c.parsed, c.name);
+  for (const c of fx.codeInput) {
+    assert.equal(normalizeSubscriptionCode(c.input), c.normalized, c.name);
+    assert.deepEqual(classifyCodeInput(c.input), c.classified, c.name);
+  }
+  for (const c of fx.claimOutcomes) assert.deepEqual(claimOutcome(c.status, c.body), c.outcome, c.name);
+  for (const c of fx.syncRefusals) {
+    const r = parseSyncRefusal(c.status, c.body);
+    assert.equal(r, c.refusal, c.name);
+    assert.equal(r !== null && retriesCreate(r), c.retriesCreate, c.name);
+  }
+});
+
+test("claim fixture: every scenario step gives the committed decision and state", () => {
+  const fx = fixture("claim.json");
+  assert.ok(fx.scenarios.length >= 30);
+  for (const sc of fx.scenarios) {
+    for (const [i, st] of sc.steps.entries()) {
+      const label = `${sc.name} — step ${i}`;
+      // The committed state is already in stored form.
+      const state: ClaimState = sanitizeClaimState(st.state);
+      assert.deepEqual(state, st.state, label);
+      const e = st.event;
+      let after: ClaimState;
+      let decision = null;
+      switch (e.type) {
+        case "next": {
+          const r = next(state, st.now, e.householdId, () => {
+            assert.notEqual(st.random, null, `${label}: draws a random value`);
+            return st.random;
+          });
+          decision = r.decision;
+          after = r.state;
+          break;
+        }
+        case "record":
+          after = record(state, e.outcome, e.current, st.now);
+          break;
+        case "observe":
+          after = observe(state, e.answer, e.householdId, st.now);
+          break;
+        case "created":
+          after = created(state, e.token, e.householdId, e.entExp);
+          break;
+        case "userRetry":
+          after = userRetry(state);
+          break;
+        case "forgetClaims":
+          after = forgetClaims(state);
+          break;
+        default:
+          throw new Error(`${label}: unknown event ${e.type}`);
+      }
+      assert.deepEqual(decision, st.decision, label);
+      assert.deepEqual(
+        {
+          state: after,
+          notice: notice(after, st.now, sc.holdsCode),
+          offersReplace: offersReplace(after, st.now),
+          tokenToSend: tokenToSend(after)?.raw ?? null,
+          forcesWrite: forcesWrite(after),
+        },
+        st.result,
+        label,
+      );
+    }
   }
 });

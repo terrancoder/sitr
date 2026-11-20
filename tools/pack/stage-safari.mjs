@@ -16,7 +16,9 @@
  * Channels: --channel devid (default) stages the full UI. --channel mas
  * stages the join-only App Store variant: the full-channel module
  * (dist/options/fullChannel.js — household creation + entitlement token)
- * is EXCLUDED, its #full-channel-only block is stripped from options.html,
+ * and the renewal logic (dist/lib/entitlement.js — code entry and claims)
+ * are EXCLUDED, no staged file may import the latter, the
+ * #full-channel-only block is stripped from options.html,
  * and a grep gate then proves the bundle carries none of the
  * purchase-steering strings the store risk register forbids (guideline
  * 3.1.1). The gate failing is a build failure, never a warning.
@@ -122,8 +124,10 @@ if (!manifest.permissions.includes("declarativeNetRequestWithHostAccess")) {
 // Stage in memory first, flush all-or-nothing (house atomicity rule).
 const staged = new Map();
 staged.set("manifest.json", JSON.stringify(manifest, null, 2) + "\n");
+// Full channel only: never staged for the App Store (guideline 3.1.1).
+const MAS_EXCLUDED = new Set(["dist/options/fullChannel.js", "dist/lib/entitlement.js"]);
 for (const rel of files) {
-  if (channel === "mas" && rel === "dist/options/fullChannel.js") continue;
+  if (channel === "mas" && MAS_EXCLUDED.has(rel)) continue;
   staged.set(rel, readFileSync(join(EXT, rel)));
 }
 
@@ -146,6 +150,17 @@ if (channel === "mas") {
   }
   html = html.slice(0, open) + html.slice(close + "</div>".length);
   staged.set(rel, html);
+
+  // Nothing staged may import the excluded renewal logic: a member device
+  // needs only dist/lib/householdEnd.js.
+  const importers = [...staged.keys()].filter(
+    (name) => name.endsWith(".js") && /entitlement\.js/.test(staged.get(name).toString("utf8")),
+  );
+  if (importers.length > 0) {
+    console.error("stage-safari: mas gate FAILED — staged files import entitlement.js:");
+    for (const name of importers) console.error("  " + name);
+    process.exit(1);
+  }
 
   // 3.1.1 gate: the staged bundle must be free of purchase-steering copy.
   // Pattern list mirrors Udocs/store-review-risk-register.md's owner check.

@@ -103,3 +103,12 @@ export const REFRESH_DEVICE_LIST_GATED_AS: MutationKind = "changePin";
  * no PIN, no wait. A synced household's leave stays "leaveHousehold".
  */
 export const LEAVE_JOIN_PLACEHOLDER_GATED_AS: MutationKind = "enableCategory";
+
+/**
+ * Entering, removing or moving the code that renews Sitr Family (its own
+ * gate.json key, written by tools/conformance): gated exactly like changing
+ * the PIN — refused on a managed lock or a child device, PIN when one is
+ * set, no wait. Named without the store-copy words the Safari App Store
+ * staging gate refuses (tools/pack/stage-safari.mjs).
+ */
+export const FAMILY_CODE_GATED_AS: MutationKind = "changePin";

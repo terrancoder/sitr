@@ -402,7 +402,8 @@ checked, and unknown fields are ignored.
 
 - `source`: `polar` or `apple`.
 - `credential`: for `polar`, the subscription code, a UUID of any
-  version in its canonical 36-character form (any case; lower-cased before use); for
+  version with the RFC 4122 variant (17th hex digit `8`, `9`, `a` or
+  `b`) in its canonical 36-character form (any case; lower-cased before use); for
   `apple`, the compact JWS of the signed transaction.
 - `claim_secret`: the client's claim secret for this subscription, the
   same value every month.
@@ -1136,7 +1137,7 @@ Rules for all clients:
   the answer is a token whose `exp` is not later than `E` (a monthly
   subscription whose renewal day is still ahead), it tries again a day
   later. For a test household, (c) is instead "when `E` is less than 1
-  hour away", that is, from midnight UTC. The device remembers (b) as a
+  hour away", that is, from just after midnight UTC. The device remembers (b) as a
   flag per household. (d) When its household is lapsed (`E ≤ now`, or a
   `402 lapsed`), at once and with `current: true`; after that token is
   applied, it continues with (c), whose window may already be open.
@@ -1168,9 +1169,14 @@ Rules for all clients:
       when a token is needed now: to create a household, or when `E − now
       < 2 × DAY` and, if `E` has passed, the claim without `replace` has
       already been refused. Had `E` moved in this window it would be at
-      least 28 days away, so this test needs no stored state. Ask the
+      least 28 days away, so this test needs one stored flag only: that
+      the claim without `replace` was refused as bound in the current
+      lapse (cleared by a token, or when `E` moves into the future). Ask the
       user first, because a rebind can be made only once in 180 days.
-  - `replacement-used`: show the date in `retry_after`.
+  - `replacement-used`: show the date in `retry_after`. The device stays
+    bound-elsewhere as above (no automatic claim while `E` is in the
+    future, the claim with `current: true` once it has passed) and does
+    not offer "Renew on this device" before that date.
   - `payment-pending`, `inactive`, `revoked`: show the reason with the
     way to fix it (renew, update the payment method), then try at most
     once a day, or when the user asks.
@@ -1178,7 +1184,8 @@ Rules for all clients:
     `family-sharing`, `bad-request`: show the reason and stop until the
     user acts.
   - `429`, `502`, `503`, no network: retry at later sync runs, with
-    backoff. The household keeps working until `E`.
+    backoff: 5 minutes after the first failure, doubling after each
+    further one, at most 6 hours. The household keeps working until `E`.
 - **Sync `402`.**
   - `lapsed`: the device keeps filtering with its last settings; local
     changes are kept on the device and sync once the household is
@@ -1186,8 +1193,8 @@ Rules for all clients:
     true` (rule (d)). What the UI says
     depends on what this device knows:
     - By default, a neutral state: "Waiting for renewal on the
-      subscriber's device. Filtering continues; changes will sync after
-      renewal." This covers every device without a credential, and a
+      guardian device that renews the Family plan. Filtering continues;
+      changes will sync after renewal." This covers every device without a credential, and a
       device whose claim got `bound-to-other-device`, a network error, or
       no answer yet. A lapse is usually a renewing device that was off.
     - "Family has ended" (with the way to renew) only when a claim on this
@@ -1277,7 +1284,8 @@ subscribes on the website and enters the subscription code.
   household is legacy when `E` is more than 41 days away (no token
   reaches further: one claimed on the 24th of a 30-day month runs to the
   4th of the month after next), or when `E` still has a value that this
-  device once saw more than 41 days away. Otherwise it shows the ordinary
+  device once saw more than 41 days away (so it remembers the last such
+  far `E`). Otherwise it shows the ordinary
   notices.
 - **`v1-ended`**: "Tokens are no longer accepted. Enter your subscription
   code."
@@ -1397,7 +1405,7 @@ today; Polar's sandbox API (`SITR_POLAR_API`) serves manual tests.
 | First purchase late in a month | In the last 7 days of a month the first claim already gets next month's token. Earlier, it gets this month's token and the renewal window opens on the 24th or 25th. |
 | Monthly, renewal day 1st to 4th | The paid end (for example 2 December) is after the 1st, so a claim in the last week of November gets the December token, `exp` 4 January. A renewal that then fails leaves the household running to 4 January unpaid (the worst case in §The issue period). |
 | Monthly, renewal day in the last week | Until the renewal, claims in the window get the token the device already has; it tries again daily, and the first claim after the renewal gets next month's token. If the renewal is still being retried on the 4th, the household lapses until the payment succeeds. |
-| Laptop closed from 31 December to 4 January (yearly, the laptop is the only device with the code) | The window for January opens on 25 December. The laptop picks a time between 25 and 30 December and claims while open, before 31 December: the January token, `E` = 4 February. The closed days change nothing; nobody sees anything. If the laptop had been closed from 25 December already, it would claim at its first run after reopening on 4 January: the household is lapsed from 00:00 UTC on 4 January until that run, other devices show "waiting for renewal on the subscriber's device", their changes stay on the device, and everything syncs once the laptop's claim and write go through. |
+| Laptop closed from 31 December to 4 January (yearly, the laptop is the only device with the code) | The window for January opens on 25 December. The laptop picks a time between 25 and 30 December and claims while open, before 31 December: the January token, `E` = 4 February. The closed days change nothing; nobody sees anything. If the laptop had been closed from 25 December already, it would claim at its first run after reopening on 4 January: the household is lapsed from 00:00 UTC on 4 January until that run, other devices show "waiting for renewal on the guardian device that renews the Family plan", their changes stay on the device, and everything syncs once the laptop's claim and write go through. |
 | iPhone app not opened on days 1 to 3 | The window opened on the 24th or 25th. The claim happens at the first foreground launch or background refresh after the iPhone's chosen time, any time in the 10 days; one launch or one refresh between the 25th and the 31st is enough, so days 1 to 3 do not matter. Only if the app neither runs in the background nor is opened for all 10 days does the household lapse on the 4th; other devices then show the neutral state, and the next launch claims and renews. |
 | Household lapsed since the 4th, bound device back on the 26th | The device sees `E ≤ now` and claims with `current: true`: this month's token, not early, which reopens the household at once. Its window for next month is open, so its next claim gets next month's token, early, which the now open household accepts. Without `current`, it would get next month's token, early, which a lapsed household refuses (not burned), and the household would stay read-only until the 1st. |
 | Legacy household converted | A legacy household is not lapsed before the cut-over (`E` is the cut-over date, or none), so any usable token, early or not, converts it; it then renews like any other. On or after the cut-over it is lapsed, and the device claims with `current: true` first. |
