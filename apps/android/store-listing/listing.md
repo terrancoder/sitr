@@ -173,6 +173,22 @@ installers, the Play Store and system dialogs, only on the device, stores nothin
 does not act autonomously, does not read other apps, and does nothing until
 the lock is on."
 
+The in-app disclosure, word for word (`GUARD_DISCLOSURE` in
+`app/src/main/kotlin/com/sitrshield/app/ui/ChildLockScreen.kt`, 0.3.0):
+"Sitr's child lock uses Android's Accessibility service. While a guardian
+has the lock on, Sitr reads the text and type of the window in front of you
+when it is Settings, an app installer, the Play Store or a system dialog, to
+recognise the screens that would switch Sitr off — its app info and other
+settings pages that show Sitr's name, uninstalling, its VPN and
+accessibility settings, the VPN disconnect dialog, Developer options, adding
+users, setting up or opening a private space, the Private DNS dialog and the
+mobile network reset — and closes them. The text is checked on this phone
+and discarded at once: nothing is stored, and nothing is sent anywhere. Sitr
+doesn't read other apps, and the lock opens only with the guardian PIN. Sitr
+filters only this phone's main user: a private space, work profile or other
+user that already exists is not filtered, so remove it before you lock the
+phone."
+
 **Video (required parts, per answer/10964491)** — record on a phone with the
 release build, ≈60–90 s, captions on:
 1. Open Sitr on the device.
