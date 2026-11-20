@@ -43,7 +43,12 @@ import {
 import type { HouseholdRole } from "../lib/gate.js";
 import { decideMutation, needsWait, type DelayAction } from "../lib/delay.js";
 import type { ManagedPolicy } from "../lib/managed.js";
-import { normalizeDomainInput } from "../lib/userRules.js";
+import {
+  ADULT_LISTED_ERROR,
+  listedUnder,
+  normalizeDomainInput,
+  rulesetDomains,
+} from "../lib/userRules.js";
 import { promptDialog } from "./dialogs.js";
 import { readDelay, showHold } from "./delay.js";
 
@@ -436,6 +441,29 @@ export async function showPairingCode(ctx: HouseholdContext): Promise<string | u
   return encodePairingCode(secret.value);
 }
 
+let adultList: Promise<Set<string>> | undefined;
+
+/**
+ * An allow entry for an adult-listed name is refused, saying why: it could
+ * not open the site (the adult rules outrank every allow layer). The
+ * packaged adult ruleset is read once per page. Entries that arrive
+ * without an add screen (sync, managed policy, stored before) are not
+ * refused; they just lose to the adult rules. Unreadable: not refused.
+ */
+export async function refusedAsAdult(
+  domain: string,
+  showError: (message: string) => void,
+): Promise<boolean> {
+  const url = "../../rulesets/adult.json"; // not a literal: tsc must not resolve it
+  adultList ??= import(url, { with: { type: "json" } }).then(
+    (m: { default: unknown }) => rulesetDomains(m.default),
+    () => new Set<string>(),
+  );
+  if (!listedUnder(domain, await adultList)) return false;
+  showError(ADULT_LISTED_ERROR);
+  return true;
+}
+
 export async function addHouseholdDomain(
   ctx: HouseholdContext,
   kind: "allow" | "block",
@@ -446,6 +474,7 @@ export async function addHouseholdDomain(
     ctx.showError(domain.error);
     return;
   }
+  if (kind === "allow" && (await refusedAsAdult(domain.value, ctx.showError))) return;
   await saveMutatedState(ctx, (s) => ({
     ...s,
     [kind === "allow" ? "allowDomains" : "blockDomains"]: [

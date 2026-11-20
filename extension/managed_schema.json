@@ -17,7 +17,7 @@
     },
     "managedAllowDomains": {
       "type": "array",
-      "description": "Domains allowed organization-wide. A managed allow outranks household and device rules but NOT a managed block.",
+      "description": "Domains allowed organization-wide. A managed allow outranks household and device rules but NOT a managed block, and it never opens a site on the adult list or switches SafeSearch off.",
       "items": { "type": "string" }
     },
     "lockOptions": {

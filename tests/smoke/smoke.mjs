@@ -297,6 +297,83 @@ if (swSessionId) {
   }
 }
 
+// 5b. Allow entries never open an adult name or switch SafeSearch off, at
+// any layer; they still open other categories and blocks still block.
+// Written straight into the engine, as an entry stored before the add
+// screen refused adult names (or synced, or managed) would be.
+if (swSessionId) {
+  const all = ["main_frame", "sub_frame", "stylesheet", "script", "image", "font",
+    "xmlhttprequest", "ping", "media", "websocket", "other"];
+  const rule = (id, priority, type, domain) =>
+    ({ id, priority, action: { type }, condition: { requestDomains: [domain], resourceTypes: all } });
+  const added = [
+    rule(1_000_001, 20, "allow", "pornhub.com"), // user allow
+    rule(3_000_001, 60, "allow", "007milf.com"), // managed allow
+    rule(1_000_002, 20, "allow", "google.com"), // user allow on a search engine
+    rule(1_000_003, 20, "allow", "bet365.de"), // user allow on gambling
+    rule(1_500_001, 10, "block", "bing.com"), // user block on a search engine
+  ];
+  await evalInWorker(
+    `chrome.declarativeNetRequest.updateDynamicRules({ addRules: ${JSON.stringify(added)} })`,
+  );
+  const outcome = (request) =>
+    evalInWorker(`chrome.declarativeNetRequest.testMatchOutcome(${JSON.stringify(request)})`);
+  for (const [name, url] of [
+    ["adult name with a user allow is still blocked", "https://pornhub.com/"],
+    ["adult name with a managed allow is still blocked", "https://007milf.com/"],
+  ]) {
+    // The engine's verdict first: navigate only when it blocks, so a
+    // failure reports instead of hanging on the real site.
+    const o = await outcome({ url, type: "main_frame" });
+    const adultWins = o.matchedRules?.some((m) => m.rulesetId === "sitr_adult") ?? false;
+    const { errorText } = adultWins ? await navigate(url) : { errorText: "" };
+    report(name, adultWins && errorText.includes("ERR_BLOCKED_BY_CLIENT"), `${JSON.stringify(o)} ${errorText}`);
+  }
+  {
+    const o = await outcome({ url: "https://www.google.com/search?q=x", type: "main_frame" });
+    report(
+      "a user allow on google.com does not beat the SafeSearch redirect",
+      o.matchedRules?.some((m) => m.ruleId === 1001 && m.rulesetId === "sitr_safesearch") ?? false,
+      JSON.stringify(o),
+    );
+    // Observation only: needs the network, and Google may answer with a
+    // consent or bot page (the safe URL then sits in its continue=).
+    const nav = await navigate("https://www.google.com/search?q=sitr");
+    console.log(`INFO: real Google search with that allow: ${nav.errorText} ${nav.finalUrl}`);
+  }
+  {
+    await evalInWorker(
+      `chrome.declarativeNetRequest.updateDynamicRules({ addRules: [${JSON.stringify(rule(1_000_004, 20, "allow", "youtube.com"))}] })`,
+    );
+    added.push({ id: 1_000_004 });
+    const o = await outcome({ url: "https://www.youtube.com/watch?v=abc", type: "main_frame" });
+    report(
+      "a user allow on youtube.com keeps the Restricted Mode header",
+      o.matchedRules?.some((m) => m.ruleId === 1004 && m.rulesetId === "sitr_safesearch") ?? false,
+      JSON.stringify(o),
+    );
+  }
+  {
+    const o = await outcome({ url: "https://bet365.de/", type: "main_frame" });
+    report(
+      "a user allow still opens a gambling name",
+      o.matchedRules?.some((m) => m.ruleId === 1_000_003) ?? false,
+      JSON.stringify(o),
+    );
+  }
+  for (const url of ["https://www.bing.com/", "https://www.bing.com/search?q=sitr"]) {
+    const { errorText, finalUrl } = await navigate(url);
+    report(
+      `a user block on bing.com still blocks ${url}`,
+      errorText.includes("ERR_BLOCKED_BY_CLIENT"),
+      `${errorText || "navigation was not blocked"} ${finalUrl}`,
+    );
+  }
+  await evalInWorker(
+    `chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: ${JSON.stringify(added.map((r) => r.id))} })`,
+  );
+}
+
 // 6. Media filter (T12). Mode changes go through storage.local so this
 // exercises the REAL path: storage change → worker refresh → preference
 // re-assert → engine. Then the engine's own matcher checks the semantics.
@@ -613,6 +690,32 @@ if (swSessionId) {
     hrefs.join(" "),
   );
   report("options page shows no error", (await page("document.getElementById('error').textContent")) === "");
+
+  // The allow form refuses an adult name (read from the packaged list) and
+  // says why, with the report link; a gambling name still goes in.
+  const allowVia = async (domain) => {
+    await page(`document.getElementById('allow-input').value = ${JSON.stringify(domain)}`);
+    await page("document.querySelector('#allow-form button[type=submit]').click()");
+    await sleep(800);
+  };
+  const userAllows = () =>
+    evalInWorker("chrome.declarativeNetRequest.getDynamicRules().then((rs) => rs.filter((r) => r.priority === 20).map((r) => r.condition.requestDomains[0]))");
+  await allowVia("www.pornhub.com");
+  const refusal = await page("document.getElementById('error').textContent");
+  const refusalLink = await page("document.querySelector('#error a')?.getAttribute('href') ?? null");
+  report(
+    "allow form refuses an adult name, says why, links the report",
+    refusal.startsWith("This site is on the adult list and cannot be allowed. If it is listed by mistake, report it.") &&
+      refusalLink === "https://github.com/terrancoder/sitr/issues/new?template=unblock-request.yml" &&
+      !(await userAllows()).includes("pornhub.com"),
+    `${refusal} | ${refusalLink}`,
+  );
+  await allowVia("bet365.de");
+  report(
+    "allow form still takes a gambling name",
+    (await userAllows()).includes("bet365.de") && (await page("document.getElementById('error').textContent")) === "",
+    JSON.stringify(await userAllows()),
+  );
 }
 
 ws.close();

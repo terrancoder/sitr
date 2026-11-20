@@ -60,6 +60,10 @@ import {
   verifyPin,
   PIN_ITERATIONS,
 } from "../../../extension/dist/lib/pin.js";
+import { buildLayerRule, type RuleLayer } from "../../../extension/dist/lib/ruleLayers.js";
+import { compileBlockRuleset } from "../../../tools/compiler/dist/compile.js";
+import { safesearchRules } from "../../../tools/compiler/dist/safesearch.js";
+import { winningRule, type MatchableRule } from "../../../tools/compiler/dist/dnrMatch.js";
 import { mintToken, privateKeyFromB64 } from "../../../server/sync/dist/mint.js";
 import { EntitlementChecker, checkToken } from "../../../server/sync/dist/entitlement.js";
 
@@ -772,6 +776,103 @@ function genEntitlement(): object {
   };
 }
 
+/*
+ * decision.json — which allow entries can open a name (owner's rules,
+ * 2026-11-20). Shape:
+ * {
+ *   "version": 1, "note": string,
+ *   "lists": { "adult": [domain], "gambling": [...], "dating": [...],
+ *              "violence": [...] },          // violence = an opt-in list, on
+ *   "searchEngine": "www.google.com",       // a name SafeSearch rewrites
+ *   "cases": [{ "name": string, "rule": "R1"|"R2"|"R3", "host": string,
+ *               "managed"|"household"|"user": { "allow": [domain],
+ *                                               "block": [domain] },
+ *               "expected": "block" | "forward" | "safesearch" }]
+ * }
+ * Matching: a listed or allowed parent covers its subdomains. Expected:
+ * R1 a name on the adult list (or under a listed parent) is blocked
+ * whatever any layer allows; an allow on a parent still opens the parent
+ * and its other subdomains. R2 an allow never stops SafeSearch. R3 every
+ * other list and the layer order (managed > household > user > lists,
+ * allow before block within a layer) are as before. Lists are synthetic.
+ * Self-checked against the extension's real rules (buildLayerRule,
+ * compileBlockRuleset, safesearchRules) under DNR precedence (dnrMatch.ts).
+ */
+type DecisionLayers = Partial<Record<RuleLayer, { allow?: string[]; block?: string[] }>>;
+const DECISION_LISTS = {
+  adult: ["adult.example", "deep.host.example"],
+  gambling: ["bet.example"],
+  dating: ["date.example"],
+  violence: ["gore.example"],
+};
+
+function extensionOutcome(host: string, layers: DecisionLayers): string {
+  const rules: MatchableRule[] = [...safesearchRules()];
+  for (const [category, domains] of Object.entries(DECISION_LISTS)) {
+    const compiled = compileBlockRuleset(category, [...domains].sort());
+    assert.ok(compiled.ok);
+    rules.push(...compiled.value);
+  }
+  let id = 1;
+  for (const [layer, kinds] of Object.entries(layers) as Array<[RuleLayer, { allow?: string[]; block?: string[] }]>) {
+    for (const kind of ["allow", "block"] as const) {
+      for (const d of kinds[kind] ?? []) rules.push(buildLayerRule(layer, kind, d, id++));
+    }
+  }
+  const won = winningRule(rules, `https://${host}/search?q=x`);
+  return won === undefined || won.action.type === "allow"
+    ? "forward"
+    : won.action.type === "redirect"
+      ? "safesearch"
+      : "block";
+}
+
+function genDecision(): object {
+  const all = (d: string): DecisionLayers => ({
+    managed: { allow: [d] },
+    household: { allow: [d] },
+    user: { allow: [d] },
+  });
+  const cases: Array<{ name: string; rule: string; host: string; expected: string } & DecisionLayers> = [
+    { name: "adult name, no lists", rule: "R1", host: "adult.example", expected: "block" },
+    { name: "adult name, user allow", rule: "R1", host: "adult.example", user: { allow: ["adult.example"] }, expected: "block" },
+    { name: "adult name, household allow", rule: "R1", host: "adult.example", household: { allow: ["adult.example"] }, expected: "block" },
+    { name: "adult name, managed allow", rule: "R1", host: "adult.example", managed: { allow: ["adult.example"] }, expected: "block" },
+    { name: "adult name, allowed at every layer", rule: "R1", host: "adult.example", ...all("adult.example"), expected: "block" },
+    { name: "subdomain of an adult parent, allow on the subdomain", rule: "R1", host: "www.adult.example", user: { allow: ["www.adult.example"] }, expected: "block" },
+    { name: "adult subdomain, managed allow on its parent", rule: "R1", host: "deep.host.example", managed: { allow: ["host.example"] }, expected: "block" },
+    { name: "parent of an adult subdomain, allow on the parent opens it", rule: "R1", host: "host.example", user: { allow: ["host.example"] }, expected: "forward" },
+    { name: "other subdomain of that parent, allow on the parent opens it", rule: "R1", host: "other.host.example", household: { allow: ["host.example"] }, expected: "forward" },
+    { name: "parent of an adult subdomain, no lists", rule: "R1", host: "host.example", expected: "forward" },
+    { name: "search engine, no lists", rule: "R2", host: "www.google.com", expected: "safesearch" },
+    { name: "search engine, user allow on its parent", rule: "R2", host: "www.google.com", user: { allow: ["google.com"] }, expected: "safesearch" },
+    { name: "search engine, household allow", rule: "R2", host: "www.google.com", household: { allow: ["www.google.com"] }, expected: "safesearch" },
+    { name: "search engine, allowed at every layer", rule: "R2", host: "www.google.com", ...all("google.com"), expected: "safesearch" },
+    { name: "gambling name, no lists", rule: "R3", host: "bet.example", expected: "block" },
+    { name: "gambling name, user allow", rule: "R3", host: "bet.example", user: { allow: ["bet.example"] }, expected: "forward" },
+    { name: "dating subdomain, household allow on the parent", rule: "R3", host: "m.date.example", household: { allow: ["date.example"] }, expected: "forward" },
+    { name: "opt-in list name, user allow", rule: "R3", host: "gore.example", user: { allow: ["gore.example"] }, expected: "forward" },
+    { name: "gambling name, managed allow", rule: "R3", host: "bet.example", managed: { allow: ["bet.example"] }, expected: "forward" },
+    { name: "household block beats a user allow", rule: "R3", host: "bet.example", household: { block: ["bet.example"] }, user: { allow: ["bet.example"] }, expected: "block" },
+    { name: "household allow beats a household block", rule: "R3", host: "site.example", household: { allow: ["site.example"], block: ["site.example"] }, expected: "forward" },
+    { name: "managed block beats a household allow", rule: "R3", host: "site.example", managed: { block: ["site.example"] }, household: { allow: ["site.example"] }, expected: "block" },
+    { name: "managed allow beats every block", rule: "R3", host: "site.example", managed: { allow: ["site.example"] }, household: { block: ["site.example"] }, user: { block: ["site.example"] }, expected: "forward" },
+    { name: "user block on an unlisted name", rule: "R3", host: "site.example", user: { block: ["site.example"] }, expected: "block" },
+    { name: "unlisted name, no lists", rule: "R3", host: "site.example", expected: "forward" },
+  ];
+  for (const c of cases) {
+    const { name, rule, host, expected, ...layers } = c;
+    assert.equal(extensionOutcome(host, layers), expected, `${rule} ${name}`);
+  }
+  return {
+    version: 1,
+    note: "generated — edit tools/conformance, run npm run fixtures. Synthetic names. Every platform's decision must give `expected`.",
+    lists: DECISION_LISTS,
+    searchEngine: "www.google.com",
+    cases,
+  };
+}
+
 /* -------------------------------- main ---------------------------------- */
 
 const outDir = outDirArg();
@@ -786,6 +887,7 @@ const files = new Map<string, object>([
   ["sanitize.json", await genSanitize()],
   ["pin.json", await genPin()],
   ["entitlement.json", genEntitlement()],
+  ["decision.json", genDecision()],
 ]);
 
 mkdirSync(outDir, { recursive: true });

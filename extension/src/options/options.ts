@@ -16,6 +16,7 @@ import {
   type ToggleableRulesetId,
 } from "../lib/categories.js";
 import {
+  ADULT_LISTED_ERROR,
   buildUserRule,
   domainsOf,
   normalizeDomainInput,
@@ -36,6 +37,7 @@ import {
   leaveAsChild,
   leaveHousehold,
   loadHousehold,
+  refusedAsAdult,
   removeHouseholdDomain,
   setGuardianPin,
   showPairingCode,
@@ -111,6 +113,11 @@ function renderManaged(): void {
 
 function showError(message: string): void {
   errorEl.textContent = message;
+  if (message === ADULT_LISTED_ERROR) {
+    // The page's own "Report a wrongly blocked site" link, beside it.
+    const report = document.querySelector('a[href*="unblock-request"]');
+    if (report !== null) errorEl.append(" ", report.cloneNode(true));
+  }
 }
 function clearError(): void {
   errorEl.textContent = "";
@@ -168,6 +175,7 @@ async function addRule(kind: UserRuleKind, rawInput: string): Promise<void> {
     showError(domain.error);
     return;
   }
+  if (kind === "allow" && (await refusedAsAdult(domain.value, showError))) return;
   const rules = await chrome.declarativeNetRequest.getDynamicRules();
   if (domainsOf(rules, kind).some((e) => e.domain === domain.value)) {
     return; // already present — idempotent, nothing to do
@@ -199,6 +207,12 @@ async function removeRule(id: number): Promise<void> {
   await refreshLists();
 }
 
+/** An adult allow is refused before the gate: no wait or PIN for it. */
+async function refusedBeforeGate(kind: UserRuleKind, raw: string): Promise<boolean> {
+  const domain = normalizeDomainInput(raw);
+  return kind === "allow" && domain.ok && (await refusedAsAdult(domain.value, showError));
+}
+
 function wireForm(kind: UserRuleKind): void {
   const form = document.getElementById(`${kind}-form`) as HTMLFormElement;
   const input = document.getElementById(`${kind}-input`) as HTMLInputElement;
@@ -208,10 +222,14 @@ function wireForm(kind: UserRuleKind): void {
       : ("addDeviceBlockRule" as const);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    void withGate(gateKind, hh, async () => {
-      await addRule(kind, input.value);
-      input.value = "";
-    }).catch((e: unknown) => {
+    clearError();
+    void (async () => {
+      if (await refusedBeforeGate(kind, input.value)) return;
+      await withGate(gateKind, hh, async () => {
+        await addRule(kind, input.value);
+        input.value = "";
+      });
+    })().catch((e: unknown) => {
       showError(
         `Could not update rules: ${e instanceof Error ? e.message : String(e)}`,
       );
@@ -478,11 +496,14 @@ function wireHousehold(): void {
       clearError();
       const gateKind =
         kind === "allow" ? ("addDeviceAllowRule" as const) : ("addHouseholdRule" as const);
-      void withGate(gateKind, hh, async () => {
-        await addHouseholdDomain(hh, kind, input.value);
-        input.value = "";
-        await hh.onChanged();
-      }).catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
+      void (async () => {
+        if (await refusedBeforeGate(kind, input.value)) return;
+        await withGate(gateKind, hh, async () => {
+          await addHouseholdDomain(hh, kind, input.value);
+          input.value = "";
+          await hh.onChanged();
+        });
+      })().catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
     });
   }
 }

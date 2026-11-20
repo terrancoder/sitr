@@ -48,13 +48,20 @@ export const ALL_RESOURCE_TYPES = [
 ];
 
 /**
- * Static category blocks (and SafeSearch) sit at priority 5 — above the
- * media-filter layer's allow band (priority 2, see architecture.md's ladder)
- * so an image-allowlist entry can never re-admit a request to a blocklisted
- * domain, and below every dynamic layer (10–60) so a device-user allow
- * still wins (T5).
+ * Static category blocks sit at priority 5 — above the media-filter layer's
+ * allow band (priority 2, see architecture.md's ladder) so an
+ * image-allowlist entry can never re-admit a request to a blocklisted
+ * domain, and below every dynamic layer (10–60) so an allow entry still
+ * opens a gambling, dating or opt-in-list name (T5).
  */
 export const STATIC_CATEGORY_PRIORITY = 5;
+
+/**
+ * The adult list and SafeSearch sit above every dynamic layer (the managed
+ * allow is 60): no allow entry of any layer — device, household or managed
+ * — opens an adult-listed name or switches SafeSearch off.
+ */
+export const UNALLOWABLE_PRIORITY = 100;
 
 /**
  * Each category gets a fixed, documented id range so rule ids are stable
@@ -96,7 +103,7 @@ export function compileBlockRuleset(
   for (let i = 0; i < sortedDomains.length; i += DOMAINS_PER_RULE) {
     rules.push({
       id: idBase + rules.length + 1,
-      priority: STATIC_CATEGORY_PRIORITY,
+      priority: category === "adult" ? UNALLOWABLE_PRIORITY : STATIC_CATEGORY_PRIORITY,
       action: { type: "block" },
       condition: {
         requestDomains: sortedDomains.slice(i, i + DOMAINS_PER_RULE),

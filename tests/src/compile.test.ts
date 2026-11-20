@@ -14,7 +14,7 @@ test("golden: adult category with two domains compiles byte-identically", () => 
   const expected = `[
   {
     "id": 10001,
-    "priority": 5,
+    "priority": 100,
     "action": {
       "type": "block"
     },

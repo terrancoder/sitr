@@ -1,7 +1,7 @@
 [
   {
     "id": 1001,
-    "priority": 5,
+    "priority": 100,
     "action": {
       "type": "redirect",
       "redirect": {
@@ -26,7 +26,7 @@
   },
   {
     "id": 1002,
-    "priority": 5,
+    "priority": 100,
     "action": {
       "type": "redirect",
       "redirect": {
@@ -51,7 +51,7 @@
   },
   {
     "id": 1003,
-    "priority": 5,
+    "priority": 100,
     "action": {
       "type": "redirect",
       "redirect": {
@@ -76,7 +76,7 @@
   },
   {
     "id": 1004,
-    "priority": 5,
+    "priority": 100,
     "action": {
       "type": "modifyHeaders",
       "requestHeaders": [

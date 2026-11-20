@@ -9,16 +9,19 @@
  *   -----------  -----  ---------  -----  --------
  *   media filter block  compiler     —        1   (image+media only)
  *   image allow  allow  4,000,000  2,500      2   (image+media only)
- *   static       block  compiler     —        5   (incl. safesearch)
+ *   static       block  compiler     —        5   (gambling, dating, opt-in)
  *   user         block  1,500,000  4,500     10
  *   user         allow  1,000,000  4,500     20
  *   household    block  2,500,000  4,500     30
  *   household    allow  2,000,000  4,500     40
  *   managed      block  3,500,000  4,500     50
  *   managed      allow  3,000,000  4,500     60
+ *   adult, SafeSearch    compiler     —      100   (no allow opens them)
  *
  * Within a layer an explicit allow wins; a higher layer's block beats a
- * lower layer's allow (managed > household > user > static). The image
+ * lower layer's allow (managed > household > user > static). The adult
+ * list and SafeSearch sit above every layer: no allow entry, managed
+ * included, opens an adult-listed name or switches SafeSearch off. The image
  * allowlist sits BELOW the static category blocks so it can re-enable a
  * site's images but never re-admit a request to a blocklisted domain.
  *

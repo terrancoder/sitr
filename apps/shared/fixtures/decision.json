@@ -1,0 +1,315 @@
+{
+  "version": 1,
+  "note": "generated — edit tools/conformance, run npm run fixtures. Synthetic names. Every platform's decision must give `expected`.",
+  "lists": {
+    "adult": [
+      "adult.example",
+      "deep.host.example"
+    ],
+    "gambling": [
+      "bet.example"
+    ],
+    "dating": [
+      "date.example"
+    ],
+    "violence": [
+      "gore.example"
+    ]
+  },
+  "searchEngine": "www.google.com",
+  "cases": [
+    {
+      "name": "adult name, no lists",
+      "rule": "R1",
+      "host": "adult.example",
+      "expected": "block"
+    },
+    {
+      "name": "adult name, user allow",
+      "rule": "R1",
+      "host": "adult.example",
+      "user": {
+        "allow": [
+          "adult.example"
+        ]
+      },
+      "expected": "block"
+    },
+    {
+      "name": "adult name, household allow",
+      "rule": "R1",
+      "host": "adult.example",
+      "household": {
+        "allow": [
+          "adult.example"
+        ]
+      },
+      "expected": "block"
+    },
+    {
+      "name": "adult name, managed allow",
+      "rule": "R1",
+      "host": "adult.example",
+      "managed": {
+        "allow": [
+          "adult.example"
+        ]
+      },
+      "expected": "block"
+    },
+    {
+      "name": "adult name, allowed at every layer",
+      "rule": "R1",
+      "host": "adult.example",
+      "managed": {
+        "allow": [
+          "adult.example"
+        ]
+      },
+      "household": {
+        "allow": [
+          "adult.example"
+        ]
+      },
+      "user": {
+        "allow": [
+          "adult.example"
+        ]
+      },
+      "expected": "block"
+    },
+    {
+      "name": "subdomain of an adult parent, allow on the subdomain",
+      "rule": "R1",
+      "host": "www.adult.example",
+      "user": {
+        "allow": [
+          "www.adult.example"
+        ]
+      },
+      "expected": "block"
+    },
+    {
+      "name": "adult subdomain, managed allow on its parent",
+      "rule": "R1",
+      "host": "deep.host.example",
+      "managed": {
+        "allow": [
+          "host.example"
+        ]
+      },
+      "expected": "block"
+    },
+    {
+      "name": "parent of an adult subdomain, allow on the parent opens it",
+      "rule": "R1",
+      "host": "host.example",
+      "user": {
+        "allow": [
+          "host.example"
+        ]
+      },
+      "expected": "forward"
+    },
+    {
+      "name": "other subdomain of that parent, allow on the parent opens it",
+      "rule": "R1",
+      "host": "other.host.example",
+      "household": {
+        "allow": [
+          "host.example"
+        ]
+      },
+      "expected": "forward"
+    },
+    {
+      "name": "parent of an adult subdomain, no lists",
+      "rule": "R1",
+      "host": "host.example",
+      "expected": "forward"
+    },
+    {
+      "name": "search engine, no lists",
+      "rule": "R2",
+      "host": "www.google.com",
+      "expected": "safesearch"
+    },
+    {
+      "name": "search engine, user allow on its parent",
+      "rule": "R2",
+      "host": "www.google.com",
+      "user": {
+        "allow": [
+          "google.com"
+        ]
+      },
+      "expected": "safesearch"
+    },
+    {
+      "name": "search engine, household allow",
+      "rule": "R2",
+      "host": "www.google.com",
+      "household": {
+        "allow": [
+          "www.google.com"
+        ]
+      },
+      "expected": "safesearch"
+    },
+    {
+      "name": "search engine, allowed at every layer",
+      "rule": "R2",
+      "host": "www.google.com",
+      "managed": {
+        "allow": [
+          "google.com"
+        ]
+      },
+      "household": {
+        "allow": [
+          "google.com"
+        ]
+      },
+      "user": {
+        "allow": [
+          "google.com"
+        ]
+      },
+      "expected": "safesearch"
+    },
+    {
+      "name": "gambling name, no lists",
+      "rule": "R3",
+      "host": "bet.example",
+      "expected": "block"
+    },
+    {
+      "name": "gambling name, user allow",
+      "rule": "R3",
+      "host": "bet.example",
+      "user": {
+        "allow": [
+          "bet.example"
+        ]
+      },
+      "expected": "forward"
+    },
+    {
+      "name": "dating subdomain, household allow on the parent",
+      "rule": "R3",
+      "host": "m.date.example",
+      "household": {
+        "allow": [
+          "date.example"
+        ]
+      },
+      "expected": "forward"
+    },
+    {
+      "name": "opt-in list name, user allow",
+      "rule": "R3",
+      "host": "gore.example",
+      "user": {
+        "allow": [
+          "gore.example"
+        ]
+      },
+      "expected": "forward"
+    },
+    {
+      "name": "gambling name, managed allow",
+      "rule": "R3",
+      "host": "bet.example",
+      "managed": {
+        "allow": [
+          "bet.example"
+        ]
+      },
+      "expected": "forward"
+    },
+    {
+      "name": "household block beats a user allow",
+      "rule": "R3",
+      "host": "bet.example",
+      "household": {
+        "block": [
+          "bet.example"
+        ]
+      },
+      "user": {
+        "allow": [
+          "bet.example"
+        ]
+      },
+      "expected": "block"
+    },
+    {
+      "name": "household allow beats a household block",
+      "rule": "R3",
+      "host": "site.example",
+      "household": {
+        "allow": [
+          "site.example"
+        ],
+        "block": [
+          "site.example"
+        ]
+      },
+      "expected": "forward"
+    },
+    {
+      "name": "managed block beats a household allow",
+      "rule": "R3",
+      "host": "site.example",
+      "managed": {
+        "block": [
+          "site.example"
+        ]
+      },
+      "household": {
+        "allow": [
+          "site.example"
+        ]
+      },
+      "expected": "block"
+    },
+    {
+      "name": "managed allow beats every block",
+      "rule": "R3",
+      "host": "site.example",
+      "managed": {
+        "allow": [
+          "site.example"
+        ]
+      },
+      "household": {
+        "block": [
+          "site.example"
+        ]
+      },
+      "user": {
+        "block": [
+          "site.example"
+        ]
+      },
+      "expected": "forward"
+    },
+    {
+      "name": "user block on an unlisted name",
+      "rule": "R3",
+      "host": "site.example",
+      "user": {
+        "block": [
+          "site.example"
+        ]
+      },
+      "expected": "block"
+    },
+    {
+      "name": "unlisted name, no lists",
+      "rule": "R3",
+      "host": "site.example",
+      "expected": "forward"
+    }
+  ]
+}

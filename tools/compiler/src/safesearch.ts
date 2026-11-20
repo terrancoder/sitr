@@ -1,5 +1,5 @@
 import type { DnrRule } from "./types.js";
-import { STATIC_CATEGORY_PRIORITY } from "./compile.js";
+import { UNALLOWABLE_PRIORITY } from "./compile.js";
 
 /**
  * SafeSearch / YouTube Restricted Mode enforcement ruleset.
@@ -10,7 +10,8 @@ import { STATIC_CATEGORY_PRIORITY } from "./compile.js";
  * `extension/rulesets/safesearch.json` — never hand-edit the output.
  *
  * All rules operate on URL/header metadata in-browser via DNR, before TLS —
- * no interception, no content access.
+ * no interception, no content access. Priority UNALLOWABLE_PRIORITY: above
+ * every allow layer, so an allow entry for a search engine never beats it.
  */
 export const SAFESEARCH_ID_BASE = 1_000;
 
@@ -21,7 +22,7 @@ export function safesearchRules(): DnrRule[] {
     // Google: force safe=active on search result pages.
     {
       id: SAFESEARCH_ID_BASE + 1,
-      priority: STATIC_CATEGORY_PRIORITY,
+      priority: UNALLOWABLE_PRIORITY,
       action: {
         type: "redirect",
         redirect: {
@@ -44,7 +45,7 @@ export function safesearchRules(): DnrRule[] {
     // unaffected — it keeps the www.bing.com Host header).
     {
       id: SAFESEARCH_ID_BASE + 2,
-      priority: STATIC_CATEGORY_PRIORITY,
+      priority: UNALLOWABLE_PRIORITY,
       action: {
         type: "redirect",
         redirect: {
@@ -63,7 +64,7 @@ export function safesearchRules(): DnrRule[] {
     // DuckDuckGo: kp=1 = safe search strict.
     {
       id: SAFESEARCH_ID_BASE + 3,
-      priority: STATIC_CATEGORY_PRIORITY,
+      priority: UNALLOWABLE_PRIORITY,
       action: {
         type: "redirect",
         redirect: {
@@ -82,7 +83,7 @@ export function safesearchRules(): DnrRule[] {
     // YouTube: Restricted Mode via the documented YouTube-Restrict header.
     {
       id: SAFESEARCH_ID_BASE + 4,
-      priority: STATIC_CATEGORY_PRIORITY,
+      priority: UNALLOWABLE_PRIORITY,
       action: {
         type: "modifyHeaders",
         requestHeaders: [

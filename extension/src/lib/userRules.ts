@@ -98,3 +98,31 @@ export function buildUserRule(
 }
 
 export { ALL_RESOURCE_TYPES };
+
+/** The add screens' refusal of an allow entry for an adult-listed name. */
+export const ADULT_LISTED_ERROR =
+  "This site is on the adult list and cannot be allowed. If it is listed by mistake, report it.";
+
+/** Every domain of a block ruleset file (rulesets/adult.json). */
+export function rulesetDomains(rules: unknown): Set<string> {
+  const out = new Set<string>();
+  if (!Array.isArray(rules)) return out;
+  for (const r of rules as Array<{ condition?: { requestDomains?: unknown } }>) {
+    const d = r?.condition?.requestDomains;
+    if (Array.isArray(d)) for (const x of d) if (typeof x === "string") out.add(x);
+  }
+  return out;
+}
+
+/**
+ * Whether `domain` or one of its parents is on the list — as the adult
+ * rules match (requestDomains covers subdomains). Such a name no allow
+ * entry can open: the adult rules outrank every allow layer. A parent of
+ * a listed name is not covered (its other subdomains still open).
+ */
+export function listedUnder(domain: string, listed: ReadonlySet<string>): boolean {
+  for (let d = domain; ; d = d.slice(d.indexOf(".") + 1)) {
+    if (listed.has(d)) return true;
+    if (!d.includes(".")) return false;
+  }
+}
