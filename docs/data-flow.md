@@ -129,8 +129,9 @@ Android engine above. No remote server is involved.
   applies them again (at most three tries after a network change, then
   five more over about 16 minutes if those find none, and at most three
   such windows in any minute). In that window (about half a second, up
-  to a few seconds if the new network is slow to announce its DNS server;
-  [threat-model.md](threat-model.md) T14)
+  to a few seconds if the new network is slow to announce its DNS server,
+  and up to about two seconds each time it reads that server again on
+  the same network; [threat-model.md](threat-model.md) T14)
   iOS sends lookups straight to the network's resolver, as it would
   without Sitr, and they are not filtered. From the network change until
   the new resolvers are read, lookups the tunnel would forward are

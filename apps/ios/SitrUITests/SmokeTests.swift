@@ -66,6 +66,31 @@ final class SmokeTests: XCTestCase {
             "iOS must not steer to an external purchase")
     }
 
+    /// QA note I-NO-03: the element tree shows an unlabeled switch beside
+    /// each labelled toggle. The audit says whether any element lacks a
+    /// description VoiceOver could read; the dump records the switches.
+    @available(iOS 17.0, *)
+    func testTogglesHaveDescriptions() throws {
+        let app = XCUIApplication()
+        app.launch()
+        walkOnboardingIfPresent(app)
+        let categories = app.buttons["Filter categories"]
+        XCTAssertTrue(categories.waitForExistence(timeout: 10))
+        categories.tap()
+        XCTAssertTrue(app.switches.firstMatch.waitForExistence(timeout: 5))
+        for s in app.switches.allElementsBoundByIndex {
+            print("switch label=\"\(s.label)\" value=\(String(describing: s.value)) frame=\(s.frame)")
+        }
+        try app.performAccessibilityAudit(for: [.sufficientElementDescription])
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let dns = app.descendants(matching: .any)["home.dnsFilter"]
+        XCTAssertTrue(dns.waitForExistence(timeout: 5))
+        dns.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["dnsfilter.status"].waitForExistence(timeout: 5))
+        print("DNS screen switches: \(app.switches.count)")
+        try app.performAccessibilityAudit(for: [.sufficientElementDescription])
+    }
+
     private func walkOnboardingIfPresent(_ app: XCUIApplication) {
         guard app.buttons["Continue"].waitForExistence(timeout: 10) else { return }
         app.buttons["Continue"].tap()

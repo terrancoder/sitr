@@ -15,6 +15,13 @@ struct ListsView: View {
     static let allowExplainer =
         "An allowed site opens even when a category blocks it, except sites on the adult list: those stay blocked."
 
+    /// The Add button's check: the normalized domain, or the message to show.
+    static func addCheck(_ input: String, in domains: [String]) -> Result<String, SitrError> {
+        DomainInput.normalize(input).flatMap {
+            domains.contains($0) ? .failure(SitrError("Already in the list.")) : .success($0)
+        }
+    }
+
     var body: some View {
         List {
             if model.safariUpdating {
@@ -65,6 +72,8 @@ struct ListsView: View {
                         }
                     }
                 )
+                Text("If a site is in both lists, the allow entry wins.")
+                    .font(.caption).foregroundStyle(Theme.inkSoft)
             }
             .sitrRows()
             if let inputError {
@@ -106,7 +115,7 @@ struct ListsView: View {
                 .autocorrectionDisabled()
                 .foregroundStyle(Theme.ink)
             Button("Add") {
-                switch DomainInput.normalize(input.wrappedValue) {
+                switch Self.addCheck(input.wrappedValue, in: domains) {
                 case .failure(let error):
                     inputError = error.message
                 case .success(let domain):

@@ -45,33 +45,33 @@ Blocks about 100,000 adult, gambling and dating sites in Safari, on your device.
 
 ## Description (4,000 chars max)
 
-Sitr (سِتْر — "covering, protection") blocks adult, gambling and dating sites in Safari on iPhone and iPad. It is built for Muslim families and useful for anyone who wants a cleaner internet without being watched.
+Sitr (سِتْر — "covering, protection") blocks adult, gambling and dating sites in Safari on iPhone and iPad. Built for Muslim families, it suits anyone who wants a cleaner internet without being watched.
 [DNS] With the optional DNS filter, it filters other apps too.
 
 PRIVATE BY DESIGN
 
 [NO-DNS] • Filtering happens on your device. Safari applies Sitr's rules itself, so Sitr never sees the pages you visit.
 [DNS] • Filtering happens on your device. Safari applies Sitr's rules itself, so Sitr never sees the pages you visit in Safari.
-[DNS] • The optional DNS filter reads the site names apps look up, decides on the device, and logs, stores and sends none of them.
-• The blocklist ships inside the app and is identical for every user, so it says nothing about you. It is public, and every entry can be contested.
+[DNS] • The optional DNS filter reads the site names apps look up, decides on the device, and logs, stores and sends none.
+• The blocklist ships in the app, identical for every user, so it says nothing about you. It is public, and every entry can be contested.
 • No account, no analytics, no crash reports, no ads, no third-party SDKs.
-• The source code is public (MPL-2.0). The lists bundled in the app can be checked against published checksums.
+• The source code is public (MPL-2.0); the bundled lists can be checked against published checksums.
 
 WHAT IT DOES
 
 • Blocks about 100,000 sites in Safari: 43,884 adult, 45,811 gambling and 10,360 dating. Adult blocking is always on; gambling and dating can be switched off.
-• An opt-in list of 258 gore and hate sites, off unless you turn it on. It is old and incomplete, and the app says so.
-• Optional switches that turn off all images and video on X, Reddit, Tumblr, Pinterest and Imgur. Sitr cannot tell which pictures are explicit, so it is all of a site's media or none. Posts and text still load.
+• An opt-in list of 258 gore and hate sites, off by default. It is old and incomplete, and the app says so.
+• Optional switches turn off all images and video on X, Reddit, Tumblr, Pinterest and Imgur. Sitr cannot tell which pictures are explicit, so it is all of a site's media or none. Posts and text still load.
 • Your own allow and block lists, kept on this device.
-[ST] • Optional Screen Time filter: Apple's adult web filter in other browsers too, plus the first 40 sites on your block lists. On a child's device set up with Family Sharing, turning it off needs a parent's approval.
-• Optional "Wait before loosening": a change that loosens protection waits 5 minutes to 24 hours before it can be made.
+[ST] • Optional Screen Time filter: Apple's adult web filter in other browsers too, plus the first 40 sites on your block lists. On a Family Sharing child's device, turning it off needs a parent's approval.
+• Optional "Wait before loosening": a loosening change waits 5 minutes to 24 hours before it can be made.
 • Sitr Family (optional): join a household with a pairing code, typed or scanned, to share allow and block lists, category choices and a guardian PIN. On a child's device loosening is refused (leaving needs the guardian PIN); on a guardian's device it asks for the PIN if one is set. Settings sync as one end-to-end-encrypted blob our server cannot read.
-• If Safari filtering is off or its rules did not load, Sitr shows a red "Protection inactive" status with the reason and the fix, instead of pretending.
+• If Safari filtering is off or its rules did not load, Sitr shows a red "Protection inactive" status with the reason and the fix.
 • "Report a site" links open a public GitHub form or your mail app. Sitr itself sends nothing.
 [DNS] 
 [DNS] OPTIONAL DNS FILTER (OFF BY DEFAULT)
 [DNS] 
-[DNS] Turn it on to filter apps outside Safari with the same lists and settings. It is a local VPN that sees only DNS lookups. Blocked names are answered on the device; SafeSearch is enforced on Google, Bing and DuckDuckGo, and Restricted Mode on YouTube; every other lookup goes, unencrypted, to your network's own DNS server. No Sitr server is involved. iOS asks permission, lists the filter under VPN in Settings and shows a VPN badge in Control Center. If it stops, Home turns red and says why.
+[DNS] It filters apps outside Safari with the same lists and settings. It is a local VPN that sees only DNS lookups. Blocked names are answered on the device; SafeSearch is enforced on Google, Bing and DuckDuckGo, and Restricted Mode on YouTube; other lookups go, unencrypted, to your network's DNS server, never to a Sitr server. iOS asks permission, lists it under VPN in Settings and shows a VPN badge in Control Center. If it stops, Home turns red and says why.
 
 WHAT IT DOESN'T DO
 
@@ -80,15 +80,15 @@ No monitoring. Sitr never records, reports or shows anyone what you or your chil
 HONEST LIMITS
 
 [NO-DNS] • Sitr's lists apply in Safari and in web pages that apps open through Safari. They do not reach pages shown inside other apps' own web views.
-[DNS] • Without the DNS filter, Sitr's lists apply only in Safari and in web pages that apps open through Safari.
+[DNS] • Without the DNS filter, Sitr's lists apply only in Safari and in pages apps open through Safari.
 [NO-DNS] • Other browsers and apps are not filtered by Sitr's lists.
-[ST] • The optional Screen Time filter applies Apple's adult filter, not Sitr's category lists, in other browsers.
-[DNS] • The DNS filter, and with it SafeSearch, works only while it is on, and does not cover apps that use their own encrypted DNS. For about half a second per network change (up to a few seconds if a network is slow to give its DNS server), lookups are not filtered.
+[ST] • In other browsers, the Screen Time filter applies Apple's adult filter, not Sitr's category lists.
+[DNS] • The DNS filter, and with it SafeSearch, works only while on and does not cover apps using their own encrypted DNS. Lookups are not filtered for about half a second per network change (up to a few seconds if a network is slow to give its DNS server) and up to about two seconds each time the filter rereads that server on the same network.
 [DNS] • iOS allows one VPN at a time: another VPN app switches the DNS filter off.
 [NO-DNS] • SafeSearch is not enforced on iOS: no supported iOS API can force it for every app.
-• Anyone with the device passcode can switch Sitr off in Settings or delete the app. A parent's Screen Time restrictions can stop apps being deleted; Sitr does not block deletion itself.
-• The wait and the guardian PIN slow changes made inside Sitr only.
-• Most of the list comes from public lists checked by name, so some entries will be wrong: allow the site (not an adult-listed one) and use "Report a site".
+• Anyone with the device passcode can switch Sitr off in Settings or delete the app. A parent's Screen Time restrictions can stop deletion; Sitr itself cannot.
+• The wait and the guardian PIN slow only changes made in Sitr.
+• Most entries come from public lists checked by name, so some will be wrong: allow the site (not an adult-listed one) and use "Report a site".
 
 Source code, blocklist and appeals: https://github.com/terrancoder/sitr
 
