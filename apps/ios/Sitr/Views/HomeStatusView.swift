@@ -49,7 +49,7 @@ struct HomeStatusView: View {
                     ListsView(attempt: attempt)
                 }
                 NavigationLink("Sitr Family") {
-                    HouseholdView(attempt: attempt, attemptJoin: attemptJoin, requirePin: requirePin)
+                    HouseholdView(attempt: attempt, attemptAction: attemptAction, attemptJoin: attemptJoin, requirePin: requirePin)
                 }
                 NavigationLink("Wait before loosening") {
                     DelaySettingsView(attemptAction: attemptAction)

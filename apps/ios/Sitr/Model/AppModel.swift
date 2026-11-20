@@ -324,6 +324,12 @@ final class AppModel: ObservableObject {
     /// By pairing code, or with the key found in iCloud Keychain; both come
     /// here only through the gate, the wait and the PIN (attemptJoin).
     func joinHousehold(secret: Data, asChild: Bool) async {
+        // Read now, not from the screen: a form left open still shows Join.
+        // Before the key is saved, which would replace the household's.
+        guard SettingsStore.load().household == nil else {
+            lastError = HouseholdView.alreadyInHousehold
+            return
+        }
         guard Storage.saveRootSecret(secret) else {
             lastError = "The household key could not be stored on this device."
             return
@@ -340,7 +346,24 @@ final class AppModel: ObservableObject {
         await refreshFamily()
     }
 
-    func leaveHousehold() async {
+    /// Whether leaving now is leaving a household never received
+    /// (Gate.leaveJoinPlaceholderGatedAs): from the STORED state, which a
+    /// background refresh writes behind `settings`.
+    func leaveIsJoinPlaceholder() async -> Bool {
+        await reloadFromStore()
+        return settings.household.map(Household.isPinlessPlaceholder) ?? false
+    }
+
+    /// `asJoinPlaceholder`: allowed with no PIN because the household had
+    /// not arrived; refused if it has arrived since.
+    func leaveHousehold(asJoinPlaceholder: Bool = false) async {
+        if asJoinPlaceholder {
+            await reloadFromStore()
+            if let stored = settings.household, !Household.isPinlessPlaceholder(stored) {
+                lastError = HouseholdView.householdArrived
+                return
+            }
+        }
         let secret = Storage.loadRootSecret()
         let before = settings
         // Key first: a sync still on the network checks for it before

@@ -230,6 +230,13 @@ public enum Household {
         s.rev == 1 && s.updatedAt == 0
     }
 
+    /// A placeholder with no PIN: leaving it is
+    /// `Gate.leaveJoinPlaceholderGatedAs`. A rev-1, epoch-0 state that holds
+    /// a PIN is not free to leave.
+    public static func isPinlessPlaceholder(_ s: HouseholdState) -> Bool {
+        isJoinPlaceholder(s) && s.pin == nil
+    }
+
     /// A new revision authored by this device.
     public static func bumpRev(
         _ s: HouseholdState,

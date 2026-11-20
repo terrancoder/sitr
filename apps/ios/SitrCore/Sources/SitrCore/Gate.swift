@@ -70,6 +70,14 @@ public enum Gate {
     /// `refreshDeviceListGatedAs`.
     public static let refreshDeviceListGatedAs: MutationKind = .changePin
 
+    /// Leaving a household this device never received: the STORED state is
+    /// a join placeholder with no PIN (Household.isPinlessPlaceholder).
+    /// Gated exactly like enabling a category — refused under a managed
+    /// lock, otherwise allowed for any role, no PIN, no wait. Pinned by
+    /// gate.json's `leaveJoinPlaceholderGatedAs`; Delay's
+    /// `.leaveJoinPlaceholder` runs it.
+    public static let leaveJoinPlaceholderGatedAs: MutationKind = .enableCategory
+
     static let loosening: Set<MutationKind> = [
         .disableCategory,
         .removeDeviceBlockRule,

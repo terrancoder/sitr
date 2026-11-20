@@ -12,6 +12,7 @@ import VisionKit
 struct HouseholdView: View {
     @EnvironmentObject var model: AppModel
     let attempt: (MutationKind, String, @escaping () -> Void) -> Void
+    let attemptAction: (DelayAction, String, @escaping () -> Void) -> Void
     let attemptJoin: (@escaping () -> Void) -> Void
     let requirePin: (String, @escaping () -> Void) -> Void
 
@@ -237,6 +238,8 @@ struct HouseholdView: View {
     static let waitingForFirstSync =
         "Waiting for the first sync with your household. Connect to the internet and tap "
         + "Sync now. The household's PIN and lists appear here after that."
+    static let householdArrived = "The household has just arrived on this device. Leave again."
+    static let alreadyInHousehold = "This device is already in a household. Leave it first."
 
     @ViewBuilder private var memberSections: some View {
         let household = model.settings.household!
@@ -268,7 +271,7 @@ struct HouseholdView: View {
             Text(model.settings.syncStatus.describe)
                 .font(.caption)
                 .foregroundStyle(Theme.inkSoft)
-            if waiting {
+            if waiting && model.settings.syncStatus.state != .notFound {
                 Text(Self.waitingForFirstSync).foregroundStyle(Theme.ink)
             }
             if let end = model.familyEnd {
@@ -369,8 +372,14 @@ struct HouseholdView: View {
 
         Section {
             Button("Leave household", role: .destructive) {
-                attempt(.leaveHousehold, "Leave the household") {
-                    Task { await model.leaveHousehold() }
+                Task {
+                    // Decided from the stored state; checked again in the leave.
+                    let asPlaceholder = await model.leaveIsJoinPlaceholder()
+                    attemptAction(
+                        asPlaceholder ? .leaveJoinPlaceholder : .kind(.leaveHousehold), "Leave the household"
+                    ) {
+                        Task { await model.leaveHousehold(asJoinPlaceholder: asPlaceholder) }
+                    }
                 }
             }
             Text(

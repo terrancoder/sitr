@@ -12,7 +12,12 @@ public struct SyncStatus: Equatable {
         case ok
         case error
         case offline
+        /// A device that joined found no household for its code.
+        case notFound = "not-found"
     }
+
+    public static let noHouseholdForCode =
+        "No household found for this code yet. Check the code with the person who created the household. If the code is right, sync that device first; otherwise leave and join again."
 
     public let state: State
     public let lastSuccessAt: Double?
@@ -39,6 +44,8 @@ public struct SyncStatus: Equatable {
             return "Sync: up to date."
         case .offline:
             return "Sync: offline — filtering still fully active on this device."
+        case .notFound:
+            return Self.noHouseholdForCode
         case .error:
             return "Sync: failed (\(error ?? "unknown error")) — filtering still fully active on this device."
         }

@@ -47,6 +47,23 @@ import Testing
         #expect(Delay.decide(.kind(k), ctx: ctx(.guardian, pin: true), phase: .idle) == .pin)
     }
 
+    /// P1: a household never received (stored placeholder, no PIN) is left
+    /// freely by a guardian and a child; a synced child still needs the PIN,
+    /// and a rev-1/updatedAt-0 state that holds a PIN is not free.
+    @Test func leavingAPinlessPlaceholderIsFreeForAnyRole() {
+        let placeholder = Household.emptyState(deviceId: "me", now: 0)
+        #expect(Household.isPinlessPlaceholder(placeholder))
+        var withPin = placeholder
+        withPin.pin = PinRecord(iterations: 600_000, saltB64: "AAECAwQFBgcICQoLDA0ODw==", hashB64: "nznZxxwixMRZvCy6zG104hhBhdZx2R8KNKaDRBOghJ0=")
+        #expect(Household.isJoinPlaceholder(withPin) && !Household.isPinlessPlaceholder(withPin))
+        #expect(!Household.isPinlessPlaceholder(Household.emptyState(deviceId: "me", now: 1000)))
+        for role in [HouseholdRole.guardian, .child] {
+            #expect(Delay.decide(.leaveJoinPlaceholder, ctx: ctx(role, pin: false), phase: .idle) == .go)
+        }
+        #expect(Delay.decide(.kind(.leaveHousehold), ctx: ctx(.child, pin: false), phase: .off) == .refused(.childDevice))
+        #expect(Delay.decide(.kind(.leaveHousehold), ctx: ctx(.child, pin: true), phase: .off) == .pin)
+    }
+
     @Test func everyOtherChildLooseningStaysRefused() {
         for kind in MutationKind.allCases where kind != .leaveHousehold {
             let v = Gate.gateMutation(kind, ctx: ctx(.child, pin: true))

@@ -219,6 +219,30 @@ func expectJSONEqual(
         }
     }
 
+    /// Leaving a household never received: gated as the fixture field says,
+    /// so on that kind's rows it is refused under a managed lock and goes
+    /// otherwise — any role, PIN or not — in every delay phase.
+    @Test func leaveJoinPlaceholderGatedAsTheFixtureSays() throws {
+        let fx = try fixture("gate.json")
+        #expect(fx["leaveJoinPlaceholderGatedAs"] as? String == Gate.leaveJoinPlaceholderGatedAs.rawValue)
+        let rows = try #require(fx["cases"] as? [[String: Any]]).filter {
+            $0["kind"] as? String == Gate.leaveJoinPlaceholderGatedAs.rawValue
+        }
+        #expect(rows.count == 12)
+        for c in rows {
+            let locked = try #require(c["managedLockOptions"] as? Bool)
+            let ctx = GateContext(
+                managedLockOptions: locked,
+                role: (c["role"] as? String).flatMap(HouseholdRole.init(rawValue:)),
+                hasPin: try #require(c["hasPin"] as? Bool))
+            for phase in [DelayPhase.off, .idle, .waiting, .open] {
+                #expect(
+                    Delay.decide(.leaveJoinPlaceholder, ctx: ctx, phase: phase)
+                        == (locked ? .refused(.managedLocked) : .go), "\(c) \(phase)")
+            }
+        }
+    }
+
     @Test func delayTable() throws {
         let fx = try fixture("delay.json")
         #expect(fx["delayMinutesAllowed"] as? [Int] == Delay.minutesAllowed)

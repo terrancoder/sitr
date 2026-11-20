@@ -100,7 +100,10 @@ extension AppModel {
     /// lost answer finds the same household.
     func createHousehold(replace: Bool = false, credential: String? = nil) async {
         await serial { [self] in
-            guard settings.household == nil else { return }
+            guard SettingsStore.load().household == nil else {
+                familyMessage = HouseholdView.alreadyInHousehold
+                return
+            }
             familyBusy = true
             defer { familyBusy = false }
             familyMessage = nil

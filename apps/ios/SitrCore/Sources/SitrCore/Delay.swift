@@ -23,9 +23,12 @@ public struct DelayEvaluation: Equatable {
 
 /// A gate kind, or the delay's one action of its own: making the delay
 /// shorter (or off). Making it longer (or turning it on) is free.
+/// `.leaveJoinPlaceholder`: leaving a household this device never
+/// received, gated as `Gate.leaveJoinPlaceholderGatedAs`.
 public enum DelayAction: Equatable {
     case kind(MutationKind)
     case shortenDelay
+    case leaveJoinPlaceholder
 
     public init?(rawValue: String) {
         if rawValue == "shortenDelay" {
@@ -92,6 +95,7 @@ public enum Delay {
         switch action {
         case .shortenDelay: return true
         case .kind(let kind): return Gate.loosening.contains(kind)
+        case .leaveJoinPlaceholder: return needsWait(.kind(Gate.leaveJoinPlaceholderGatedAs), phase)
         }
     }
 
@@ -110,6 +114,7 @@ public enum Delay {
         switch action {
         case .shortenDelay: kind = shortenDelayGatedAs
         case .kind(let k): kind = k
+        case .leaveJoinPlaceholder: kind = Gate.leaveJoinPlaceholderGatedAs
         }
         switch Gate.gateMutation(kind, ctx: ctx) {
         case .refused(let reason): return .refused(reason)

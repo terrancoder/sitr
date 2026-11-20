@@ -240,6 +240,15 @@ public struct SyncClient {
             case .success(let r): remote = r
             }
 
+            // A joiner never creates the household: with no server copy, its
+            // placeholder stays local and the round writes nothing (a wrong
+            // code must not create a household; the creator pushes its own).
+            if remote.state == nil, Household.isJoinPlaceholder(input.local) {
+                return .success(
+                    SyncOutcome(
+                        state: input.local, maxSeenRev: input.maxSeenRev,
+                        status: SyncStatus(state: .notFound), etag: nil, entExp: remote.entExp))
+            }
             var merged = input.local
             var maxSeen = input.maxSeenRev
             if let remoteState = remote.state {

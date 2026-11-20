@@ -10,7 +10,7 @@ extension SyncClient {
     /// the household's record with an empty device list.
     ///
     /// Unlike Android, a join placeholder sends nothing: it was never
-    /// enrolled, and a round would PUT it if the server had no blob.
+    /// enrolled, and it has nothing to take off a list.
     public func unenroll(_ input: SyncInput) async -> SyncOutcome {
         if Household.isJoinPlaceholder(input.local) {
             return SyncOutcome(

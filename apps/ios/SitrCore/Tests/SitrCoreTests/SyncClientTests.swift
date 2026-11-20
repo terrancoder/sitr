@@ -90,6 +90,23 @@ final class ScriptedTransport: SyncTransport, @unchecked Sendable {
         #expect(put.url.path.hasSuffix("/v1/blob/\(keys.householdId)"))
     }
 
+    /// P4: a joiner's placeholder never creates the household — a 404
+    /// writes nothing and reports "not-found", even with a token to force.
+    @Test func joinPlaceholderOn404WritesNothing() async {
+        let transport = ScriptedTransport([
+            .respond(SyncHTTPResponse(status: 404, etagHeader: nil, body: Data()))
+        ])
+        let placeholder = Household.emptyState(deviceId: "device-a", now: 0)
+        let outcome = await client(transport).syncOnce(
+            SyncInput(
+                rootSecret: secret, local: placeholder, maxSeenRev: 0, deviceId: "device-a",
+                entitlement: "sitr-ent-v1.x.y", forceWrite: true))
+        #expect(transport.recorded.map(\.method) == ["GET"])
+        #expect(outcome.status.state == .notFound)
+        #expect(outcome.status.describe == SyncStatus.noHouseholdForCode)
+        #expect(outcome.state == placeholder && outcome.maxSeenRev == 0)
+    }
+
     @Test func entitlementHeaderSentOnCreateWhenProvided() async {
         let transport = ScriptedTransport([
             .respond(SyncHTTPResponse(status: 404, etagHeader: nil, body: Data())),
