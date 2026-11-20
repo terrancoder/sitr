@@ -374,6 +374,30 @@ final class AppModel: ObservableObject {
         await refreshFamily()
     }
 
+    /// "Refresh device list" (guardians, through the gate): this device
+    /// alone, as a household change; the others add themselves again as
+    /// they sync. Returns what to say afterwards, failure included (a
+    /// lapsed household refuses the write: the change stays on this device
+    /// and syncs after renewal, and the count shown is this device's).
+    func refreshDeviceList() async -> String {
+        guard let household = settings.household, !Household.isJoinPlaceholder(household) else {
+            return HouseholdView.waitingForFirstSync
+        }
+        await mutate { next in
+            guard let h = next.household, !Household.isJoinPlaceholder(h) else { return }
+            next.household = Household.withOnlyThisDevice(
+                h, deviceId: next.deviceId, now: Date().timeIntervalSince1970 * 1000)
+        }
+        await runSync()
+        let count = settings.household?.devices.count ?? 0
+        let shown = "Devices: \(count)/\(Household.maxHouseholdDevices). It will rise again as the other devices sync."
+        guard settings.syncStatus.state == .ok else {
+            return "The new device list is not on the sync server yet (\(settings.syncStatus.error ?? "no answer")). "
+                + "It stays on this device and is sent at the next successful sync. " + shown
+        }
+        return shown
+    }
+
     func pairingCode() -> String? {
         Storage.loadRootSecret().map { PairingCode.encode(rootSecret: $0) }
     }

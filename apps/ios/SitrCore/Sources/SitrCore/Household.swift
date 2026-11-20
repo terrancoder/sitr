@@ -243,6 +243,18 @@ public enum Household {
         return next
     }
 
+    /// "Refresh device list" (guardians): the household with only this
+    /// device listed, as a new revision. Every other device that still uses
+    /// the household adds itself again when its next sync finds it missing;
+    /// a device that is gone stays gone, and its place is free.
+    public static func withOnlyThisDevice(
+        _ s: HouseholdState, deviceId: String, now: Double
+    ) -> HouseholdState {
+        var next = s
+        next.devices = [deviceId]
+        return bumpRev(next, deviceId: deviceId, now: now)
+    }
+
     /// The JSON object shape shared with the reference implementation.
     public static func toJSONObject(_ s: HouseholdState) -> [String: Any] {
         var o: [String: Any] = [

@@ -30,10 +30,13 @@ struct RootView: View {
         let delay = model.delayState()
         switch model.decide(kind, phase: delay.phase) {
         case .refused(let reason):
-            gateMessage =
-                reason == .managedLocked
-                ? "Settings are locked by your organization."
-                : "This is managed by your guardian."
+            switch reason {
+            case .managedLocked: gateMessage = "Settings are locked by your organization."
+            case .childDevice where kind == .kind(.leaveHousehold):
+                // Only when the household has no PIN: with one, the gate asks for it.
+                gateMessage = "Leaving needs the guardian PIN. Ask your guardian to set one in the household."
+            case .childDevice: gateMessage = "This is managed by your guardian."
+            }
         case .wait:
             showHold(delay)
         case .pin:

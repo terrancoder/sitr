@@ -5,7 +5,9 @@
 ///
 /// Layers of authority, strongest first:
 ///   managed lockOptions  → nothing may change on this device
-///   child role           → household-level settings are read-only
+///   child role           → household-level settings are read-only, except
+///                          leaving, which needs the household's guardian PIN
+///                          (refused as child-device when it has none)
 ///   guardian PIN         → sensitive loosening actions require the PIN
 
 public enum HouseholdRole: String {
@@ -62,6 +64,12 @@ public enum Gate {
         .changePin,
     ]
 
+    /// "Refresh device list" (guardians) has no kind of its own: it is gated
+    /// exactly like changing the PIN — refused on a child device, the PIN
+    /// when one is set, no wait (it loosens nothing). Pinned by gate.json's
+    /// `refreshDeviceListGatedAs`.
+    public static let refreshDeviceListGatedAs: MutationKind = .changePin
+
     static let loosening: Set<MutationKind> = [
         .disableCategory,
         .removeDeviceBlockRule,
@@ -79,6 +87,13 @@ public enum Gate {
             return .refused(reason: .managedLocked)
         }
         if ctx.role == .child {
+            // A child device may leave with the household's guardian PIN,
+            // and only with it. `hasPin` is the HOUSEHOLD's PIN (iOS keeps
+            // no device PIN). Without one: child-device, which the UI words
+            // as "Leaving needs the guardian PIN…".
+            if kind == .leaveHousehold {
+                return ctx.hasPin ? .allowed(requiresPin: true) : .refused(reason: .childDevice)
+            }
             // A child device may still tighten its own device rules;
             // everything household-level or loosening is guardian territory.
             if householdOnly.contains(kind) || loosening.contains(kind) {

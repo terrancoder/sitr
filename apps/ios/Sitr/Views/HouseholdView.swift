@@ -228,6 +228,10 @@ struct HouseholdView: View {
     // MARK: - In a household
 
     @State private var revealedCode: String?
+    @State private var refreshNote: String?
+
+    static let refreshCaption =
+        "Clears the household's device list. Each device that still uses this household adds itself again the next time it syncs: within about 30 minutes, or when Sitr is opened on it. Use it to free the places of devices that are gone."
     @State private var newPin = ""
 
     static let waitingForFirstSync =
@@ -247,6 +251,20 @@ struct HouseholdView: View {
                 value: "\(household.devices.count)/\(Household.maxHouseholdDevices) (fair use)"
             )
             .foregroundStyle(Theme.ink)
+            if isGuardian && !waiting {
+                Button("Refresh device list") {
+                    attempt(Gate.refreshDeviceListGatedAs, "Refresh the device list") {
+                        Task { refreshNote = await model.refreshDeviceList() }
+                    }
+                }
+                Text(Self.refreshCaption)
+                    .font(.caption)
+                    .foregroundStyle(Theme.inkSoft)
+                if let refreshNote {
+                    Text(refreshNote).font(.caption).foregroundStyle(Theme.ink)
+                        .accessibilityIdentifier("family.refreshNote")
+                }
+            }
             Text(model.settings.syncStatus.describe)
                 .font(.caption)
                 .foregroundStyle(Theme.inkSoft)
@@ -360,6 +378,11 @@ struct HouseholdView: View {
                     + "If the sync server cannot be reached, the other devices will still list it.")
                 .font(.caption)
                 .foregroundStyle(Theme.inkSoft)
+            if !isGuardian {
+                Text("On a child device, leaving needs the guardian PIN.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.inkSoft)
+            }
         }
         .sitrRows()
     }
