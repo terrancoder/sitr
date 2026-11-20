@@ -127,6 +127,34 @@ async function push(
 }
 
 /**
+ * At most one sync at a time: a request made while one runs is folded into
+ * ONE follow-up run, never a parallel one and never dropped (a change saved
+ * mid-sync, e.g. the PIN right after creating a household, otherwise waited
+ * for the 30-minute alarm). Mirrors iOS CoalescedRefresh (TunnelNet.swift).
+ * A run that throws ends the round; the alarm retries.
+ */
+export function coalesced(run: () => Promise<void>): () => Promise<void> {
+  let running = false;
+  let again = false;
+  return async () => {
+    if (running) {
+      again = true;
+      return;
+    }
+    running = true;
+    try {
+      do {
+        again = false;
+        await run();
+      } while (again);
+    } finally {
+      running = false;
+      again = false;
+    }
+  };
+}
+
+/**
  * One full sync round. Never throws. The returned state is always safe to
  * apply: merged, sanitized (via openState), and rollback-checked.
  */

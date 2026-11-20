@@ -48,7 +48,7 @@ import {
   sanitizeHouseholdState,
 } from "../lib/household.js";
 import { fromB64 } from "../lib/pin.js";
-import { MAX_SEEN_REV_KEY, syncOnce } from "../lib/sync/client.js";
+import { MAX_SEEN_REV_KEY, coalesced, syncOnce } from "../lib/sync/client.js";
 import { applyHouseholdState } from "../lib/sync/apply.js";
 import { SYNC_STATUS_KEY } from "../lib/sync/status.js";
 
@@ -234,120 +234,116 @@ async function refresh(): Promise<void> {
 /* ------------------------------ family sync ----------------------------- */
 
 const SYNC_ALARM = "sitr-sync";
-let syncInFlight = false;
 
 /**
  * One sync round. Failures write ONLY the sync status (options page); they
  * never touch protectionStatus or the badge — filtering is local and fully
  * intact when the server is unreachable (CLAUDE.md §4 + data-flow.md).
+ * Coalesced: a trigger during a round queues one follow-up round.
  */
-async function runSync(): Promise<void> {
-  if (syncInFlight) return;
-  syncInFlight = true;
-  try {
-    const stored = await chrome.storage.local.get([
-      HOUSEHOLD_SECRET_KEY,
-      HOUSEHOLD_STATE_KEY,
-      MAX_SEEN_REV_KEY,
-      DEVICE_ID_KEY,
-      "entitlementToken",
-    ]);
-    if (typeof stored[HOUSEHOLD_SECRET_KEY] !== "string") return; // no household
-    const secret = fromB64(stored[HOUSEHOLD_SECRET_KEY] as string);
-    const local = sanitizeHouseholdState(stored[HOUSEHOLD_STATE_KEY]);
-    if (!secret.ok || !local.ok) {
-      await chrome.storage.local.set({
-        [SYNC_STATUS_KEY]: {
-          state: "error",
-          error: !secret.ok
-            ? "stored household secret is corrupted"
-            : !local.ok
-              ? local.error
-              : "unreachable",
+const runSync = coalesced(syncRound);
+
+async function syncRound(): Promise<void> {
+  const stored = await chrome.storage.local.get([
+    HOUSEHOLD_SECRET_KEY,
+    HOUSEHOLD_STATE_KEY,
+    MAX_SEEN_REV_KEY,
+    DEVICE_ID_KEY,
+    "entitlementToken",
+  ]);
+  if (typeof stored[HOUSEHOLD_SECRET_KEY] !== "string") return; // no household
+  const secret = fromB64(stored[HOUSEHOLD_SECRET_KEY] as string);
+  const local = sanitizeHouseholdState(stored[HOUSEHOLD_STATE_KEY]);
+  if (!secret.ok || !local.ok) {
+    await chrome.storage.local.set({
+      [SYNC_STATUS_KEY]: {
+        state: "error",
+        error: !secret.ok
+          ? "stored household secret is corrupted"
+          : !local.ok
+            ? local.error
+            : "unreachable",
+      },
+    });
+    return;
+  }
+  const outcome = await syncOnce(
+    {
+      rootSecret: secret.value,
+      local: local.value,
+      maxSeenRev:
+        typeof stored[MAX_SEEN_REV_KEY] === "number"
+          ? (stored[MAX_SEEN_REV_KEY] as number)
+          : 0,
+      deviceId:
+        typeof stored[DEVICE_ID_KEY] === "string"
+          ? (stored[DEVICE_ID_KEY] as string)
+          : "unknown-device",
+      entitlement:
+        typeof stored["entitlementToken"] === "string"
+          ? (stored["entitlementToken"] as string)
+          : undefined,
+    },
+    { fetch: fetch.bind(globalThis), now: () => Date.now() },
+  );
+  if (outcome.status.state === "ok" && outcome.state !== local.value) {
+    const policy = await readManagedPolicy();
+    const applied = await applyHouseholdState(
+      outcome.state,
+      policy.forcedCategories,
+      {
+        getDynamicRules: () => chrome.declarativeNetRequest.getDynamicRules(),
+        updateDynamicRules: (u) =>
+          chrome.declarativeNetRequest.updateDynamicRules(
+            u as chrome.declarativeNetRequest.UpdateRuleOptions,
+          ),
+        updateEnabledRulesets: (u) =>
+          chrome.declarativeNetRequest.updateEnabledRulesets(u),
+        persist: async (state) => {
+          await chrome.storage.local.set({ [HOUSEHOLD_STATE_KEY]: state });
         },
+      },
+    );
+    if (!applied.ok) {
+      await chrome.storage.local.set({
+        [SYNC_STATUS_KEY]: { state: "error", error: applied.error },
       });
       return;
     }
-    const outcome = await syncOnce(
-      {
-        rootSecret: secret.value,
-        local: local.value,
-        maxSeenRev:
-          typeof stored[MAX_SEEN_REV_KEY] === "number"
-            ? (stored[MAX_SEEN_REV_KEY] as number)
-            : 0,
-        deviceId:
-          typeof stored[DEVICE_ID_KEY] === "string"
-            ? (stored[DEVICE_ID_KEY] as string)
-            : "unknown-device",
-        entitlement:
-          typeof stored["entitlementToken"] === "string"
-            ? (stored["entitlementToken"] as string)
-            : undefined,
-      },
-      { fetch: fetch.bind(globalThis), now: () => Date.now() },
-    );
-    if (outcome.status.state === "ok" && outcome.state !== local.value) {
-      const policy = await readManagedPolicy();
-      const applied = await applyHouseholdState(
-        outcome.state,
-        policy.forcedCategories,
-        {
-          getDynamicRules: () => chrome.declarativeNetRequest.getDynamicRules(),
-          updateDynamicRules: (u) =>
-            chrome.declarativeNetRequest.updateDynamicRules(
-              u as chrome.declarativeNetRequest.UpdateRuleOptions,
-            ),
-          updateEnabledRulesets: (u) =>
-            chrome.declarativeNetRequest.updateEnabledRulesets(u),
-          persist: async (state) => {
-            await chrome.storage.local.set({ [HOUSEHOLD_STATE_KEY]: state });
-          },
-        },
-      );
-      if (!applied.ok) {
+  }
+  await chrome.storage.local.set({
+    [SYNC_STATUS_KEY]: outcome.status,
+    [MAX_SEEN_REV_KEY]: outcome.maxSeenRev,
+  });
+  // Fair-use soft cap: register this device in the household state after
+  // a successful sync. At the cap, refuse — surfaced in sync status, but
+  // filtering stays fully active (friction, never a protection failure).
+  if (outcome.status.state === "ok") {
+    const deviceId =
+      typeof stored[DEVICE_ID_KEY] === "string"
+        ? (stored[DEVICE_ID_KEY] as string)
+        : "unknown-device";
+    if (!outcome.state.devices.includes(deviceId)) {
+      if (outcome.state.devices.length >= MAX_HOUSEHOLD_DEVICES) {
         await chrome.storage.local.set({
-          [SYNC_STATUS_KEY]: { state: "error", error: applied.error },
+          [SYNC_STATUS_KEY]: {
+            state: "error",
+            error: `household already has ${MAX_HOUSEHOLD_DEVICES} devices (fair-use limit) — remove one from a guardian device first`,
+          },
         });
         return;
       }
+      const registered = bumpRev(
+        {
+          ...outcome.state,
+          devices: [...outcome.state.devices, deviceId].sort(),
+        },
+        deviceId,
+        Date.now(),
+      );
+      // Persisting triggers storage.onChanged → the next sync pushes it.
+      await chrome.storage.local.set({ [HOUSEHOLD_STATE_KEY]: registered });
     }
-    await chrome.storage.local.set({
-      [SYNC_STATUS_KEY]: outcome.status,
-      [MAX_SEEN_REV_KEY]: outcome.maxSeenRev,
-    });
-    // Fair-use soft cap: register this device in the household state after
-    // a successful sync. At the cap, refuse — surfaced in sync status, but
-    // filtering stays fully active (friction, never a protection failure).
-    if (outcome.status.state === "ok") {
-      const deviceId =
-        typeof stored[DEVICE_ID_KEY] === "string"
-          ? (stored[DEVICE_ID_KEY] as string)
-          : "unknown-device";
-      if (!outcome.state.devices.includes(deviceId)) {
-        if (outcome.state.devices.length >= MAX_HOUSEHOLD_DEVICES) {
-          await chrome.storage.local.set({
-            [SYNC_STATUS_KEY]: {
-              state: "error",
-              error: `household already has ${MAX_HOUSEHOLD_DEVICES} devices (fair-use limit) — remove one from a guardian device first`,
-            },
-          });
-          return;
-        }
-        const registered = bumpRev(
-          {
-            ...outcome.state,
-            devices: [...outcome.state.devices, deviceId].sort(),
-          },
-          deviceId,
-          Date.now(),
-        );
-        // Persisting triggers storage.onChanged → the next sync pushes it.
-        await chrome.storage.local.set({ [HOUSEHOLD_STATE_KEY]: registered });
-      }
-    }
-  } finally {
-    syncInFlight = false;
   }
 }
 
