@@ -20,8 +20,9 @@ The apps are new clients of the existing system, not a new system.
 - The sync protocol ([sync-protocol.md](sync-protocol.md)). iOS and
   Android are additional clients of the same single endpoint; nothing on
   the wire changes.
-- Gate semantics: the layer ladder (managed > household > device user >
-  static)
+- Gate semantics: the layer ladder (the adult list first, which no allow
+  entry opens; then managed > household > device user > the other static
+  lists)
   and the guardian PIN as **friction, not security** — except on an
   Android phone under the child lock, where it is the boundary
   ([threat-model.md](threat-model.md) T7, [child-lock.md](child-lock.md)). On Android, managed
@@ -129,7 +130,7 @@ system resolver.
 - Optional Screen Time integration (FamilyControls / ManagedSettings):
   Apple's algorithmic adult filter applied system-wide in WebKit
   browsers, plus the first 40 sites of the user's own block lists and
-  their allow exceptions. ManagedSettings accepts only a small domain
+  their allow exceptions, except sites on Sitr's adult list. ManagedSettings accepts only a small domain
   set, so Sitr's gambling and dating lists are **not** carried there:
   outside Safari those categories get Apple's filter only. In
   `.individual` mode the user can revoke authorization at any time —
@@ -180,9 +181,10 @@ system resolver.
   "starting" card, never green, and after 15 seconds without success it
   shows the filter as stopped (red). If the filter cannot read a
   network's DNS server after three tries, it blocks lookups that need
-  that server rather than let them through, so sites stop loading on
-  that network until it changes, and Home shows a gold "Sites can't load
-  on this network" card. Home shows exactly one status card, in this
+  that server rather than let them through and keeps trying for about
+  16 minutes, and after that only when the network changes; until a try
+  works, sites do not load on that network and Home shows a gold "Sites
+  can't load on this network" card. Home shows exactly one status card, in this
   order of precedence: red "Protection inactive" (anything failing), gold
   "Sites can't load on this network", grey "DNS filter starting…", grey
   "Updating Safari rules…", green "Protection active"; a Safari update
@@ -222,7 +224,8 @@ T14.
   a truncated answer is fetched again over TCP and returned whole.
 - A block rule (device, household, managed or category) is checked
   before the SafeSearch rewrite, so blocking a search engine's own domain
-  works; an allow rule never switches SafeSearch off.
+  works; an allow rule never switches SafeSearch off, and no allow rule
+  of any layer opens a name on the adult list.
 - Honest limitations: a fixed Private DNS hostname (a user-set DoT host)
   conflicts with Sitr. On the Android 15 and 16 devices tested, the phone
   could not look up any name while both were on; Sitr detects the setting
@@ -247,6 +250,19 @@ T14.
   guardian's PIN out of the child-lock screen. Joining a household is
   held like any loosening change; changes made on another household
   device arrive by sync and are not held. Threat model: T7.
+- "Pause" on Home and on the status notification turns protection off
+  for 5 or 15 minutes; it comes back by itself, at most 15 minutes of
+  pause in any 60, and an early resume gives nothing back. Nothing is
+  filtered while paused. It exists because some banking apps refuse to
+  run while any VPN is on, and Sitr's filter is a VPN to Android;
+  leaving such an app out of the VPN does not help, because it detects
+  the VPN on the phone, not in its own traffic. A pause is gated exactly
+  like turning protection off (refused on a child device or under a
+  managed lock, then the wait, then the PIN) and is not offered while
+  "block connections without VPN" is on. iOS has no pause (what other
+  apps see of the iOS DNS filter: T14).
+- Android filters per user: Sitr in the main user does not cover a
+  private space, work profile or second user, and cannot detect one.
 - Android's "block connections without VPN" lockdown is
   unsupported — DNS-only routes would break all other traffic — so
   always-on VPN *without* lockdown is the recommended persistence; it

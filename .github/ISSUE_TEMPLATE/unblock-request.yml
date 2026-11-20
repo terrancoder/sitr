@@ -11,7 +11,7 @@ body:
         [inclusion policy](https://github.com/terrancoder/sitr/blob/main/blocklist/policy/inclusion-policy.md).
         Only genuine false positives are unblocked; disagreeing with a category is not one.
 
-        Meanwhile you can add an "Always allow" rule for the site on your own device. That rule never leaves it.
+        Meanwhile you can add an "Always allow" rule for the site on your own device, except for a site on the adult list, which only this report can fix. That rule never leaves your device.
   - type: input
     id: domain
     attributes:

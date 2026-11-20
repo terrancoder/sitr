@@ -54,7 +54,10 @@ artifact is detectable by rebuild-and-compare.
 ### T5: Over-blocking as censorship
 Moral/religious blocking decisions could be abused or opaque. Mitigations:
 public blocklist sources, written inclusion policy, named maintainers,
-public appeals process, and an on-device per-site allow that always wins.
+public appeals process, and an on-device per-site allow that opens a site
+any category blocks, except the adult list: no allow entry opens an
+adult-listed site, and a wrong adult listing is fixed through the appeals
+process.
 
 The imported tier brings risks of its own, stated plainly:
 
@@ -69,7 +72,7 @@ The imported tier brings risks of its own, stated plainly:
   judgement and mistakes, and cannot fix them upstream.
 
 What exists against them: the per-site allow, which wins at once on the
-device; the [appeals process](../blocklist/policy/appeals-process.md), which
+device for every list except adult; the [appeals process](../blocklist/policy/appeals-process.md), which
 removes a wrong imported name by adding it to `import-exclusions.txt` so a
 later import cannot bring it back; a public name rule that narrows UT1's
 gambling list to names that look like gambling; and every source, licence
@@ -103,8 +106,10 @@ device-local, never synced) is friction of the same kind. When it is on, a
 change that loosens protection is held: the user asks for it, waits the
 chosen time (5 minutes to 24 hours), and then has a 10-minute window to make
 it. Shortening the wait or turning it off is itself held. It runs after the
-gate (a managed lock or a child device still refuses outright) and before
-the PIN. Joining a household is held like any loosening change on every
+gate (a managed lock still refuses outright; a child device refuses
+every loosening change except leaving the household, which needs the
+household's guardian PIN and is refused when the household has none) and
+before the PIN. Joining a household is held like any loosening change on every
 platform (the household's settings replace this device's by sync), and in
 the extension it first asks for the browser's own PIN when one is set.
 Changes made on another device in the household arrive by sync and are not
@@ -135,9 +140,14 @@ for blocking uninstall, and adb can still remove Sitr). It is bypassable —
 safe mode and factory reset (left alone: they are Android's own
 recovery tools), settings in a language other
 than English, Bengali, Arabic, Turkish or Malay or worded differently by
-the phone maker (screens that name Sitr are still closed), a "cleaner" app that force-stops Sitr (which
-also stops filtering until Sitr is opened again) — and
-says so next to the toggle. The guard reads window text on the device
+the phone maker (screens that name Sitr are still closed; in those
+languages the network page closes too), a "cleaner" app that force-stops Sitr (which
+also stops filtering until Sitr is opened again), and a private space,
+work profile or other user that already exists (never filtered, because
+an Android VPN covers only the user that started it, and Sitr cannot
+detect one; setting up a private space is closed under the lock, but an
+existing one still opens from the apps list) — and
+says so next to the toggle. The guard reads window text and type on the device
 and discards it; it is opt-in by a guardian, behind a disclosure, and
 stores and sends nothing. The exit takes the guardian PIN and are refused outright when no PIN exists,
 so a cleared app can never be an unlocked one. One limit is structural:
@@ -148,7 +158,9 @@ edits on a device that has joined but not yet synced (so a joiner cannot
 out-revise a household it has never seen) and ask for the PIN afterwards,
 but a modified client that holds the code can still replace the household
 state, PIN included. A guardian must keep the pairing code as secret as
-the PIN. Closing this needs loosening changes to be signed with a key only
+the PIN. A child device can leave its household only with the
+household's guardian PIN (a PIN the device held before joining does not
+count); leaving removes it from the household's device list. Closing this needs loosening changes to be signed with a key only
 the PIN holder can derive — a sync-protocol change, not yet made. Without the child lock,
 an unmanaged Android phone still can't stop uninstall, and managed
 devices (EMM or Family Link) remain the alternative.
@@ -207,6 +219,13 @@ VPN app** (a privacy VPN, or one a child installs) silently replaces
 Sitr's — surfaced red as "replaced by another app". Setting Sitr as the
 always-on VPN stops other apps taking the slot until someone changes
 that setting; the child lock (T7) is what stops the change.
+Protection can be paused for 5 or 15 minutes, at most 15 minutes in any
+60, and comes back by itself; nothing is filtered during a pause. It
+exists because some banking apps refuse to run while any VPN is on, and
+leaving such an app out of the VPN does not help, since it detects the
+VPN on the phone, not in its own traffic. A pause is gated exactly like
+turning protection off: refused on a child device or under a
+managed lock, then the wait before loosening, then the PIN.
 
 ### T10: iOS platform limits
 iOS has three layers, each with its own reach. The Safari Content
@@ -421,14 +440,22 @@ Its limits (the figures were measured on an iPhone 13 Pro Max with iOS
   new network is slow to announce its DNS server the unfiltered time can
   add up to a few seconds instead of about half a second. After
   three failed tries it fails closed: lookups that need the network's
-  resolver are dropped, so sites stop loading on that network until the
-  network changes, and Sitr shows the filter as on but unable to read
-  this network's DNS server, with the option to turn it off through the
-  usual gate, wait and PIN. If every lookup keeps failing for 30 seconds
+  resolver are dropped, so sites do not load, and Sitr shows the filter
+  as on but unable to read this network's DNS server, with the option to
+  turn it off through the usual gate, wait and PIN. It then tries five
+  more times on that network, 60, 60, 120, 240 and 480 seconds after
+  each failed try (about 16 minutes of awake time in all), each try a
+  window of its own (reading for up to 1.5 seconds); if they all fail,
+  the filter stays on and keeps dropping those lookups, so sites do not
+  load on that network until the network changes. The same message shows
+  from the first give-up through every retry and after them. (The retries and the 15-second limit below are from the code; not yet tested on a device.) If every lookup keeps failing for 30 seconds
   on one unchanged network, the tunnel re-reads the resolver (one more
-  window). It does so again on that network only after a lookup has been
-  answered since the last re-read, so a resolver that never answers gets
-  one re-read. Whatever the trigger, there are at most
+  window). It does so again on that network only after a lookup sent
+  since the last re-read has been answered, so a resolver that never
+  answers gets one re-read. Cached answers are dropped at every network
+  change and when a re-read finds another resolver list. Only two failures stop the tunnel itself (fail closed; Connect On
+  Demand starts it again): iOS failing to restore its DNS settings after
+  a read, or not finishing the change within 15 seconds beyond the read. Whatever the trigger, there are at most
   three windows in any minute. The price of that limit: after three
   network changes in a minute, a fourth leaves lookups that need the
   network's resolver dropped (not unfiltered) for up to about a minute,
@@ -452,6 +479,14 @@ Its limits (the figures were measured on an iPhone 13 Pro Max with iOS
   list, stays open.
 - **One VPN at a time.** iOS allows one active VPN: another VPN app, or a
   device-management profile, displaces the filter.
+- **Other apps can see a VPN.** While the filter is on, iOS shows a VPN
+  badge in Control Center, and an app that checks for a VPN the usual
+  way (a utun interface with an IPv4 address) finds one. Some banking
+  apps refuse to run while a VPN is active. One banking app that refuses
+  on Android while Sitr's VPN is on showed no VPN message on its first
+  iPhone screen, with the filter on or off (20 November 2026); its later
+  screens were not tried. iOS has no pause:
+  the filter is turned off through the usual gate, wait and PIN.
 - **Switching it off in iOS Settings is friction, not a lock.** Flipping
   the VPN status switch alone did not keep it off in our test: Sitr
   showed red, and iOS's Connect On Demand restarted the filter by itself

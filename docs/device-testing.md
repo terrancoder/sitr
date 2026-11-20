@@ -174,7 +174,8 @@ translation has known quirks):
   reddit.com look broken while the site loads and images elsewhere are
   untouched (`initiatorDomains` needs Safari 26).
 - **Ladder checks.** A user "always allow" entry re-opens a blocklisted
-  test domain; in allowlist-only mode an image-allowlist entry restores
+  gambling test domain and leaves an adult-listed one blocked; an allow
+  on google.com leaves `safe=active` in place; in allowlist-only mode an image-allowlist entry restores
   a site's images but a hotlinked blocklisted-domain image stays broken.
 - **Grants are part of the proof.** Revoke the extension's access to
   google.com in Safari settings — the status must go red with the

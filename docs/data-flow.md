@@ -20,7 +20,7 @@ source: [`server/sync/`](../server/sync/).
 
 | Endpoint | Method | Request contains | Response | Frequency |
 |---|---|---|---|---|
-| `https://sync.sitrshield.com/v1/blob/{householdId}` | GET / PUT (the server also accepts DELETE, but no current client sends it) | a random household id, a derived bearer credential, and an **E2E-encrypted blob the server cannot read** — no account, no email, no browsing data, no device identifiers | the same opaque blob (or a version conflict) | on settings change + periodically while a household is configured: every 30 minutes on the extension (alarm) and Android (WorkManager); on iOS, on app foreground plus a background app refresh task whose earliest start is 30 minutes out, which iOS may delay |
+| `https://sync.sitrshield.com/v1/blob/{householdId}` | GET / PUT (the server also accepts DELETE, but no current client sends it) | a random household id, a derived bearer credential, and an **E2E-encrypted blob the server cannot read** — no account, no email, no browsing data, no device identifiers | the same opaque blob (or a version conflict) | on settings change, once when the device leaves the household (to remove its own entry from the device list), and periodically while a household is configured: every 30 minutes on the extension (alarm) and Android (WorkManager); on iOS, on app foreground plus a background app refresh task whose earliest start is 30 minutes out, which iOS may delay |
 
 What the operator can learn: that *some* household id synced at some time
 from some IP — nothing about its members, devices, or settings, and nothing
@@ -30,8 +30,9 @@ day; blobs idle ~18 months deleted; auth credentials stored only hashed;
 IP-derived state limited to an in-memory rate limiter cleared hourly.
 
 Devices with no household configured make **zero** sync requests, same
-as always (the DNS filters' relaying is described below). If a Family subscription token is saved, household-creation
-requests also carry it in the `X-Sitr-Entitlement` header — a signed
+as always (the DNS filters' relaying is described below). If a Family subscription token is saved, every PUT carries
+it in the `X-Sitr-Entitlement` header (the server checks it only when a
+request creates a household) — a signed
 credential minted by us that contains an expiry date and **no customer
 identity** (see [sync-protocol.md](sync-protocol.md) §Entitlement; the
 billing provider never sees household ids or keys, and the server
@@ -44,8 +45,13 @@ codebase has exactly one HTTP call site — extension:
 `extension/src/lib/sync/client.ts`; iOS: the `URLSessionTransport` in
 `apps/ios/Sitr/Controllers/SyncScheduler.swift` (SitrCore's `SyncClient`
 holds only the protocol logic and a transport protocol, no networking);
-Android: `SyncHttp.kt`. All three send only GET and PUT; iOS is
-join-only and never deletes the server blob. The Safari build for macOS
+Android: `SyncHttp.kt`. All three send only GET and PUT, and none
+deletes the server blob; iOS is join-only. When a device leaves a
+household it sends one more PUT of the household's state without its
+own entry, so the other devices stop listing it (if the server cannot be
+reached, its place stays taken). A guardian's "Refresh device list" is
+an ordinary PUT that sets the list to that device alone; every device
+still in use adds itself again at its next sync. The Safari build for macOS
 runs the extension codebase inside Safari — same file, same single call site, a new runtime
 host rather than a new call site (the macOS host app itself has no
 network code at all). A device with no household configured contacts no
@@ -120,7 +126,8 @@ Android engine above. No remote server is involved.
   `res_ninit` reports only the tunnel's own address, and iOS has no
   supported way to read the network's resolvers, so when the network in
   use changes the tunnel removes its settings, reads `res_ninit` and
-  applies them again (at most three tries per network, and at most three
+  applies them again (at most three tries after a network change, then
+  five more over about 16 minutes if those find none, and at most three
   such windows in any minute). In that window (about half a second, up
   to a few seconds if the new network is slow to announce its DNS server;
   [threat-model.md](threat-model.md) T14)
@@ -128,7 +135,7 @@ Android engine above. No remote server is involved.
   without Sitr, and they are not filtered. From the network change until
   the new resolvers are read, lookups the tunnel would forward are
   dropped (apps retry), including any already queued, never sent to the
-  previous network's resolvers; if three tries find none, they stay
+  previous network's resolvers; if all eight tries find none, they stay
   dropped until the network changes.
 - **What is stored: nothing.** No query name is written to storage or
   to a log (the one exception, test names in Debug builds, is below).

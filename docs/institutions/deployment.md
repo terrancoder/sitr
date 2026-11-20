@@ -21,7 +21,7 @@ Managed policy can force filtering ON; it cannot observe browsing.
 | `organizationName` | string | Shown to users: "Managed by {name}" |
 | `forcedCategories` | string[] | Categories users cannot disable (`sitr_gambling`, `sitr_dating`; adult + SafeSearch are always on for everyone) |
 | `managedBlockDomains` | string[] | Domains blocked org-wide (bare lowercase domains) |
-| `managedAllowDomains` | string[] | Domains allowed org-wide (outranks household/device rules, not managed blocks) |
+| `managedAllowDomains` | string[] | Domains allowed org-wide (outranks household/device rules, not managed blocks; never opens an adult-listed site or switches SafeSearch off) |
 | `lockOptions` | boolean | Make the options page read-only |
 
 There is no policy key for the opt-in lists (the violence list, and in

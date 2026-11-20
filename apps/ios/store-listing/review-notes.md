@@ -107,12 +107,12 @@ Home → Allow & block lists → Report a site. "Ask to block a site" and "Repor
 
 9. CHILD ROLE (do this last)
 
-A device joined as a child cannot loosen anything or leave the household, by design, so this test ends the session on that device.
+A device joined as a child cannot loosen anything, by design; it can leave the household only with the household's guardian PIN.
 a. Sitr Family → Leave household (asks for the PIN).
 b. Join again with the same pairing code, this time choosing "A child".
-c. Filter categories → switch Gambling off. It is refused: "This is managed by your guardian." Leave household is refused the same way.
+c. Filter categories → switch Gambling off. It is refused: "This is managed by your guardian."
 [DNS] With the DNS filter on, "Turn off the DNS filter" is refused the same way.
-d. To return the device to normal, delete and reinstall Sitr; it starts outside any household.
+d. To return the device to normal: Sitr Family → Leave household, then the guardian PIN. The device leaves the household and is removed from its device list.
 
 [DNS] GUIDELINE 5.4 (VPN API)
 [DNS] 

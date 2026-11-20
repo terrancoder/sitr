@@ -65,7 +65,7 @@ WHAT IT DOES
 • Your own allow and block lists, kept on this device.
 [ST] • Optional Screen Time filter: Apple's adult web filter in other browsers too, plus the first 40 sites on your block lists. On a child's device set up with Family Sharing, turning it off needs a parent's approval.
 • Optional "Wait before loosening": a change that loosens protection waits 5 minutes to 24 hours before it can be made.
-• Sitr Family (optional): join a household with a pairing code, typed or scanned, to share allow and block lists, category choices and a guardian PIN. On a child's device loosening is refused; on a guardian's device it asks for the PIN if one is set. Settings sync as one end-to-end-encrypted blob our server cannot read.
+• Sitr Family (optional): join a household with a pairing code, typed or scanned, to share allow and block lists, category choices and a guardian PIN. On a child's device loosening is refused (leaving needs the guardian PIN); on a guardian's device it asks for the PIN if one is set. Settings sync as one end-to-end-encrypted blob our server cannot read.
 • If Safari filtering is off or its rules did not load, Sitr shows a red "Protection inactive" status with the reason and the fix, instead of pretending.
 • "Report a site" links open a public GitHub form or your mail app. Sitr itself sends nothing.
 [DNS] 
@@ -88,7 +88,7 @@ HONEST LIMITS
 [NO-DNS] • SafeSearch is not enforced on iOS: no supported iOS API can force it for every app.
 • Anyone with the device passcode can switch Sitr off in Settings or delete the app. A parent's Screen Time restrictions can stop apps being deleted; Sitr does not block deletion itself.
 • The wait and the guardian PIN slow changes made inside Sitr only.
-• Most of the list comes from public lists checked by name, so some entries will be wrong: allow the site and use "Report a site".
+• Most of the list comes from public lists checked by name, so some entries will be wrong: allow the site (not an adult-listed one) and use "Report a site".
 
 Source code, blocklist and appeals: https://github.com/terrancoder/sitr
 

@@ -34,28 +34,32 @@ structural mitigations plainly.
 
 Three dynamic layers sit above the static rulesets. Within a layer an
 explicit allow wins; a higher layer's block beats a lower layer's allow
-(managed > household > device user > static). Implementation:
+(managed > household > device user > static). The adult list and
+SafeSearch sit above every layer: no allow entry, managed included, opens
+an adult-listed site or switches SafeSearch off. Implementation:
 `extension/src/lib/ruleLayers.ts`.
 
 | Layer | Kind | Dynamic-rule id base | Cap | Priority |
 |---|---|---|---|---|
 | Media filter (greylist / blanket) | block | (static, compiler ranges) | — | **1** |
 | Image allowlist | allow (`image`+`media` only) | 4,000,000 | 2,500 | **2** |
-| Static blocklist + SafeSearch | block / redirect | (static, compiler ranges) | — | **5** |
+| Static blocklist (gambling, dating, opt-in lists) | block | (static, compiler ranges) | — | **5** |
 | Device user | block | 1,500,000 | 4,500 | **10** |
 | Device user | allow | 1,000,000 | 4,500 | **20** |
 | Household | block | 2,500,000 | 4,500 | **30** |
 | Household | allow | 2,000,000 | 4,500 | **40** |
 | Managed (institution) | block | 3,500,000 | 4,500 | **50** |
 | Managed (institution) | allow | 3,000,000 | 4,500 | **60** |
+| Adult list + SafeSearch | block / redirect / header | (static, compiler ranges) | — | **100** |
 
-Static category blocks sit at priority **5**, above the image-allowlist
+Static category blocks sit at priority **5** (the adult list at 100), above the image-allowlist
 band, so an image-allowlist entry (or the session-scoped escape hatch,
 also priority 2) re-enables images on that site without ever overriding
 a category block — a hotlinked image from a blocklisted domain stays
-blocked. A device-user allow (20) still beats a category block, which is
-the T5 contract: an explicit user allow always wins over the static
-lists.
+blocked. A device-user allow (20) still beats a gambling, dating or
+opt-in-list block, which is the T5 contract. No allow of any layer beats
+the adult list or SafeSearch (priority 100); a wrongly listed adult site
+is fixed through the public appeals process.
 
 The six layer caps (6 × 4,500 = 27,000) plus the image-allowlist band
 (2,500) leave **500 rules of reserved headroom**. The budget is planned
@@ -68,8 +72,10 @@ error, never truncation.
 
 Household settings (shared allow/block lists, category config, guardian
 PIN hash) are one JSON document with a monotonic `rev` counter, merged
-**last-writer-wins** (rev, then timestamp, then device id) — only guardian
-devices write, so conflicts are rare and a lost edit is re-enterable.
+**last-writer-wins** (rev, then timestamp, then device id) — settings
+edits come only from guardian devices, and any device writes only to add
+itself to the device list or remove itself when it leaves, so conflicts
+are rare and a lost edit is re-enterable.
 Vector clocks were deliberately rejected as complexity without a customer.
 Sync is optional, E2E-encrypted, and specified in
 [sync-protocol.md](sync-protocol.md); a device with no household makes no
@@ -113,7 +119,9 @@ design, not built.
 **The portable contract.** The rule priority ladder above is the
 cross-platform semantics, not a Chrome detail: managed > household >
 device user > static; within a layer an explicit allow wins; a higher
-layer's block beats a lower layer's allow. Every engine must reproduce it
+layer's block beats a lower layer's allow; the adult list and SafeSearch
+sit above every layer, and no allow entry opens them
+(`apps/shared/fixtures/decision.json`). Every engine must reproduce it
 — Chrome as DNR dynamic-rule priorities, Safari as rule ordering, Android
 and the iOS DNS filter as an in-memory decision function evaluated per
 DNS query. Conformance

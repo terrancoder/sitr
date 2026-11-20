@@ -21,7 +21,7 @@ Checked in the code, not only in the docs:
 | What | When | Who can read it | Evidence |
 |---|---|---|---|
 | Nothing at all | No household joined (the default) | — | `apps/ios/Sitr/Controllers/SyncScheduler.swift:94` (`guard let secret = Storage.loadRootSecret() else { return settings }`), `:47` (background task does nothing without a household); `docs/data-flow.md:32`; `docs/privacy-policy.md:20-23` |
-| One end-to-end-encrypted household blob, by GET/PUT to `https://sync.sitrshield.com/v1/blob/{householdId}` | Only while the device is in a household: on app open, after each household change, and best-effort every ~30 min in the background | Sitr's server stores it but cannot decrypt it; keys are derived on the device from the pairing code, which is never sent | `apps/ios/SitrCore/Sources/SitrCore/SyncClient.swift:78` (the URL), `:116-118` (path), `:120-128` (GET), `:149-176` (PUT); `apps/ios/Sitr/Controllers/SyncScheduler.swift:5-31` (the app's only URLSession), `:66` (30 min); `docs/data-flow.md:21-23` |
+| One end-to-end-encrypted household blob, by GET/PUT to `https://sync.sitrshield.com/v1/blob/{householdId}` | Only while the device is in a household: on app open, after each household change, best-effort every ~30 min in the background, and once more when it leaves the household (to remove its own entry from the device list) | Sitr's server stores it but cannot decrypt it; keys are derived on the device from the pairing code, which is never sent | `apps/ios/SitrCore/Sources/SitrCore/SyncClient.swift:78` (the URL), `:116-118` (path), `:120-128` (GET), `:149-176` (PUT); `apps/ios/Sitr/Controllers/SyncScheduler.swift:5-31` (the app's only URLSession), `:66` (30 min); `apps/ios/SitrCore/Sources/SitrCore/Unenroll.swift` (the leave request); `docs/data-flow.md:21-23` |
 | Inside the blob (encrypted): household allow and block lists, disabled categories, the guardian PIN as a salted PBKDF2 hash, a revision number and time, and the random per-device IDs of the household's devices | same | same (ciphertext only) | `apps/ios/SitrCore/Sources/SitrCore/Household.swift:23-32` (fields), `:273-287` (`sealState` encrypts the whole state); `apps/ios/Sitr/Model/AppSettings.swift:39` (device ID is `UUID().uuidString`, generated on the device) |
 | Outside the blob, in the request: the household ID (derived from the pairing code) and a derived bearer credential | same | the server, to find and authorise the blob | `SyncClient.swift:126`, `:160`; `apps/ios/SitrCore/Sources/SitrCore/SyncCrypto.swift:7` (three independent HKDF outputs: household ID, credential, key); `docs/data-flow.md:23` |
 | The device's IP address, as with any HTTPS request | same | the server's in-memory rate limiter, cleared hourly; no request logs | `docs/data-flow.md:28-30`; `docs/privacy-policy.md:32-33` |
@@ -64,7 +64,7 @@ The facts above, held against each store's own rule:
 | Bearer credential | Only as a SHA-256 hash, to check later requests to the same record | Part of the same household record; no separate Apple data type (judgement, not confirmed) | — | Part of the same record; no separate Play category (judgement) |
 | Write counter and last-write day | Yes (day only) | Record metadata; no data type (judgement) | — | Same |
 | IP address | No: an in-memory rate limiter cleared hourly | Not collected: not retained | — | Not collected: ephemeral |
-| Sitr Family token (`X-Sitr-Entitlement`) | No: checked on household creation, not stored; carries no identity | iOS never sends it (join-only) | — | Android sends it only when it creates a household; not collected (not retained) |
+| Sitr Family token (`X-Sitr-Entitlement`) | No: checked on household creation, not stored; carries no identity | iOS never sends it (join-only) | — | Android sends it with every PUT while a token is saved (the server checks it only when a request creates a household); not collected (not retained) |
 | DNS lookups (DNS filter, Android VPN) | No: they go to the network's own resolver, never to us | Not collected | — | Not collected |
 | Device with no household | Nothing is sent to our server | — | — | — |
 
@@ -72,8 +72,8 @@ iOS and Android send the same things to the sync server (same protocol,
 same fields: `SyncClient.swift` and Android `SyncClient.kt`, GET and PUT
 with the household ID in the path and the bearer credential in the
 `Authorization` header). The one difference: Android can create a
-household and then sends the Sitr Family token once; iOS only joins and
-never sends it. The token is not stored, so no store answer changes.
+household, and sends the Sitr Family token with every PUT while one is
+saved; iOS only joins and never sends it. The token is not stored, so no store answer changes.
 
 **The iOS answer to enter.** "Yes, we collect data from this app" (check
 on screen), then one data type:
@@ -169,7 +169,7 @@ Connect**, especially whether "Parental Controls" is asked and how).
 
 | Question group | Answer | Evidence |
 |---|---|---|
-| In-app controls → **Parental Controls** | **Yes** — a household guardian PIN, a child role that refuses loosening, and Screen Time child mode | `apps/ios/SitrCore/Sources/SitrCore/Gate.swift:81-86`; `apps/ios/Sitr/Views/HouseholdView.swift:71-74`, `:158-177`; `apps/ios/Sitr/Views/HomeStatusView.swift:188-193` |
+| In-app controls → **Parental Controls** | **Yes** — a household guardian PIN, a child role that refuses loosening (leaving needs the guardian PIN), and Screen Time child mode | `apps/ios/SitrCore/Sources/SitrCore/Gate.swift:81-86`; `apps/ios/Sitr/Views/HouseholdView.swift:71-74`, `:158-177`; `apps/ios/Sitr/Views/HomeStatusView.swift:188-193` |
 | In-app controls → Age Assurance | **No** — the app never asks for or checks age | no age prompt anywhere in `apps/ios/Sitr/Views/` |
 | Capabilities → Unrestricted Web Access | **No** — no in-app browser or web view; the few links open Safari or Mail | `apps/ios/Sitr/Views/ListsView.swift:59-66`; `SettingsAboutView.swift:88` |
 | Capabilities → User-Generated Content | **No** — household lists are shared only among the household's own devices, encrypted, and are never shown to other users | `docs/privacy-policy.md:27-33` |

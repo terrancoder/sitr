@@ -85,9 +85,9 @@ shows red and tells you to set it to Automatic or Off. A browser's own
 switch blocks well-known providers, so pages fail until Secure DNS is back
 on automatic (tested with Chrome on Android 15). Providers set by IP
 address or not listed still bypass. Most of the list comes from public
-lists checked by name, so some entries will be wrong: allow the site and
-use "Report a site" (a public GitHub form or your mail app; Sitr sends
-nothing).
+lists checked by name, so some entries will be wrong: allow the site (not
+an adult-listed one) and use "Report a site" (a public form or your
+mail app; Sitr sends nothing).
 
 Source code, blocklist, and appeals: https://github.com/terrancoder/sitr
 
@@ -164,10 +164,11 @@ turns on the optional child lock (protected by the guardian PIN), a fixed,
 rule-based list of checks closes the screens that would switch Sitr off on
 the child's phone: Sitr's App info and other settings pages that show
 Sitr's name, its uninstall prompt, its VPN and accessibility settings, the
-VPN disconnect dialog, Developer options, adding users, setting up a
-private space, the Private DNS dialog and the mobile network reset (which
+VPN disconnect dialog, Developer options, adding users, setting up or
+opening a private space, the Private DNS dialog and the mobile network reset (which
 would clear always-on VPN). It leaves Android's own recovery tools, safe
-mode and factory reset, alone. It reads text only in Settings, app
+mode and factory reset, alone. It reads text, and which window is open,
+only in Settings, app
 installers, the Play Store and system dialogs, only on the device, stores nothing and sends nothing. It
 does not act autonomously, does not read other apps, and does nothing until
 the lock is on."

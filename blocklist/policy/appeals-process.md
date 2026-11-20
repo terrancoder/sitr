@@ -17,5 +17,8 @@ Think a domain is wrongly blocked? Every rule is public and contestable.
 4. Rejected appeals get a written reason on the issue. The issue stays public
    so decisions are auditable.
 
-Meanwhile, users can always add a **local, on-device allow rule** for any
-domain in the extension's options — that choice never leaves their browser.
+Meanwhile, users can add a **local, on-device allow rule** for a wrongly
+listed gambling, dating or opt-in-list site — that choice never leaves
+their device. A site on the adult list cannot be allowed on the device:
+report it, and a wrong listing is fixed for everyone with the next
+published ruleset.

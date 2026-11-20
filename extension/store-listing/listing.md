@@ -65,7 +65,8 @@ decrypt — household preferences, never browsing. Most of the list comes
 from public blocklists, named with their licences in the repository, and
 was checked by domain name rather than site by site, so some entries will
 be wrong. If a rule wrongly blocks a legitimate site, add a local exception
-instantly and report it from the options page: the link opens a public
+instantly (except for a site on the adult list, which only a report can
+fix) and report it from the options page: the link opens a public
 GitHub issue form (or your mail app), and Sitr itself sends nothing. Every
 rule is public and contestable.
 
