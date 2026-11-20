@@ -75,16 +75,31 @@ halal,family,content filter,safesearch,parental,muslim,adult blocker,privacy,blo
 
 ## App Privacy label
 
-Same answers as the iOS app (identical sync protocol; keep the two label
-surfaces in lockstep — Udocs/store-review-risk-register.md):
+Same answers as the iOS app (identical sync protocol and the same join-only
+sync client, `extension/src/lib/sync/client.ts`; keep the two label
+surfaces in lockstep — Udocs/store-review-risk-register.md). Facts and
+Apple's rule: `apps/ios/store-listing/app-privacy.md` §1.
 
-- Without Sitr Family: **Data Not Collected** in every category.
-- With Sitr Family (optional, off by default): the app transmits ONE
-  end-to-end-encrypted settings blob (allow/block lists, category
-  choices, PIN hash) the server cannot read, keyed by a random household
-  id. Declare as **User Content → App Functionality, not linked to the
-  user's identity, not used for tracking**. Nothing else is ever
-  transmitted — no analytics or telemetry of any kind.
+- Answer "Yes, we collect data from this app", with one data type:
+  **Identifiers → User ID → App Functionality, not linked to the user's
+  identity, not used for tracking.** No User Content, no other type.
+- Why: only while the Mac is in a household (optional, off by default),
+  our server keeps the household ID, readable, as the key of the
+  household's record. The settings themselves (allow/block lists,
+  category choices, PIN hash, the household's random device IDs) travel
+  only as an end-to-end-encrypted blob the server cannot read, which is
+  not stored "in a readable form" and so not collected in Apple's sense.
+  Without a household nothing is sent. No analytics or telemetry of any
+  kind.
+
+*Owner note (corrected in the repo on 19 November 2026; this file used to
+declare User Content): the Mac app is not published (the owner confirmed
+this on 19 November 2026), so there is no live label to change; enter this
+answer when the Mac app is first submitted. The Mac targets have no
+privacy manifest today (no `PrivacyInfo.xcprivacy` under `apps/ios/SitrMac`
+or `apps/ios/SitrWebExtension`), so there is nothing declared there to
+disagree; if one is added, it must declare the same User ID entry as the
+iOS app's manifest.*
 
 ## App Review notes (paste into App Store Connect's PRIVATE notes field)
 

@@ -24,11 +24,11 @@ root certificate and being *able* to read everything. DNR cannot read request
 or response bodies at all — it matches on URL and header metadata inside the
 browser, before the network. Choosing DNR **is** the privacy decision: the
 architecture is incapable of seeing browsing content, so the privacy claim
-doesn't depend on our good behavior. The Android engine deliberately trades
-some of that structural purity — a DNS filter must read query names to
-filter them — for system-wide coverage; T9 in
-[threat-model.md](threat-model.md) states the trade and its structural
-mitigations plainly.
+doesn't depend on our good behavior. The Android engine and the optional
+iOS DNS filter deliberately trade some of that structural purity — a DNS
+filter must read query names to filter them — for system-wide coverage;
+T9 and T14 in [threat-model.md](threat-model.md) state the trade and its
+structural mitigations plainly.
 
 ## Rule priority ladder
 
@@ -90,8 +90,8 @@ sources and confirm the shipped artifact matches.
 ## Mobile engines
 
 The native apps (`apps/ios/`, `apps/android/`) add no new semantics, and
-no lists of their own except one: the Android-only opt-in list of
-encrypted-DNS hosts. They consume the same `blocklist/` sources through the same
+no lists of their own except one: the opt-in list of encrypted-DNS
+hosts, used only by the DNS filters (Android, and iOS). They consume the same `blocklist/` sources through the same
 deterministic compiler, via two new emitters: `--safari-out` writes Safari
 content-blocker JSON with layer precedence expressed as rule ordering plus
 `ignore-previous-rules`; `--android-out` writes plain sorted domain lists
@@ -108,13 +108,15 @@ design, not built.
 | Safari Web Extension (macOS) | Safari | The same extension codebase and DNR rulesets, byte-identical, staged by `tools/pack/stage-safari.mjs`; Safari translates DNR into its content-blocker engine in-process |
 | Safari content blocker (iOS) | Safari; WebKit browsers via optional Screen Time | Compiled content-blocker JSON; FamilyControls/ManagedSettings |
 | DNS filter (Android) | System-wide | Local `VpnService`, DNS-only tun |
+| DNS filter (iOS, optional) | Apps that use the system resolver | Local packet tunnel (`NEPacketTunnelProvider`, `apps/ios/SitrTunnel`), DNS-only routes |
 
 **The portable contract.** The rule priority ladder above is the
 cross-platform semantics, not a Chrome detail: managed > household >
 device user > static; within a layer an explicit allow wins; a higher
 layer's block beats a lower layer's allow. Every engine must reproduce it
 — Chrome as DNR dynamic-rule priorities, Safari as rule ordering, Android
-as an in-memory decision function evaluated per DNS query. Conformance
+and the iOS DNS filter as an in-memory decision function evaluated per
+DNS query. Conformance
 fixtures at `apps/shared/fixtures/`, generated from the TypeScript
 reference, pin the shared logic (sync crypto, merge, the layer gate) so
 the Swift and Kotlin implementations are tested against the same vectors.
@@ -127,7 +129,8 @@ WebKit browsers system-wide — Apple's adult filter plus a capped part of
 the user's own block lists —
 where `.individual` mode is revocable friction and only `.child` mode via
 Family Sharing (parent approval required to revoke) gives real tamper
-resistance. SafeSearch is not enforceable on iOS at all; T10 in
+resistance. Neither layer can enforce SafeSearch; on iOS only the
+optional DNS filter (below) does. T10 in
 [threat-model.md](threat-model.md) states the platform limits. Safari's
 format has no `requestDomains` batching, so every domain is one rule, and
 WebKit rejects a whole list above 150,000 rules: the compiler fails the
@@ -153,6 +156,18 @@ own DoH, another VPN app taking the slot, no lockdown support) is
 disclosed in T9 of [threat-model.md](threat-model.md); the optional child
 lock that closes it on a child's phone is in T7 and
 [child-lock.md](child-lock.md).
+
+**DNS filter (iOS, optional).** Off by default. The Android engine's
+design as a local packet tunnel (`apps/ios/SitrTunnel`, engine in
+`apps/ios/SitrCore/Sources/SitrCore/Dns/`): only the two synthetic
+resolver addresses are routed, blocked names are answered on the device,
+SafeSearch hosts are rewritten by CNAME, and allowed lookups go to the
+network's own resolvers, read with libresolv's `res_ninit`. iOS has no
+supported way to read those resolvers while the tunnel is up, so at each
+network change the tunnel briefly removes its settings and lookups in
+that window are not filtered; that, the one-VPN slot, and the fact that
+Apple documents this use as unsupported are in T14 of
+[threat-model.md](threat-model.md).
 
 ## DNR limits we design within
 

@@ -77,8 +77,14 @@ engine actually answers.
 ### One-time setup (before the first device build)
 
 1. In the Apple Developer portal, register the App IDs and the group:
-   `com.sitrshield.sitr`, `com.sitrshield.sitr.blocker`, and App Group
-   `group.com.sitrshield.sitr`.
+   `com.sitrshield.sitr`, `com.sitrshield.sitr.blocker`,
+   `com.sitrshield.sitr.tunnel` (the DNS filter's packet tunnel), and App
+   Group `group.com.sitrshield.sitr`. Enable the Network Extensions
+   capability on `com.sitrshield.sitr` and `com.sitrshield.sitr.tunnel`.
+   To build without the DNS filter (no tunnel, no Network Extensions
+   entitlement), set `SITR_DNS_FILTER = NO` in
+   `apps/ios/Configs/Shared.xcconfig`, or pass `SITR_DNS_FILTER=NO` to
+   `xcodebuild`.
 2. **Enable Family Controls (Development)** on `com.sitrshield.sitr`.
    The app requests `com.apple.developer.family-controls`, so signing
    for a device fails without it. This one is self-service; only the
@@ -125,10 +131,13 @@ much as the blocking:
 |---|---|---|
 | Blocker disabled | Turn Sitr Blocker off in Settings | App shows red with the enable steps |
 | Rules stale | Change a category, then background/foreground the app | Green again once Safari reloads; red "needs reload" if it did not |
-| Non-Safari browser | Open the same site in Chrome for iOS | Still blocked **only** if Screen Time is enabled; otherwise not — this is the documented limit, not a defect |
+| Non-Safari browser | Open the same site in Chrome for iOS | Still blocked **only** if Screen Time or the DNS filter is on; otherwise not — this is the documented limit, not a defect |
 | Screen Time revoked | Turn Sitr off in Settings → Screen Time | App shows red for that row |
 | Child mode | Enable Screen Time in child mode on a Family Sharing child device | Revoking requires the parent |
-| SafeSearch | Search on Google | **Not enforced** on iOS. The app says so; confirm it does not claim otherwise |
+| SafeSearch | Search on Google | Enforced only while the DNS filter is on; **not enforced** without it. The app says so; confirm it does not claim otherwise |
+| DNS filter and a network change | With the DNS filter on, switch Wi-Fi off and on | Filtering comes back each time; a lookup in the window around the change (about half a second; up to a few seconds if the network is slow to announce its DNS server) can go unfiltered ([threat-model.md](threat-model.md) T14) |
+| DNS filter and a settings change | With the DNS filter on, switch a category or list | The DNS filter applies it within a few seconds; Home shows "Updating Safari rules…" until Safari has loaded the new rules (tens of seconds with the full list) |
+| DNS filter switched off in iOS Settings | Flip the VPN status switch off | Home turns red with the reason; Connect On Demand may restart the filter by itself within a minute. To keep it off, Connect On Demand must be switched off too ([threat-model.md](threat-model.md) T14) |
 
 ### Reading the results honestly
 

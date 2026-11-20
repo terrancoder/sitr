@@ -203,8 +203,16 @@ Same claims as docs/privacy-policy.md and the Chrome data-safety form.
   data URL: `https://sitrshield.com/data-deletion` (names the app and
   Dooplin Apps, per-platform steps, what is kept: the encrypted server blob
   until 18 months idle or on email request).
-- Data types collected: check exactly **Device or other IDs** — the random
-  per-device identifier each device generates for the household. Note:
+- Data types collected: check exactly **Device or other IDs** — the
+  household ID, which the sync server keeps readable as the key of the
+  household's record. (The random per-device IDs travel only inside the
+  end-to-end-encrypted blob, which Play's form puts out of scope: "does
+  not need to be disclosed as collected". Corrected in the repo on 19
+  November 2026; this line used to name the per-device ID.) *Owner note:
+  the Play Console answers need no change: the data type stays Device or
+  other IDs and every other answer in this section stays as it is. Only
+  this file's explanation changed; as far as this file records, the form
+  has no free-text field for the reason (check on screen).* Note:
   Play's form has no "Authentication information"/password category (do
   not look for one); the guardian PIN's salted hash doesn't map to any
   category in Play's fixed data-type list (Location, Personal info,

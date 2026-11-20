@@ -24,8 +24,8 @@ Managed policy can force filtering ON; it cannot observe browsing.
 | `managedAllowDomains` | string[] | Domains allowed org-wide (outranks household/device rules, not managed blocks) |
 | `lockOptions` | boolean | Make the options page read-only |
 
-There is no policy key for the opt-in lists (the violence list, and on
-Android the encrypted-DNS hosts list) or for "Wait before loosening":
+There is no policy key for the opt-in lists (the violence list, and in
+the Android app and the iOS DNS filter the encrypted-DNS hosts list) or for "Wait before loosening":
 `forcedCategories` accepts only `sitr_gambling` and `sitr_dating`, so they
 cannot be forced on. With `lockOptions` set, users cannot change them
 either: every settings change on the device is refused, including turning

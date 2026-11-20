@@ -79,7 +79,7 @@ Base URL: `https://sync.sitrshield.com`. All requests carry
 |---|---|
 | `GET /v1/blob/{householdId}` | 200 with blob (binary) + `ETag: "<rev>"`; 404 if none; 401 wrong auth |
 | `PUT /v1/blob/{householdId}` | body = blob. First PUT creates the row and binds SHA-256(auth) to the id. Requires `If-Match: "<rev>"` of the last seen ETag (or `If-None-Match: *` on create). 200 with new ETag; 409 on concurrent write; 401 wrong auth; 413 > 64 KiB; 429 rate-limited |
-| `DELETE /v1/blob/{householdId}` | removes the row (used when a household rotates its secret). 204; 401 wrong auth |
+| `DELETE /v1/blob/{householdId}` | removes the row. 204; 401 wrong auth. No current client sends it, and no client can rotate a household's secret; a blob no device writes any more is deleted after about 18 months idle (§What the operator learns) |
 
 The ETag value is an opaque server-side write counter; clients echo it
 verbatim. On 409 the client re-pulls, merges (LWW on `rev`), and retries

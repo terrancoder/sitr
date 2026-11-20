@@ -18,8 +18,9 @@ Sitr transmits **no data about you**: no browsing history, no URLs, no
 identifiers, no device information, no usage analytics, no crash reports.
 
 With no household configured, the extension makes no network requests at
-all, and the apps contact no server of ours (the Android app relays your
-device's own DNS traffic, described below, but originates nothing). The
+all, and the apps contact no server of ours (the Android app, and the iOS
+app's DNS filter if you turn it on, pass your device's own DNS lookups on
+to your network's resolver, described below). The
 rulesets ship inside the extension and app packages and are **identical
 for every user** — so we have no way to see which sites you visit.
 
@@ -62,10 +63,33 @@ and the mobile network reset — and closes them. That text is checked in memory
 never stored, logged or transmitted. The guardian can switch it off at
 any time with the PIN.
 
-**iOS.** Filtering uses Safari content-blocker rules and, when you enable
-it, Apple's Screen Time framework. Both apply rules on the device without
-reporting anything back; neither gives Sitr any visibility into your
-browsing.
+**iOS.** Filtering uses Safari content-blocker rules and, when you turn
+them on, Apple's Screen Time framework and Sitr's DNS filter. The content
+blocker and Screen Time apply rules on the device without reporting
+anything back; neither gives Sitr any visibility into your browsing. The
+app uses the camera only when you tap to scan a household pairing QR
+code; no image is stored or sent.
+
+**iOS DNS filter (optional, off by default).** If you turn it on, after
+Sitr's disclosure screen (and, the first time, iOS's own VPN
+permission), Sitr runs a local VPN on your device that carries only DNS
+lookups — the hostnames your apps look up — and no other traffic. It
+reads each name on your device to decide whether to block it, rewrite it
+(for SafeSearch), or let it through, using the same lists and settings
+as Sitr's Safari blocker, plus an encrypted-DNS list if you turn that
+on. Blocked names are answered on the device. Allowed lookups are
+forwarded, unencrypted, to your current network's own DNS server — never
+to a Sitr server or any third-party DNS service — and for SafeSearch
+Sitr also looks up the search engine's SafeSearch address at that same
+server. Your network operator can see those names, as it can whenever
+your device uses the network's resolver. The VPN connects to no server,
+and nothing from it is sent to us. Names are not stored or logged: the
+decision happens in memory, and recent answers are kept in memory for at
+most a minute so that repeated lookups are quick.
+
+Data from the DNS filter never reaches us, and we do not sell it, use it,
+or disclose it to third parties, for any purpose. The app's only use of a
+lookup is to answer it on your device.
 
 Our answers on the Google Play Data safety form and the Apple App Privacy
 labels mirror this policy exactly.
@@ -73,7 +97,8 @@ labels mirror this policy exactly.
 ## What Sitr stores on your device
 
 Your settings: which optional categories you disabled, which opt-in lists
-you turned on (such as the violence list), which sites you personally
+you turned on (such as the violence list), whether you turned on the iOS
+DNS filter, which sites you personally
 allowed or blocked, and — if you use Sitr Family — your household's shared
 lists, its key material, and the guardian PIN (as a salted hash). If you
 turn on "Wait before loosening", Sitr also stores
@@ -81,8 +106,11 @@ the wait you chose and the time of any pending request. These stay in
 your browser's local extension storage — or, in the apps, in the app's
 private local storage — are never uploaded except as the encrypted
 household blob described above, and are deleted when you uninstall the
-extension or app. The opt-in lists and the wait setting are not part of
-that blob: they never leave the device.
+extension or app. The opt-in lists, the DNS filter setting and the wait
+setting are not part of that blob: they are never sent to us. On iPhone and
+iPad, iOS includes the app's settings (not the household's encryption key)
+in your own device backup, if you make one; the Android app opts out of
+device backups.
 
 **Reporting a site.** The "Report a site" links open a GitHub issue form
 in your browser or a message in your mail app. Sitr itself sends nothing.
@@ -121,8 +149,10 @@ require verifiable parental consent and a revision of this policy first
 We hold no personal data about you — the household blob is ciphertext we
 cannot read, tied to no account, name, or email — so there is nothing for
 us to access, export, correct, or delete beyond what you control directly:
-leaving a household deletes its data from your device, and a household can
-delete its server blob at any time. We do not sell or share personal
+leaving a household deletes its data from your device, and the server
+deletes a household blob that has not been written to for 18 months. To
+have it deleted sooner, email privacy@dooplin.com; the apps have no
+"delete from server" button yet. We do not sell or share personal
 information as defined by the CCPA. For questions:
 support@sitrshield.com (product & support) or privacy@dooplin.com
 (privacy & legal).

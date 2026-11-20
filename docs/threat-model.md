@@ -111,7 +111,7 @@ Changes made on another device in the household arrive by sync and are not
 held: the wait is local to each device. What it does
 not do: it slows changes made inside Sitr only, and cannot stop anyone
 disabling or removing the extension or app, or switching off the content
-blocker or Screen Time (iOS) or the VPN (Android) in system settings. In the extension
+blocker, Screen Time or the DNS filter (iOS) or the VPN (Android) in system settings. In the extension
 it relies on the computer's clock, which the user can change. The iOS app
 checks two clocks, one of which the user cannot set and which keeps
 running in sleep, so changing the clock or restarting the phone on its own
@@ -209,14 +209,18 @@ always-on VPN stops other apps taking the slot until someone changes
 that setting; the child lock (T7) is what stops the change.
 
 ### T10: iOS platform limits
-The Safari Content Blocker protects Safari only. Screen Time's web
-filter, when the user authorizes it, extends to WebKit browsers
-system-wide — but it is Apple's framework enforcing Apple's algorithmic
-filter plus a small part of the user's own block lists (the framework's
-domain set is too small for Sitr's category lists) — the evaluation is
-Apple's, not ours.
-SafeSearch cannot be enforced on iOS at all. We state each of
-these in-app rather than imply full coverage.
+iOS has three layers, each with its own reach. The Safari Content
+Blocker protects Safari only. Screen Time's web filter, when the user
+authorizes it, extends to WebKit browsers system-wide — but it is
+Apple's framework enforcing Apple's algorithmic filter plus a small part
+of the user's own block lists (the framework's domain set is too small
+for Sitr's category lists) — the evaluation is Apple's, not ours. The
+optional DNS filter (T14) covers every app that uses the system
+resolver, with the limits listed there.
+Without the DNS filter, SafeSearch cannot be enforced on iOS at all;
+with it, SafeSearch is enforced by DNS for Google, Bing, DuckDuckGo and
+YouTube (T11). We state each of these in-app rather than imply full
+coverage.
 
 Two Safari limits shape the list. WebKit rejects a whole content-blocker
 list above 150,000 rules, and Sitr uses one rule per domain, so the
@@ -306,7 +310,8 @@ What it structurally cannot catch, disclosed rather than patched:
 - Text (erotica) is out of scope by design; text is not the gap.
 
 Media filtering by resource type is a browser-extension capability.
-Android's DNS engine categorically cannot see resource types; iOS could
+The DNS engines (Android, and the iOS DNS filter) categorically cannot
+see resource types; the iOS content blocker could
 express the greylist via content-blocker `resource-type` triggers, but
 does not today — the asymmetry is stated in-app rather than papered over.
 
@@ -317,14 +322,17 @@ its own (X: `pbs`, `video`, `ton.twimg.com`; Reddit: `i`, `v`,
 `preview.redd.it`, `thumbs.redditmedia.com`; Tumblr: `media.tumblr.com`;
 Pinterest: `i`, `v1.pinimg.com`; Imgur: `i.imgur.com`; full lists in
 `tools/compiler/src/greylist.ts`), so blocking those hosts — by DNS on
-Android, by content-blocker rule on iOS — removes the site's pictures and
+Android and in the iOS DNS filter, by content-blocker rule in Safari on
+iOS — removes the site's pictures and
 video while posts still load. A host that also serves the site's scripts
 or styles is never listed (a unit test checks each site's script host). It is all-or-nothing
 for the same reason as above: X marks sensitive media only inside its API
 responses, never in these URLs, so nothing outside the X app can pick
 out just the explicit items. The in-app text says so and points to X's
-own sensitive-content setting, the only filter that does know. On iOS it
-reaches Safari only, not the X app. Media X has already cached on the
+own sensitive-content setting, the only filter that does know. On iOS,
+without the DNS filter it reaches Safari only, not the X app; with the
+DNS filter on it also reaches apps that use the system resolver (T14).
+Media X has already cached on the
 device stays visible, and a blocked host's earlier DNS answer can outlive
 the toggle by up to the record's TTL (Sitr caps answer TTLs at 60 s).
 
@@ -373,6 +381,166 @@ patched:
   every rule Sitr emits, on all engines, so this cannot recur; the cost
   (plugin-element and CSP-report blocking) is negligible.
 
+### T14: The iOS DNS filter (optional)
+The iOS app's DNS filter, off by default, is the Android design (T9) as
+an iOS packet tunnel (`apps/ios/SitrTunnel`), and it brings the same
+capability expansion: it must read query names to filter them. The
+mitigations are the same and stay structural: the tunnel routes **only**
+two synthetic resolver addresses, so exclusively DNS packets enter it;
+allowed lookups go only to the resolvers the current network supplies
+(plain UDP, TCP for a truncated answer), with no fallback resolver;
+names are neither stored nor logged; the flow is listed in
+[data-flow.md](data-flow.md). It covers every app that uses the system
+resolver, not only Safari and WebKit browsers, and with it on SafeSearch
+is enforced by DNS for Google, Bing, DuckDuckGo and YouTube (T11). It
+applies the adult list, the gambling and dating lists unless switched
+off (the household's choice wins when joined), the per-site
+image-and-video switches (T12), the opt-in violence list and the opt-in
+encrypted-DNS list when each is switched on, and the user's and
+household's own lists; iOS has no Strict Search setting. Turning it off
+inside Sitr is a loosening change, and so is turning the encrypted-DNS
+list off: the gate (refused outright on a child device), then wait
+before loosening, then the PIN (T7). When the filter is not running,
+Home turns red and says why. Sitr never re-enables a VPN configuration
+that was disabled or removed in iOS Settings, or replaced by another
+VPN.
+
+Its limits (the figures were measured on an iPhone 13 Pro Max with iOS
+27.2.1 on Wi-Fi on 18 November 2026):
+
+- **A short unfiltered window at every network change.** iOS has no
+  supported way to read the network's resolver while a tunnel is up, so
+  when the network in use changes the tunnel removes its settings, reads
+  the new network's resolver (`res_ninit`) and applies its settings
+  again. Lookups in that window go around the filter, straight to the
+  network's resolver. Only a change of the network in use counts: a
+  secondary connection appearing or disappearing (mobile data while on
+  Wi-Fi) causes no window. If the read finds nothing the tunnel tries
+  again, at most three times per network, each try a window of its own
+  and each reading for longer (0.1, 0.5 and then 1.5 seconds), so if a
+  new network is slow to announce its DNS server the unfiltered time can
+  add up to a few seconds instead of about half a second. After
+  three failed tries it fails closed: lookups that need the network's
+  resolver are dropped, so sites stop loading on that network until the
+  network changes, and Sitr shows the filter as on but unable to read
+  this network's DNS server, with the option to turn it off through the
+  usual gate, wait and PIN. If every lookup keeps failing for 30 seconds
+  on one unchanged network, the tunnel re-reads the resolver (one more
+  window). It does so again on that network only after a lookup has been
+  answered since the last re-read, so a resolver that never answers gets
+  one re-read. Whatever the trigger, there are at most
+  three windows in any minute. The price of that limit: after three
+  network changes in a minute, a fourth leaves lookups that need the
+  network's resolver dropped (not unfiltered) for up to about a minute,
+  so sites do not load in that time while Sitr still shows the filter as
+  on (from the code; not yet tested on a device). With the final build, across 10 Wi-Fi
+  off/on cycles, there was exactly one window per change, lasting 493 to
+  571 ms, and none while the network was unchanged; no lookup failed
+  after reconnecting. A test client making several lookups a second got
+  one to three real answers per change, all inside the window, none
+  after (an earlier build: no real answer stayed cached once the filter
+  was back). A connection opened in that window stays open. The filter
+  adds about half a second to a reconnect: from Wi-Fi coming on to the
+  first answer for a new name took a median 8.9 s with it and 8.3 s
+  without.
+- **Apps and browsers that use their own encrypted DNS are not covered.**
+  Their lookups never reach the tunnel. The optional, off-by-default
+  encrypted-DNS list (the same list as Android's, T9; it works only
+  while the DNS filter is on) is meant to turn the well-known providers
+  into visible failures instead of a silent bypass; on iOS that effect
+  is not yet tested. A provider reached by IP address, or one not on the
+  list, stays open.
+- **One VPN at a time.** iOS allows one active VPN: another VPN app, or a
+  device-management profile, displaces the filter.
+- **Switching it off in iOS Settings is friction, not a lock.** Flipping
+  the VPN status switch alone did not keep it off in our test: Sitr
+  showed red, and iOS's Connect On Demand restarted the filter by itself
+  after 11 s and 57 s in two tries. A person with the device passcode
+  can still keep it off by also switching off Connect On Demand,
+  deleting the VPN configuration, or deleting the app. Sitr shows the
+  state but cannot prevent any of these; Screen Time in `.child` mode
+  (T7) is still the only real lock on iOS.
+- **DNS answers larger than 4,096 bytes do not get through.** The filter
+  fetches a truncated answer again over TCP and passes on answers up to
+  4,096 bytes. For a larger one the client gets a truncated reply, and
+  its retry over TCP is refused, because the filter refuses DNS over TCP
+  to itself. Tested on the iPhone: answers of 1,176 and 2,138 bytes
+  arrived; a 4,771-byte answer did not arrive with the filter on and did
+  with it off. A client that asks the DNS server directly got the
+  failure in 0.3 s. A client that asks through the system resolver (as
+  most apps do) had no answer after 60 s, where the test stopped
+  waiting: iOS kept asking again (4 times over UDP, 8 times over TCP),
+  so such an app gets no answer and no error from the resolver.
+- **Before the first unlock after a restart** the app's settings cannot
+  be read. Until then the filter applies only the built-in adult,
+  gambling and dating lists (re-reading every 10 seconds); the user's
+  and household's lists, the opt-in lists and the image-and-video
+  switches apply once the device has been unlocked.
+- **Apple documents this use as unsupported.** Technote TN3120 says
+  packet tunnels are meant to carry traffic to a remote server, and that
+  intercepting system DNS "can result in endless edge cases". App Review
+  guideline 5.4 permits parental-control and content-blocking apps from
+  organisation developer accounts to use the VPN API. A future iOS
+  release may change or break the behaviour. One developer has reported
+  intermittent bypass on iOS 27; our tests did not reproduce it: 0 leaks
+  in 25 minutes of steady state (1,771 lookups and 1,507 HTTPS requests),
+  with the "Connectivity Assist" Wi-Fi setting both on and off, and 0 in
+  5 minutes of continuous lookups on the final build. Those tests used a
+  test app, not Safari, and on the test network only two of its six test
+  names could show a leak, because the network gives no answer for the
+  other four.
+- **Memory.** Peak 4.9 MB across all test runs, with all lists loaded,
+  of the 50 MB the system allows a packet tunnel extension.
+- **Restart and update.** After a restart of the phone (on Wi-Fi, 18
+  November 2026), with Sitr not opened, the filter started again by
+  itself and was running 55 seconds after the last log entry before the
+  shutdown; it read the user's settings 4 seconds after starting. What
+  it applies before the first unlock was not observed separately. After
+  an app update or reinstall it came back by itself in 21 to 29 seconds,
+  with no prompt.
+
+**Mobile data (tested 19 November 2026, one mobile network with IPv4
+DNS servers).** The filter worked as on Wi-Fi: blocked names answered
+for IPv4 and IPv6 lookups, SafeSearch enforced, and one unfiltered time
+of 460 to 543 ms at each change between Wi-Fi and mobile data (11
+changes), with the DNS server of the network in use accepted each time
+and no failed lookups after the change.
+
+**A run of several hours (tested 19 November 2026, 5 h 22 min in normal
+use on one Wi-Fi network).** The filter ran without a restart and used
+4.1 to 5.5 MB. Open fault: in one period of that run no lookup that
+needed the network's resolver got an answer (215 timeouts) while Sitr
+showed the filter as on and the network had not changed. Nothing was
+unfiltered in that period. It ended when the re-read above ran (one
+window of 518 ms); the test cannot tell if the re-read ended it. At the
+time the re-read ran only once per network. The same day the rule was
+changed to the one described above (again after an answered lookup), so
+a second such period on the same network gets another re-read. A second
+run (19 November 2026, 3 h 35 min on battery, the changed build) had no
+such period and no error. A third run (19 to 20 November 2026, 13 h 47
+min, mostly asleep) had one: lookups on Wi-Fi were not answered (not:
+went unfiltered) for about 20 minutes. Apart from the one unfiltered
+window of 499 ms when the re-read ran, the filter held every lookup in
+that period, so none is known to have bypassed it. The re-read ran on a
+device for the first time but found the same private DNS server it
+already had; the first answer came about 9 minutes later, just before
+the phone left that Wi-Fi network. The Wi-Fi network was then gone for
+more than six hours (the log shows it, and the tester confirmed that the
+network was off), so the 20 minutes are read as the network going down.
+That is a reading, not a proof. The
+re-read is shown to run, to cost one unfiltered window of about 0.5 s
+and to do no harm; it is not shown to restore lookups. The period in
+the first run, on a Wi-Fi network that stayed, is still unexplained.
+
+**Not yet tested (as of 19 November 2026).** A mobile network that gives
+only IPv6 DNS servers; a fourth network change within a minute (it could
+not be produced by switching Wi-Fi, which takes about 15 seconds to
+rejoin); Wi-Fi with a sign-in page (captive portal); a second VPN app (the filter is expected not to come back
+by itself after it disconnects); whether the encrypted-DNS list on iOS
+turns providers into visible failures; iCloud Private Relay; an
+encrypted-DNS profile or app. We make no claim for these cases until
+they are tested.
+
 ## Out of scope / honest limitations
 
 - **A determined user can bypass Sitr** (disable the extension, another
@@ -386,5 +554,6 @@ patched:
   type; what remains (streaming, embedded frames, text) is listed there.
 - **The opt-in lists are partial.** The violence list (off by default)
   blocks a few hundred known gore and hate sites, many of them old, not
-  such content in general; the Android encrypted-DNS list covers
+  such content in general; the encrypted-DNS list (Android, and the iOS
+  DNS filter) covers
   well-known providers only. Sitr has no drugs list and no phishing list.
