@@ -274,19 +274,17 @@ private func tcpServer() -> UInt16 {
 @Suite struct PosixTransportTests {
     @Test func udpSkipsJunkAndReturnsTheMatchingReply() async throws {
         let resolver = UpstreamResolver(transport: PosixDnsTransport(timeout: 1, port: udpServer()))
-        await resolver.setUpstreams(["127.0.0.1"])
         let query = DnsMessage.buildQuery(id: 0x1234, name: "example.com", qtype: DnsMessage.typeA)
         let question = Array(query[12...])
-        let reply = try #require(await resolver.forward(query, accept: { DnsMessage.isReplyTo(query, question: question, reply: $0) }))
+        let reply = try #require(await resolver.forward(query, accept: { DnsMessage.isReplyTo(query, question: question, reply: $0) }, to: ["127.0.0.1"]))
         #expect(reply[0] == 0x12 && reply[1] == 0x34)
     }
 
     @Test func udpToASilentServerTimesOut() async throws {
         // Port 9 (discard) on loopback: refused or silent; either way nil, and quickly.
         let resolver = UpstreamResolver(transport: PosixDnsTransport(timeout: 0.3, port: 9))
-        await resolver.setUpstreams(["127.0.0.1"])
         let start = Date()
-        let reply = await resolver.forward(DnsMessage.buildQuery(id: 1, name: "example.com", qtype: 1), accept: { _ in true })
+        let reply = await resolver.forward(DnsMessage.buildQuery(id: 1, name: "example.com", qtype: 1), accept: { _ in true }, to: ["127.0.0.1"])
         #expect(reply == nil)
         #expect(Date().timeIntervalSince(start) < 2)
     }
@@ -320,25 +318,31 @@ private final class CountingTransport: DnsUpstreamTransport, @unchecked Sendable
 }
 
 @Suite struct SafeSearchTargetTests {
+    /// The tunnel's way (TunnelRecoveryDriver): the cache first, else resolve and store.
+    static func lookup(_ cache: inout TargetCache, _ target: String, _ resolver: UpstreamResolver, _ upstreams: [String], now: TimeInterval) async -> [[UInt8]] {
+        if let hit = cache.addresses(for: target, now: now) { return hit }
+        let found = await TargetCache.resolve(target, via: resolver, to: upstreams)
+        cache.store(target, found, now: now)
+        return found
+    }
+
     @Test func resolvesBothFamiliesAndCachesFiveMinutes() async {
         let t = CountingTransport()
         let resolver = UpstreamResolver(transport: t)
-        await resolver.setUpstreams(["192.0.2.1"])
-        let targets = SafeSearchTargets()
-        #expect(await targets.addresses(for: "forcesafesearch.google.com", via: resolver, now: 0) == [[1, 2, 3, 4]])
+        var cache = TargetCache()
+        #expect(await Self.lookup(&cache, "forcesafesearch.google.com", resolver, ["192.0.2.1"], now: 0) == [[1, 2, 3, 4]])
         #expect(t.calls == 2)  // A and AAAA
-        _ = await targets.addresses(for: "forcesafesearch.google.com", via: resolver, now: 299)
+        _ = await Self.lookup(&cache, "forcesafesearch.google.com", resolver, ["192.0.2.1"], now: 299)
         #expect(t.calls == 2)
-        _ = await targets.addresses(for: "forcesafesearch.google.com", via: resolver, now: 301)
+        _ = await Self.lookup(&cache, "forcesafesearch.google.com", resolver, ["192.0.2.1"], now: 301)
         #expect(t.calls == 4)
     }
 
     @Test func emptyResultsAreNotCached() async {
-        let resolver = UpstreamResolver(transport: CountingTransport())  // no upstreams: every lookup fails
-        let targets = SafeSearchTargets()
-        #expect(await targets.addresses(for: "strict.bing.com", via: resolver, now: 0).isEmpty)
-        await resolver.setUpstreams(["192.0.2.1"])
-        #expect(await targets.addresses(for: "strict.bing.com", via: resolver, now: 1) == [[1, 2, 3, 4]])
+        let resolver = UpstreamResolver(transport: CountingTransport())
+        var cache = TargetCache()
+        #expect(await Self.lookup(&cache, "strict.bing.com", resolver, [], now: 0).isEmpty)  // no upstreams: the lookup fails
+        #expect(await Self.lookup(&cache, "strict.bing.com", resolver, ["192.0.2.1"], now: 1) == [[1, 2, 3, 4]])
     }
 }
 
@@ -416,10 +420,9 @@ private func udpServer6() -> UInt16 {
     /// address; AAAA queries go to it unchanged.
     @Test func forwardsOverIpv6() async throws {
         let resolver = UpstreamResolver(transport: PosixDnsTransport(timeout: 1, port: udpServer6()))
-        await resolver.setUpstreams(["::1"])
         let query = DnsMessage.buildQuery(id: 0x6666, name: "example.com", qtype: DnsMessage.typeAAAA)
         let question = Array(query[12...])
-        let reply = try #require(await resolver.forward(query, accept: { DnsMessage.isReplyTo(query, question: question, reply: $0) }))
+        let reply = try #require(await resolver.forward(query, accept: { DnsMessage.isReplyTo(query, question: question, reply: $0) }, to: ["::1"]))
         #expect(reply[0] == 0x66 && reply[1] == 0x66)
     }
 
@@ -606,7 +609,7 @@ private func udpServer6() -> UInt16 {
     }
 }
 
-@Suite struct RediscoveryLimitTests {
+@Suite struct NetworkKeyAndUpstreamHealthTests {
     @Test func networkKeyFollowsOnlyThePrimaryInterface() {
         let wifi = [(name: "en0", type: "wifi")]
         let base = NetworkKey.make(status: "satisfied", interfaces: wifi, gateways: ["192.168.1.1"])
@@ -619,49 +622,6 @@ private func udpServer6() -> UInt16 {
         // Status change: change. Gateway order: no change.
         #expect(NetworkKey.make(status: "unsatisfied", interfaces: wifi, gateways: ["192.168.1.1"]) != base)
         #expect(NetworkKey.make(status: "satisfied", interfaces: wifi, gateways: ["b", "a"]) == NetworkKey.make(status: "satisfied", interfaces: wifi, gateways: ["a", "b"]))
-    }
-
-    @Test func threeAttemptsPerNetworkWithLongerReadsThenGiveUp() {
-        var r = ResolverRediscovery()
-        do { let v = r.next(generation: 1, now: 0); #expect(v == .attempt(readWait: 0.1, after: 0)) }
-        do { let v = r.next(generation: 1, now: 1); #expect(v == .attempt(readWait: 0.5, after: 0)) }
-        do { let v = r.next(generation: 1, now: 2); #expect(v == .attempt(readWait: 1.5, after: 0)) }
-        do { let v = r.next(generation: 1, now: 3); #expect(v == .giveUp) }
-        do { let v = r.next(generation: 1, now: 500); #expect(v == .giveUp) }  // never again on this network
-        // A new network starts over (well past the window budget).
-        do { let v = r.next(generation: 2, now: 600); #expect(v == .attempt(readWait: 0.1, after: 0)) }
-    }
-
-    @Test func windowBudgetDelaysAnyFourthWindowWithinAMinute() {
-        var r = ResolverRediscovery()
-        for g in 1...3 { let v = r.next(generation: g, now: Double(g)); #expect(v == .attempt(readWait: 0.1, after: 0)) }
-        // A fourth network change 1 s later must wait until 60 s after the first window.
-        do { let v = r.next(generation: 4, now: 4); #expect(v == .attempt(readWait: 0.1, after: 57)) }
-        do { let v = r.staleRetry(generation: 4, now: 4); #expect(v == 58) }
-    }
-
-    @Test func staleRetryOncePerNetwork() {
-        var r = ResolverRediscovery()
-        do { let v = r.staleRetry(generation: 1, now: 0); #expect(v == 0) }
-        do { let v = r.staleRetry(generation: 1, now: 100); #expect(v == nil) }
-        do { let v = r.staleRetry(generation: 2, now: 200); #expect(v == 0) }
-    }
-
-    @Test func staleRetryAgainOnSameNetworkOnlyAfterAnAnswer() {
-        var r = ResolverRediscovery()
-        do { let v = r.staleRetry(generation: 1, now: 0); #expect(v == 0) }
-        do { let v = r.staleRetry(generation: 1, now: 100); #expect(v == nil) }  // nothing answered since
-        r.answered()
-        do { let v = r.staleRetry(generation: 1, now: 200); #expect(v == 0) }
-        do { let v = r.staleRetry(generation: 1, now: 300); #expect(v == nil) }
-        // Still bound by the window budget: windows at 400, 401, 402, so a
-        // fourth at 403 waits until 400 + 60.
-        for t in 400...402 {
-            r.answered()
-            let v = r.staleRetry(generation: 1, now: Double(t)); #expect(v == 0)
-        }
-        r.answered()
-        do { let v = r.staleRetry(generation: 1, now: 403); #expect(v == 57) }
     }
 
     @Test func upstreamHealthNeedsSustainedFailuresWithoutSuccess() {

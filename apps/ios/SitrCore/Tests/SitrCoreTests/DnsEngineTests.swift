@@ -346,8 +346,7 @@ private final class FakeTransport: DnsUpstreamTransport, @unchecked Sendable {
         var wrongId = reply(); wrongId[1] = 0x35
         t.udpReplies["127.0.0.1"] = [[], [0], wrongId, reply()]
         let r = UpstreamResolver(transport: t)
-        await r.setUpstreams(["127.0.0.1"])
-        #expect(await r.forward(query, accept: accept()) == reply())
+        #expect(await r.forward(query, accept: accept(), to: ["127.0.0.1"]) == reply())
     }
 
     // UpstreamResolverTest.givesUpWhenOnlyJunkArrives
@@ -356,8 +355,7 @@ private final class FakeTransport: DnsUpstreamTransport, @unchecked Sendable {
         var wrongId = reply(); wrongId[1] = 0x35
         t.udpReplies["127.0.0.1"] = [[], wrongId]
         let r = UpstreamResolver(transport: t)
-        await r.setUpstreams(["127.0.0.1"])
-        #expect(await r.forward(query, accept: accept()) == nil)
+        #expect(await r.forward(query, accept: accept(), to: ["127.0.0.1"]) == nil)
     }
 
     // UpstreamResolverTest.fallsBackToTheNextUpstreamAndRemembersIt
@@ -366,13 +364,13 @@ private final class FakeTransport: DnsUpstreamTransport, @unchecked Sendable {
         t.udpReplies["::1"] = []  // silent: times out with nothing
         t.udpReplies["127.0.0.1"] = [reply()]
         let r = UpstreamResolver(transport: t)
-        await r.setUpstreams(["::1", "127.0.0.1"])
-        #expect(await r.forward(query, accept: accept()) == reply())
-        #expect(await r.forward(query, accept: accept()) == reply())
+        let list = ["::1", "127.0.0.1"]
+        #expect(await r.forward(query, accept: accept(), to: list) == reply())
+        #expect(await r.forward(query, accept: accept(), to: list) == reply())
         #expect(t.udpAsked == ["::1", "127.0.0.1", "127.0.0.1"])  // the dead one was not asked first again
-        // A changed list resets the preference; the tunnel's own address is filtered.
-        #expect(await r.setUpstreams(["10.111.222.1", "::1", "127.0.0.1"]) == false)
-        #expect(await r.setUpstreams(["127.0.0.1"]) == true)
+        // The tunnel's own address is never asked, even when it is in the list.
+        #expect(await r.forward(query, accept: accept(), to: ["10.111.222.1"] + list) == reply())
+        #expect(!t.udpAsked.contains("10.111.222.1"))
     }
 
     // UpstreamResolverTest.refetchesATruncatedAnswerOverTcp
@@ -382,8 +380,7 @@ private final class FakeTransport: DnsUpstreamTransport, @unchecked Sendable {
         t.udpReplies["127.0.0.1"] = [reply(truncated: true)]
         t.tcpReplies["127.0.0.1"] = full
         let r = UpstreamResolver(transport: t)
-        await r.setUpstreams(["127.0.0.1"])
-        let answer = try #require(await r.forward(query, accept: accept()))
+        let answer = try #require(await r.forward(query, accept: accept(), to: ["127.0.0.1"]))
         #expect(answer.count == full.count && !DnsMessage.isTruncated(answer))
         #expect(t.tcpAsked == [query])
     }
@@ -393,13 +390,13 @@ private final class FakeTransport: DnsUpstreamTransport, @unchecked Sendable {
         let t = FakeTransport()
         t.udpReplies["127.0.0.1"] = [reply(truncated: true)]
         let r = UpstreamResolver(transport: t)
-        await r.setUpstreams(["127.0.0.1"])
-        #expect(DnsMessage.isTruncated(try #require(await r.forward(query, accept: accept()))))
+        let list = ["127.0.0.1"]
+        #expect(DnsMessage.isTruncated(try #require(await r.forward(query, accept: accept(), to: list))))
         t.tcpReplies["127.0.0.1"] = reply(tail: 5000)  // > 4096
-        #expect(DnsMessage.isTruncated(try #require(await r.forward(query, accept: accept()))))
+        #expect(DnsMessage.isTruncated(try #require(await r.forward(query, accept: accept(), to: list))))
         var wrongId = reply(); wrongId[1] = 0x35
         t.tcpReplies["127.0.0.1"] = wrongId
-        #expect(DnsMessage.isTruncated(try #require(await r.forward(query, accept: accept()))))
+        #expect(DnsMessage.isTruncated(try #require(await r.forward(query, accept: accept(), to: list))))
     }
 
     /// A UDP answer over the 4096-byte cap was cut: re-fetched over TCP,
@@ -409,24 +406,23 @@ private final class FakeTransport: DnsUpstreamTransport, @unchecked Sendable {
         let t = FakeTransport()
         t.udpReplies["127.0.0.1"] = [reply(tail: 4200)]  // > 4096: cut by the read
         let r = UpstreamResolver(transport: t)
-        await r.setUpstreams(["127.0.0.1"])
-        let tc = try #require(await r.forward(query, accept: accept()))
+        let list = ["127.0.0.1"]
+        let tc = try #require(await r.forward(query, accept: accept(), to: list))
         #expect(DnsMessage.isTruncated(tc) && DnsMessage.rcode(tc) == 0)
         #expect(tc == DnsMessage.truncatedReply(to: query))
         #expect(tc.count == 12 + question.count)
         #expect(t.tcpAsked == [query])
         // TCP within the cap replaces it.
         t.tcpReplies["127.0.0.1"] = reply(tail: 3000)
-        #expect(try #require(await r.forward(query, accept: accept())).count == reply(tail: 3000).count)
+        #expect(try #require(await r.forward(query, accept: accept(), to: list)).count == reply(tail: 3000).count)
         // TCP over the cap: the TC reply again.
         t.tcpReplies["127.0.0.1"] = reply(tail: 5000)
-        #expect(await r.forward(query, accept: accept()) == DnsMessage.truncatedReply(to: query))
-        // Through the engine: answered with TC, not cached.
-        let engine = DnsEngine()
+        #expect(await r.forward(query, accept: accept(), to: list) == DnsMessage.truncatedReply(to: query))
+        // Through the engine: answered with TC, and not cacheable.
         let q = try #require(DnsMessage.parseQuery(query))
-        let answer = try #require(await engine.forward(q, payload: query, via: r, now: { 0 }))
-        #expect(DnsMessage.isTruncated(answer))
-        #expect(engine.cache.get(q.qname, q.qtype, id: q.id, now: 1) == nil)
+        let fetched = try #require(await DnsEngine.fetch(q, payload: query, via: r, to: list))
+        #expect(DnsMessage.isTruncated(fetched.response))
+        #expect(!fetched.cacheable)
     }
 
     // UpstreamResolverTest.cacheNeverServesAReplyItCannotReId (+ expiry and LRU)
@@ -476,11 +472,13 @@ private final class FakeTransport: DnsUpstreamTransport, @unchecked Sendable {
         upstreamReply += [0xc0, 12, 0, 1, 0, 1, 0, 0, 0x0e, 0x10, 0, 4, 93, 184, 216, 34]  // TTL 3600
         t.udpReplies["192.0.2.53"] = [upstreamReply]
         let resolver = UpstreamResolver(transport: t)
-        await resolver.setUpstreams(["192.0.2.53"])
         guard case .forward(let q) = engine.decide(payload: query, snapshot: snapshot, safeSearch: map, now: 0) else {
             Issue.record("expected forward"); return
         }
-        let answer = try #require(await engine.forward(q, payload: query, via: resolver, now: { 0 }))
+        let fetched = try #require(await DnsEngine.fetch(q, payload: query, via: resolver, to: ["192.0.2.53"]))
+        #expect(fetched.cacheable)
+        engine.remember(q, fetched.response, now: 0)
+        let answer = fetched.response
         #expect(Array(answer[(answer.count - 10)..<(answer.count - 6)]) == [0, 0, 0, 60])
         var again = query
         again[0] = 0x55
@@ -490,12 +488,11 @@ private final class FakeTransport: DnsUpstreamTransport, @unchecked Sendable {
         #expect(cached[0] == 0x55 && Array(cached[1...]) == Array(answer[1...]))
         #expect(t.udpAsked.count == 1)
 
-        // SERVFAIL and truncated answers are returned but not cached.
-        let fresh = DnsEngine()
+        // SERVFAIL and truncated answers are returned but not cacheable.
         var servfail = reply()
         servfail[3] = 0x82
         t.udpReplies["192.0.2.53"] = [servfail]
-        #expect(await fresh.forward(q, payload: query, via: resolver, now: { 0 }) == servfail)
-        #expect(fresh.decide(payload: query, snapshot: snapshot, safeSearch: map, now: 1) == .forward(q))
+        let failed = try #require(await DnsEngine.fetch(q, payload: query, via: resolver, to: ["192.0.2.53"]))
+        #expect(failed.response == servfail && !failed.cacheable)
     }
 }

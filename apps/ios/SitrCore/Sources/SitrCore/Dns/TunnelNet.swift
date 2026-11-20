@@ -230,35 +230,6 @@ public struct TargetCache: Sendable {
     }
 }
 
-/// The old actor (its tests; TargetCache replaces it in the tunnel):
-/// resolves through the list `UpstreamResolver.setUpstreams` holds and
-/// caches non-empty results for 5 minutes.
-actor SafeSearchTargets {
-    public static let lifetime: TimeInterval = 300
-    private var cache: [String: (addresses: [[UInt8]], expiresAt: TimeInterval)] = [:]
-
-    public init() {}
-
-    public func addresses(for target: String, via resolver: UpstreamResolver, now: TimeInterval) async -> [[UInt8]] {
-        if let hit = cache[target], hit.expiresAt > now { return hit.addresses }
-        async let v4 = Self.lookup(target, DnsMessage.typeA, resolver)
-        async let v6 = Self.lookup(target, DnsMessage.typeAAAA, resolver)
-        let all = await v4 + v6
-        if !all.isEmpty { cache[target] = (all, now + Self.lifetime) }
-        return all
-    }
-
-    public func clear() { cache.removeAll() }
-
-    static func lookup(_ name: String, _ qtype: Int, _ resolver: UpstreamResolver) async -> [[UInt8]] {
-        let query = DnsMessage.buildQuery(id: .random(in: 0...UInt16.max), name: name, qtype: qtype)
-        let question = Array(query[12...])
-        guard let reply = await resolver.forward(query, accept: { DnsMessage.isReplyTo(query, question: question, reply: $0) })
-        else { return [] }
-        return DnsMessage.addresses(in: reply)
-    }
-}
-
 // MARK: - Concurrency bound
 
 /// At most `limit` holders, `queueLimit` waiters; beyond that `enter`
@@ -329,77 +300,7 @@ public enum NetworkKey {
     }
 }
 
-// MARK: - Rediscovery limits
-
-/// How often the tunnel may remove its settings to re-read the network's
-/// resolvers (each time is an unfiltered window). Per network (path
-/// generation): at most `readWaits.count` attempts, each giving the system
-/// longer to switch over; after that the tunnel gives up on this network
-/// and fails closed until the next real change. Plus one extra attempt
-/// when every forward keeps failing (`staleRetry`), given again on the
-/// same network only after a forward was answered since the last one
-/// (`answered`): a resolver that never answers gets one. Across all
-/// networks: at most `windowBudget` windows per `budgetPeriod`, whatever
-/// triggers them, so no loop (for example path updates caused by the
-/// tunnel's own settings) can open windows faster than that.
-public struct ResolverRediscovery: Sendable {
-    // Read from TunnelRecovery, which replaced this type, so the two
-    // cannot drift until this one is removed.
-    public static let readWaits = TunnelRecovery.readWaits
-    public static let windowBudget = TunnelRecovery.windowBudget
-    public static let budgetPeriod = TunnelRecovery.budgetPeriod
-
-    public enum Step: Equatable, Sendable {
-        /// Remove the settings `after` seconds from now and poll the
-        /// resolvers for up to `readWait` seconds.
-        case attempt(readWait: TimeInterval, after: TimeInterval)
-        /// No attempts left for this network.
-        case giveUp
-    }
-
-    private var generation: Int?
-    private var attempts = 0
-    private var staleUsed = false
-    private var windows: [TimeInterval] = []
-
-    public init() {}
-
-    public mutating func next(generation g: Int, now: TimeInterval) -> Step {
-        reset(g)
-        guard attempts < Self.readWaits.count else { return .giveUp }
-        let wait = Self.readWaits[attempts]
-        attempts += 1
-        return .attempt(readWait: wait, after: reserveWindow(now))
-    }
-
-    /// The extra rediscovery for this network, or nil if used and no
-    /// forward was answered since. Returns the delay before it may start.
-    public mutating func staleRetry(generation g: Int, now: TimeInterval) -> TimeInterval? {
-        reset(g)
-        guard !staleUsed else { return nil }
-        staleUsed = true
-        return reserveWindow(now)
-    }
-
-    /// A forward sent after the last stale re-read was answered: the
-    /// stale retry may be given again on this network.
-    public mutating func answered() { staleUsed = false }
-
-    private mutating func reset(_ g: Int) {
-        guard g != generation else { return }
-        (generation, attempts, staleUsed) = (g, 0, false)
-    }
-
-    private mutating func reserveWindow(_ now: TimeInterval) -> TimeInterval {
-        windows.removeAll { $0 <= now - Self.budgetPeriod }
-        var start = now
-        if windows.count >= Self.windowBudget {
-            start = max(now, windows[windows.count - Self.windowBudget] + Self.budgetPeriod)
-        }
-        windows.append(start)
-        return start - now
-    }
-}
+// MARK: - Upstream health
 
 /// Every forward failing on an unchanged network: at least `minFailures`
 /// failures over at least `minDuration` seconds with no success between

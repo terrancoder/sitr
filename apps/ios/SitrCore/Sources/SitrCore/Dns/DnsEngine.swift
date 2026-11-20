@@ -159,19 +159,6 @@ public final class DnsEngine: Sendable {
         return (response, !DnsMessage.isTruncated(response) && (rcode == 0 || rcode == 3))
     }
 
-    /// The old caching entry point (its tests): `fetch` through the list
-    /// `setUpstreams` holds, then `remember`.
-    func forward(
-        _ query: DnsQuery, payload: [UInt8], via resolver: UpstreamResolver, now: () -> TimeInterval
-    ) async -> [UInt8]? {
-        guard
-            let raw = await resolver.forward(payload, accept: { DnsMessage.isReplyTo(payload, question: query.questionBytes, reply: $0) })
-        else { return nil }
-        let (response, cacheable) = Self.processed(raw)
-        if cacheable { remember(query, response, now: now()) }
-        return response
-    }
-
     /// The SafeSearch answer: CNAME to the target plus the `resolved`
     /// target addresses (4/16-byte), or the rule's compiled-in fallback
     /// when resolution found none. TTL 60. Still a CNAME-only answer when
@@ -205,9 +192,6 @@ public actor UpstreamResolver {
     /// Larger TCP answers are refused (the truncated UDP one is kept).
     static let maxReplyBytes = 4096
 
-    /// The list `setUpstreams` holds (the old entry point, kept for its
-    /// tests; the tunnel passes its list with every forward instead).
-    private(set) var upstreams: [String] = []
     /// The upstream that answered last; it is tried first when it is in
     /// the list asked.
     private var preferred: String?
@@ -218,21 +202,6 @@ public actor UpstreamResolver {
     public init(transport: DnsUpstreamTransport, syntheticAddresses: Set<String> = ["10.111.222.1", "fd66:f83a:c650::1"]) {
         self.transport = transport
         self.syntheticAddresses = syntheticAddresses
-    }
-
-    /// Returns true when the list changed (the caller then clears caches).
-    @discardableResult
-    func setUpstreams(_ addresses: [String]) -> Bool {
-        let next = addresses.filter { !syntheticAddresses.contains($0) }
-        if next == upstreams { return false }
-        upstreams = next
-        preferred = nil
-        return true
-    }
-
-    /// `forward(_:accept:to:)` with the list `setUpstreams` holds.
-    func forward(_ payload: [UInt8], accept: @Sendable ([UInt8]) -> Bool) async -> [UInt8]? {
-        await forward(payload, accept: accept, to: upstreams)
     }
 
     /// The last upstream that answered goes first, then the others in
