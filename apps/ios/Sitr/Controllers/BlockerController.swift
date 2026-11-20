@@ -101,7 +101,9 @@ enum BlockerController {
     }
 
     /// The full apply pipeline. Runs the reload via Safari and reports the
-    /// checksum of what is now enforced.
+    /// checksum of what is now enforced. nil: Safari already holds exactly
+    /// these rules (`held`), so nothing is written or reloaded. The list is
+    /// built at most once, and not at all when the memo already knows it.
     static func apply(
         disabledCategories: [String],
         mediaOff: Set<String>,
@@ -109,33 +111,23 @@ enum BlockerController {
         userAllow: [String],
         userBlock: [String],
         householdAllow: [String],
-        householdBlock: [String]
-    ) async -> Result<ApplyOutcome, ApplyError> {
+        householdBlock: [String],
+        unlessHeld held: String?
+    ) async -> Result<ApplyOutcome, ApplyError>? {
         let names = enabledFragments(
             disabledCategories: disabledCategories, mediaOff: mediaOff, optionalOn: optionalOn)
-        let fragments: [SafariRule]
-        switch loadFragments(categories: names) {
+        let key = memoKey(names, userAllow, userBlock, householdAllow, householdBlock)
+        if let held, case .success(held)? = memoized(key) { return nil }
+        let json: Data
+        let checksum: String
+        switch build(
+            names: names, key: key, userAllow: userAllow, userBlock: userBlock,
+            householdAllow: householdAllow, householdBlock: householdBlock)
+        {
         case .failure(let e): return .failure(e)
-        case .success(let loaded): fragments = loaded
+        case .success(let b): (json, checksum) = b
         }
-
-        let built = SafariRules.build(
-            staticRules: fragments,
-            userBlock: userBlock,
-            userAllow: userAllow,
-            householdBlock: householdBlock,
-            householdAllow: householdAllow
-        )
-        let rules: [SafariRule]
-        switch built {
-        case .failure(let e): return .failure(.fragments(e.message))
-        case .success(let b): rules = b
-        }
-        let json = SafariRules.serialize(rules)
-        let checksum = SHA256.hash(data: json).map { String(format: "%02x", $0) }
-            .joined()
-        remember(
-            memoKey(names, userAllow, userBlock, householdAllow, householdBlock), .success(checksum))
+        if checksum == held { return nil }
 
         guard let container = Storage.groupContainer else {
             return .failure(.write("app group container unavailable"))
@@ -182,16 +174,23 @@ enum BlockerController {
         }
     }
 
-    /// The rule inputs of a settings value: the household's lists and
-    /// category choices win over the device's when joined.
-    static func apply(_ s: AppSettings) async -> Result<ApplyOutcome, ApplyError> {
+    /// Both paths (AppModel.applySafari, SyncScheduler.syncAndApply): reload
+    /// Safari only if what it holds differs from what `s` needs, and record
+    /// what it holds afterwards (SafariHeld; only that key, never the whole
+    /// settings). nil: it already held them, nothing done.
+    static func applyIfNeeded(_ s: AppSettings) async -> (result: Result<ApplyOutcome, ApplyError>, held: String?)? {
         _ = await applyGate.enter()
-        let result = await applyInputs(s)
+        let before = SettingsStore.appliedChecksum
+        let result = await applyInputs(s, unlessHeld: before)
+        let held = result.map { SafariHeld.after(Self.held(after: $0), before: before) } ?? before
+        if result != nil { SettingsStore.appliedChecksum = held }
         await applyGate.leave()
-        return result
+        return result.map { ($0, held) }
     }
 
-    private static func applyInputs(_ s: AppSettings) async -> Result<ApplyOutcome, ApplyError> {
+    /// The rule inputs of a settings value: the household's lists and
+    /// category choices win over the device's when joined.
+    private static func applyInputs(_ s: AppSettings, unlessHeld held: String?) async -> Result<ApplyOutcome, ApplyError>? {
         await apply(
             disabledCategories: s.household?.disabledCategories ?? s.disabledCategories,
             mediaOff: s.mediaOff,
@@ -199,7 +198,8 @@ enum BlockerController {
             userAllow: s.userAllow,
             userBlock: s.userBlock,
             householdAllow: s.household?.allowDomains ?? [],
-            householdBlock: s.household?.blockDomains ?? [])
+            householdBlock: s.household?.blockDomains ?? [],
+            unlessHeld: held)
     }
 
     /// Everything in `s` that shapes the rules; two settings with the same
@@ -240,7 +240,20 @@ enum BlockerController {
         let names = enabledFragments(
             disabledCategories: disabledCategories, mediaOff: mediaOff, optionalOn: optionalOn)
         let key = memoKey(names, userAllow, userBlock, householdAllow, householdBlock)
-        if let hit = memo.withLock({ $0 }), hit.key == key { return hit.value }
+        if let hit = memoized(key) { return hit }
+        return build(
+            names: names, key: key, userAllow: userAllow, userBlock: userBlock,
+            householdAllow: householdAllow, householdBlock: householdBlock
+        ).map(\.checksum)
+    }
+
+    /// What Safari should hold for these inputs: the blocker list and its
+    /// checksum. The one pipeline behind apply and expectedChecksum; the
+    /// result (checksum or failure) goes into the memo.
+    private static func build(
+        names: [String], key: String, userAllow: [String], userBlock: [String],
+        householdAllow: [String], householdBlock: [String]
+    ) -> Result<(json: Data, checksum: String), ApplyError> {
         let result = loadFragments(categories: names).flatMap { fragments in
             SafariRules.build(
                 staticRules: fragments,
@@ -250,12 +263,12 @@ enum BlockerController {
                 householdAllow: householdAllow
             )
             .mapError { ApplyError.fragments($0.message) }
-            .map {
-                SHA256.hash(data: SafariRules.serialize($0))
-                    .map { String(format: "%02x", $0) }.joined()
+            .map { rules -> (json: Data, checksum: String) in
+                let json = SafariRules.serialize(rules)
+                return (json, SHA256.hash(data: json).map { String(format: "%02x", $0) }.joined())
             }
         }
-        remember(key, result)
+        remember(key, result.map(\.checksum))
         return result
     }
 
@@ -275,5 +288,9 @@ enum BlockerController {
 
     private static func remember(_ key: String, _ value: Result<String, ApplyError>) {
         memo.withLock { $0 = (key, value) }
+    }
+
+    private static func memoized(_ key: String) -> Result<String, ApplyError>? {
+        memo.withLock { $0 }.flatMap { $0.key == key ? $0.value : nil }
     }
 }

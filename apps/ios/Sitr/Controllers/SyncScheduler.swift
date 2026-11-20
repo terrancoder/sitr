@@ -72,14 +72,40 @@ enum SyncScheduler {
     /// at once; Safari follows, and its checksum is recorded only when it
     /// accepted the rules (otherwise status shows red on the next check).
     static func syncAndApply() async {
-        guard Storage.loadRootSecret() != nil else { return }
-        let next = await syncNow(settings: SettingsStore.load())
-        SettingsStore.persist(next)
+        guard let secret = Storage.loadRootSecret() else { return }
+        let started = SettingsStore.load()
+        let synced = await syncNow(settings: started)
+        // Merge into the store as it is NOW, as AppModel.runSync does: saving
+        // `synced` wholesale reverted a change made during the round-trip.
+        // On the main actor, where AppModel saves, so the two cannot interleave.
+        let merged: AppSettings? = await MainActor.run {
+            guard Storage.loadRootSecret() == secret else { return nil }  // left meanwhile
+            var current = SettingsStore.load()
+            merge(into: &current, started: started, synced: synced)
+            SettingsStore.persist(current)
+            return current
+        }
+        guard let next = merged else { return }
         ScreenTimeController.apply(next)
-        let result = await BlockerController.apply(next)
-        // Only what Safari now holds is recorded; never the whole settings.
-        SettingsStore.appliedChecksum = SafariHeld.after(
-            BlockerController.held(after: result), before: SettingsStore.appliedChecksum)
+        // Most refreshes change nothing but the sync status: rules Safari
+        // already holds are not reloaded. Records what Safari holds after.
+        _ = await BlockerController.applyIfNeeded(next)
+    }
+
+    /// Folds a sync result into the settings as they are NOW (both sync
+    /// paths). `synced` was computed from `started`, taken before the
+    /// round-trip; applying it wholesale reverted changes made meanwhile.
+    /// The caller checks first that the household key is still the same.
+    static func merge(into current: inout AppSettings, started: AppSettings, synced: AppSettings) {
+        if current.household != started.household {
+            // Edited meanwhile: keep the edit — the sync that edit started
+            // will carry it.
+            current.maxSeenRev = max(current.maxSeenRev, synced.maxSeenRev)
+            return
+        }
+        current.household = synced.household
+        current.maxSeenRev = synced.maxSeenRev
+        current.syncStatus = synced.syncStatus
     }
 
     /// One sync round + honest fair-use device enrollment (mirrors the

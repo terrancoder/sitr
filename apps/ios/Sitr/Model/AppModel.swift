@@ -166,19 +166,25 @@ final class AppModel: ObservableObject {
     /// for the settings as they are.
     private func applySafari() async {
         let target = settings
-        let expected = await Task.detached(priority: .userInitiated) { BlockerController.expectedChecksum(target) }.value
-        // Rules Safari already holds need no reload: a sync that changed
-        // only its own status would otherwise recompile them every time.
-        if case .success(let e) = expected, !SafariHeld.needsReload(expected: e, held: SettingsStore.appliedChecksum) { return }
         let started = Date()
-        let result = await Task.detached(priority: .userInitiated) { await BlockerController.apply(target) }.value
+        let applied = await Task.detached(priority: .userInitiated) { await BlockerController.applyIfNeeded(target) }.value
+        // Rules Safari already holds need no reload (applyIfNeeded): a sync
+        // that changed only its own status would otherwise recompile them.
+        // Safari holding them also settles any earlier failure: a stale
+        // reloadError would block refreshStatus's automatic repair later.
+        guard case let (result, held)? = applied else {
+            // The store is the truth for what Safari holds: a background
+            // refresh may have reloaded it while this copy stayed old.
+            settings.appliedRulesChecksum = SettingsStore.appliedChecksum
+            if BlockerController.ruleInputsKey(target) == BlockerController.ruleInputsKey(settings) { reloadError = nil }
+            return
+        }
         #if DEBUG
         let ms = Int(Date().timeIntervalSince(started) * 1000)
         lastSafariApplyMs = ms
         UserDefaults.standard.set(ms, forKey: "SitrDebugLastSafariApplyMs")
         #endif
-        let held = SafariHeld.after(BlockerController.held(after: result), before: SettingsStore.appliedChecksum)
-        SettingsStore.appliedChecksum = held  // only this key, never the whole settings
+        // applyIfNeeded recorded `held` in the store (only that key).
         settings.appliedRulesChecksum = held
         guard BlockerController.ruleInputsKey(target) == BlockerController.ruleInputsKey(settings) else { return }
         switch result {
@@ -278,15 +284,7 @@ final class AppModel: ObservableObject {
         await mutate { current in
             // Left the household while the request was out.
             guard Storage.loadRootSecret() == secret else { return }
-            if current.household != started.household {
-                // Edited meanwhile: keep the edit — the sync that edit
-                // started will carry it.
-                current.maxSeenRev = max(current.maxSeenRev, result.maxSeenRev)
-                return
-            }
-            current.household = result.household
-            current.maxSeenRev = result.maxSeenRev
-            current.syncStatus = result.syncStatus
+            SyncScheduler.merge(into: &current, started: started, synced: result)
         }
         SyncScheduler.scheduleNext()
     }
