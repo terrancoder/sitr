@@ -53,6 +53,8 @@ test("devid channel keeps the full-channel surface", () => {
     // The steering strings live ONLY in the excluded module.
     const fullChannel = readFileSync(join(out, "dist/options/fullChannel.js"), "utf8");
     assert.match(fullChannel, /subscription token/);
+    assert.match(fullChannel, /subscription code/);
+    assert.match(html, /id="family-code-form"/, "the code form is in the full-channel block");
     const optionsJs = readFileSync(join(out, "dist/options/options.js"), "utf8");
     assert.ok(!FORBIDDEN.test(optionsJs), "options.js must stay steering-free");
   } finally {
@@ -75,6 +77,8 @@ test("mas channel is join-only and steering-free (the 3.1.1 gate)", () => {
     const html = readFileSync(join(out, "src/options/options.html"), "utf8");
     assert.ok(!/full[- ]channel|strip/i.test(html), "no residue announcing the strip");
     assert.ok(html.includes("household-join-form"), "joining stays available");
+    assert.ok(!html.includes("family-code"), "no code entry");
+    assert.ok(html.includes('id="household-end"'), "a member device still shows the end date");
     const channel = JSON.parse(readFileSync(join(out, "channel.json"), "utf8"));
     assert.equal(channel.channel, "mas");
     for (const rel of walkFiles(out)) {

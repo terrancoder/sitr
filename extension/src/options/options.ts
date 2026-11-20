@@ -34,10 +34,12 @@ import { MAX_HOUSEHOLD_DEVICES, isJoinPlaceholder } from "../lib/household.js";
 import { REFRESH_DEVICE_LIST_GATED_AS } from "../lib/gate.js";
 import {
   addHouseholdDomain,
+  endLine,
   joinHousehold,
   leaveHousehold,
   loadHousehold,
   refreshDeviceList,
+  PAGE_UI,
   refusedAsAdult,
   removeHouseholdDomain,
   setGuardianPin,
@@ -49,6 +51,7 @@ import {
 import { promptDialog } from "./dialogs.js";
 import { wireMedia } from "./media.js";
 import { wireDelay } from "./delay.js";
+import { HOUSEHOLD_END_KEY, sanitizeHouseholdEnd } from "../background/memberChannel.js";
 import {
   SYNC_STATUS_KEY,
   describeSyncStatus,
@@ -431,11 +434,18 @@ async function renderHouseholdLists(): Promise<void> {
       listEl.append(li);
     }
   }
-  const stored = await chrome.storage.local.get(SYNC_STATUS_KEY);
+  const stored = await chrome.storage.local.get([SYNC_STATUS_KEY, HOUSEHOLD_END_KEY]);
   el("sync-status").textContent =
     hh.state !== undefined
       ? describeSyncStatus(sanitizeSyncStatus(stored[SYNC_STATUS_KEY]))
       : "";
+  // The full channel's lines when its module is loaded, else the member's.
+  el("household-end").textContent =
+    hh.state === undefined
+      ? ""
+      : hh.family !== undefined
+        ? await hh.family.endText(Date.now())
+        : endLine(sanitizeHouseholdEnd(stored[HOUSEHOLD_END_KEY]), Date.now());
 }
 
 function wireHousehold(): void {
@@ -488,6 +498,7 @@ function wireHousehold(): void {
   el("household-leave").addEventListener("click", () => {
     clearError();
     void (async () => {
+      if (hh.family !== undefined && !(await hh.family.confirmLeave(PAGE_UI))) return;
       // A child device too: the gate asks for the household's PIN.
       await withGate("leaveHousehold", hh, async (asJoinPlaceholder) => {
         await leaveHousehold(hh, undefined, asJoinPlaceholder);
@@ -536,6 +547,7 @@ void (async () => {
       const fullChannel = await import("./fullChannel.js");
       await fullChannel.wireFullChannel(hh);
     } catch (e) {
+      document.getElementById("full-channel-only")!.hidden = true; // join-only, unwired
       showError(e instanceof Error ? e.message : String(e));
     }
   }
@@ -544,6 +556,11 @@ void (async () => {
   await wireDelay(hh, withGate);
   await refreshLists();
   await renderHouseholdLists();
+  // The worker's rounds write these: show them as they come.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    const keys = [SYNC_STATUS_KEY, HOUSEHOLD_END_KEY, ...(hh.family?.keys ?? [])];
+    if (area === "local" && keys.some((k) => k in changes)) void hh.onChanged();
+  });
 })().catch((e: unknown) => {
   showError(
     `Could not load settings: ${e instanceof Error ? e.message : String(e)}`,

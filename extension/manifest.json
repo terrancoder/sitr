@@ -15,6 +15,7 @@
     "*://*.youtube.com/*",
     "*://youtubei.googleapis.com/*"
   ],
+  "optional_host_permissions": ["https://claim.sitrshield.com/*"],
   "background": {
     "service_worker": "dist/background/service-worker.js",
     "type": "module"

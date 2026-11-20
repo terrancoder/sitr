@@ -95,3 +95,24 @@ On the form: declare **Authentication information** (the guardian PIN
 record inside the encrypted blob, collected only when Family sync is used);
 every other category: not collected. Certify no sale, no unrelated use, no
 creditworthiness use. Limited Use certification: affirmed.
+
+## Version with subscription code (not yet published)
+
+> **NOT YET PUBLISHED.** For the store version that adds the Sitr Family
+> subscription code. Nothing below applies to the listing that is live now,
+> and the description above stays as it is until that version ships.
+
+- **Permission justification (optional host `https://claim.sitrshield.com/*`):**
+  Sitr asks for access to claim.sitrshield.com only when the user enters a
+  Sitr Family subscription code, so that the extension can confirm and renew
+  the household's Family plan there; it is an optional permission and is
+  never requested otherwise.
+- **Sentence the description will need when this ships:** "Sitr Family is
+  an optional paid plan sold on sitrshield.com by the publisher, not by the
+  browser store." For the Edge Add-ons listing, the description must also
+  state the price range.
+- **Privacy-form note:** the subscription code is sent to the publisher's
+  claim service (claim.sitrshield.com). It is an identifier, so on Chrome's
+  form it is likely "Personally identifiable information" and
+  "Authentication information" — to be confirmed by the owner before
+  submission.

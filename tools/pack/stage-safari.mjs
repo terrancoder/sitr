@@ -129,6 +129,10 @@ if (!manifest.permissions.includes("declarativeNetRequestWithHostAccess")) {
   ];
 }
 
+// The claim host serves only the full channel's code entry (fullChannel.js,
+// excluded below): the join-only App Store build never asks for it.
+if (channel === "mas") delete manifest.optional_host_permissions;
+
 // Stage in memory first, flush all-or-nothing (house atomicity rule).
 const staged = new Map();
 staged.set("manifest.json", JSON.stringify(manifest, null, 2) + "\n");

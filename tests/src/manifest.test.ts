@@ -45,3 +45,28 @@ test("opt-in lists and media rulesets ship disabled; categories ship enabled", (
     assert.equal(r.enabled, !optional.has(r.path), `${r.id}: enabled must be ${!optional.has(r.path)}`);
   }
 });
+
+test("the claim host is an optional host permission only, and absent from the Mac App Store manifest", async () => {
+  const manifest = JSON.parse(readFileSync(join(ROOT, "extension/manifest.json"), "utf8")) as {
+    host_permissions: string[];
+    optional_host_permissions?: string[];
+    permissions: string[];
+  };
+  const claimHost = "https://claim.sitrshield.com/*";
+  assert.deepEqual(manifest.optional_host_permissions, [claimHost]);
+  assert.ok(!manifest.host_permissions.some((h) => h.includes("claim.")), "never a required host");
+  assert.ok(!manifest.permissions.some((p) => p.includes("claim.")));
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  for (const channel of ["mas", "devid"]) {
+    const out = mkdtempSync(join(tmpdir(), `sitr-manifest-${channel}-`));
+    try {
+      execFileSync("node", [join(ROOT, "tools/pack/stage-safari.mjs"), out, "--channel", channel], { stdio: "pipe" });
+      const staged = readFileSync(join(out, "manifest.json"), "utf8");
+      assert.equal(staged.includes("claim.sitrshield.com"), channel === "devid", channel);
+    } finally {
+      rmSync(out, { recursive: true, force: true });
+    }
+  }
+});

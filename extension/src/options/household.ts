@@ -51,6 +51,8 @@ import {
   normalizeDomainInput,
   rulesetDomains,
 } from "../lib/userRules.js";
+import { endNotice, WAITING_TEXT, type HouseholdEnd } from "../lib/householdEnd.js";
+import { HOUSEHOLD_END_KEY } from "../background/memberChannel.js";
 import { promptDialog } from "./dialogs.js";
 import { readDelay, showHold } from "./delay.js";
 
@@ -60,6 +62,40 @@ export interface HouseholdContext {
   managed: ManagedPolicy;
   showError(message: string): void;
   onChanged(): Promise<void>;
+  /** Set by the full channel's module (options/fullChannel.ts) only. */
+  family?: FamilyHooks;
+}
+
+/**
+ * What the full channel adds to leaving and to the household's end line.
+ * A hook, so this module (staged in every build) never names the full
+ * channel's storage keys or texts.
+ */
+export interface FamilyHooks {
+  /** storage.local keys a leave removes with the household's own. */
+  keys: readonly string[];
+  /** Asked before the gate when leaving; false: stay. */
+  confirmLeave(ui: GateUi): Promise<boolean>;
+  /** Replaces endLine for the household's end and plan state. */
+  endText(now: number): Promise<string>;
+}
+
+/** A day as "4 December 2026", in UTC: the end date is midnight UTC. */
+export function formatDay(ms: number): string {
+  return new Date(ms).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** The household's end as a member device shows it: the neutral notice
+ * when read-only or ending within 2 days, else the date; nothing for a
+ * household with no end date (version 1). */
+export function endLine(end: HouseholdEnd, now: number): string {
+  if (endNotice(end, now) === "waiting") return WAITING_TEXT;
+  return end.entExp === null ? "" : `Covered until ${formatDay(end.entExp)}.`;
 }
 
 const engineDeps = {
@@ -141,7 +177,7 @@ export interface GateUi {
   prompt: typeof promptDialog;
   hold: typeof showHold;
 }
-const PAGE_UI: GateUi = { prompt: promptDialog, hold: showHold };
+export const PAGE_UI: GateUi = { prompt: promptDialog, hold: showHold };
 
 /** Holds (and offers the wait) when `kind` must wait now. True = held. */
 async function heldByDelay(kind: DelayAction, ui: GateUi): Promise<boolean> {
@@ -275,15 +311,20 @@ async function saveState(ctx: HouseholdContext, next: HouseholdState): Promise<v
  * requested explicitly inside the create/join user gesture. On Chrome the
  * origin is granted at install and this resolves true without a prompt.
  * Called FIRST in the gesture: Safari drops gesture context across awaits.
+ * `extra`: further origins asked in the same prompt (the full channel's
+ * claim host).
  */
-async function requestSyncOrigin(ctx: HouseholdContext): Promise<boolean> {
+export async function requestSyncOrigin(
+  ctx: HouseholdContext,
+  extra: string[] = [],
+): Promise<boolean> {
   try {
     const granted = await chrome.permissions.request({
-      origins: ["https://sync.sitrshield.com/*"],
+      origins: ["https://sync.sitrshield.com/*", ...extra],
     });
     if (!granted) {
       ctx.showError(
-        "Family sync needs permission to reach sync.sitrshield.com — " +
+        `Family sync needs permission to reach ${["sync.sitrshield.com", ...extra.map((o) => new URL(o).host)].join(" and ")} — ` +
           "nothing was set up.",
       );
     }
@@ -301,7 +342,7 @@ export const ALREADY_IN_HOUSEHOLD =
  * Read now, not from the page: a tab opened before an earlier create or
  * join still shows those forms. Shows why, returns true.
  */
-async function refuseIfInHousehold(ctx: HouseholdContext): Promise<boolean> {
+export async function refuseIfInHousehold(ctx: HouseholdContext): Promise<boolean> {
   if ((await chrome.storage.local.get(HOUSEHOLD_SECRET_KEY))[HOUSEHOLD_SECRET_KEY] === undefined) {
     return false;
   }
@@ -311,6 +352,11 @@ async function refuseIfInHousehold(ctx: HouseholdContext): Promise<boolean> {
 
 export async function createHousehold(ctx: HouseholdContext): Promise<boolean> {
   if (!(await requestSyncOrigin(ctx))) return false;
+  return createHouseholdGranted(ctx);
+}
+
+/** createHousehold once the origins are granted. */
+export async function createHouseholdGranted(ctx: HouseholdContext): Promise<boolean> {
   if (await refuseIfInHousehold(ctx)) return false;
   const secret = generateRootSecret();
   const state = emptyHouseholdState(await deviceId(), Date.now());
@@ -367,6 +413,9 @@ export async function joinHousehold(
       ctx.showError(`Could not join household: ${applied.error}`);
       return;
     }
+    // A child device never holds a code: one kept from a creation that
+    // did not happen goes.
+    if (role === "child") await chrome.storage.local.remove([...(ctx.family?.keys ?? [])]);
     await chrome.storage.local.set({
       [HOUSEHOLD_SECRET_KEY]: toB64(secret.value),
       [HOUSEHOLD_ROLE_KEY]: role,
@@ -426,6 +475,8 @@ export async function leaveHousehold(
     HOUSEHOLD_ROLE_KEY,
     HOUSEHOLD_STATE_KEY,
     SYNC_STATUS_KEY, // not shown under the next household
+    HOUSEHOLD_END_KEY,
+    ...(ctx.family?.keys ?? []), // the code goes with the household
   ]);
   ctx.role = undefined;
   ctx.state = undefined;

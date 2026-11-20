@@ -144,11 +144,6 @@
     devices. Everything stays on your devices — if sync is used, the server
     only ever stores an encrypted blob it cannot read.</p>
   <div id="household-none">
-    <div id="full-channel-only">
-      <button id="household-create" type="button">Create a household (guardian)</button>
-      <button id="entitlement-enter" type="button">Enter subscription token</button>
-      <p id="entitlement-status" class="note"></p>
-    </div>
     <form id="household-join-form">
       <input type="text" id="household-join-code" placeholder="Pairing code from the guardian device" />
       <select id="household-join-role">
@@ -186,9 +181,26 @@
     </div>
     <ul id="household-block-list"></ul>
     <p id="sync-status" class="note"></p>
+    <p id="household-end" class="note" aria-live="polite"></p>
     <p class="note">Leaving removes this device from the household's device list.
       If the sync server cannot be reached, the other devices will still list it.</p>
     <button id="household-leave" type="button">Leave household</button>
+  </div>
+  <div id="full-channel-only">
+    <h3>Sitr Family plan</h3>
+    <p class="note">Paste the subscription code from sitrshield.com/family (or a
+      subscription token, sitr-ent-v1.…). Creating a household on the official
+      server requires one.</p>
+    <form id="family-code-form">
+      <label for="family-code">Subscription code</label>
+      <input type="text" id="family-code" autocomplete="off" spellcheck="false" />
+      <button type="submit" id="family-code-submit">Create a household (guardian)</button>
+    </form>
+    <p id="family-status" class="note" aria-live="polite"></p>
+    <button id="family-allow" type="button" hidden>Allow access to claim.sitrshield.com</button>
+    <button id="family-retry" type="button" hidden>Try again</button>
+    <button id="family-replace" type="button" hidden>Renew on this browser</button>
+    <button id="family-remove" type="button" hidden>Remove code</button>
   </div>
 
   <section id="managed-section" hidden>
