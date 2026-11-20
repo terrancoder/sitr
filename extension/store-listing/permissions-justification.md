@@ -63,3 +63,10 @@ data) and is unreadable by the server. Because the blob's plaintext
 includes the guardian PIN as a salted hash, the data-safety form declares
 **Authentication information**; every other category: not collected.
 Limited Use certification: affirmed.
+
+## Version with subscription code (not yet published)
+
+The version with the Sitr Family subscription code adds one optional host
+permission, `https://claim.sitrshield.com/*`. Its justification and the
+form changes are in listing.md §Version with subscription code (not yet
+published). Nothing above changes for the version being submitted.

@@ -191,8 +191,10 @@ update only through store releases.
 
 ### Planned (not yet in effect): Family subscriptions, entitlement version 2
 
-> **NOT YET IN EFFECT** (written 20 November 2026). Nothing in this block
-> is built. Everything above describes what is live. Full rules:
+> **NOT YET IN EFFECT** (written 20 November 2026). It is built on the
+> development branch and is in no released client; the live sync server
+> runs version 1, and the claim service is not deployed. Everything above
+> describes what is live. Full rules:
 > [sync-protocol.md](sync-protocol.md) §Entitlement version 2 (planned).
 
 When version 2 ships, these flows are added. Three sentences above then
@@ -279,8 +281,8 @@ Planned local items, with the same retention rules as the table below:
 | Subscription code | extension `storage.local`; Android encrypted under the Keystore key that protects the root secret; not stored on iOS (StoreKit holds the purchase) | Polar's subscription ID | until removed by the user on a guardian device, or the device leaves the household; deleted together with the claim secret |
 | Claim secret | extension `storage.local`; Android app-private preferences, encrypted under the Keystore key that protects the root secret; iOS Keychain, synchronizable through iCloud Keychain together with the root secret when the switch is on. Never sent to the sync server, never in the household blob | 32 random bytes | kept with the credential, deleted with it |
 | Subscription token | as today; iOS App Group storage | signed token: plan, term, end date, random token ID | until replaced, or once the server shows it was applied |
-| Claim state (`claimState`) | extension `storage.local`, full channel only (not in the Mac App Store build). Never sent anywhere, never in the household blob | what this device knows about its own claims: the household's end date as the sync server sent it, held tokens not yet applied, the last claim refusal and its retry date, the renewal-window time, backoff | until the device leaves the household; entering or removing the code keeps only the end-date fields |
-| Institutions-code notice (`claimOtherPlan`) | extension `storage.local`, full channel only | `true` after a sync round deleted the subscription code because its token was for another plan (Sitr for Institutions), so the options page can say so; nothing else | until a code is entered again, the user dismisses the notice, or the device leaves the household |
+| Claim state (`claimState`) | extension `storage.local`, full channel only (not in the Mac App Store build); Android app-private preferences and iOS App Group storage (`familyClaimState`), where it also holds the household's end date and whether it is lapsed. Never sent anywhere, never in the household blob | what this device knows about its own claims: the household's end date as the sync server sent it, held tokens not yet applied, the last claim refusal and its retry date, the renewal-window time, backoff | until the device leaves the household; entering or removing the code keeps only the end-date fields |
+| Institutions-code notice (`claimOtherPlan`) | extension `storage.local`, full channel only; Android app-private preferences (`planNotAccepted`) | `true` after a sync round deleted the subscription code because its token was for another plan (Sitr for Institutions), so the options page can say so; nothing else | until a code is entered again, the user dismisses the notice, or the device leaves the household |
 | Household end (`householdEnd`) | extension `storage.local`, every build | the household's end date as the sync server sent it, whether the household is read-only (lapsed), and whether it is a test household; no identifier | overwritten by each sync round; removed when the device leaves the household |
 | Household root secret (iOS) | Keychain, synchronizable through iCloud Keychain when the switch is on | as today | as today; the iCloud copy is deleted when the switch is turned off |
 

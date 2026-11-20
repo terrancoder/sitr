@@ -116,3 +116,10 @@ creditworthiness use. Limited Use certification: affirmed.
   form it is likely "Personally identifiable information" and
   "Authentication information" — to be confirmed by the owner before
   submission.
+- **Reviewer access:** a subscription code binds to one device, so
+  reviewers do not get one. Give them a pairing code to a demo household
+  (and its guardian PIN) in the test instructions; joining needs no code
+  and no claim.
+- **Mac App Store build:** stays join-only: no code entry and no claim
+  host. Like every build, it shows the household's end date and the
+  neutral renewal notices.

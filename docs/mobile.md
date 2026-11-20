@@ -19,7 +19,7 @@ The apps are new clients of the existing system, not a new system.
   only by the DNS filters (Android, and iOS when its DNS filter is on).
 - The sync protocol ([sync-protocol.md](sync-protocol.md)). iOS and
   Android are additional clients of the same single endpoint; nothing on
-  the wire changes.
+  the wire changes. (Planned: a second host for claims; see below.)
 - Gate semantics: the layer ladder (the adult list first, which no allow
   entry opens; then managed > household > device user > the other static
   lists)
@@ -50,6 +50,16 @@ Sitr Family token" field for household creation — no purchase links, no
 steering. QR codes (displayed on both platforms; scanned on iOS via
 `DataScannerViewController`, Android scanning deferred) are a presentation
 of the existing pairing code, not a protocol change.
+
+**Planned (entitlement version 2, not yet released).** On the
+development branch the same Android field also takes a subscription code
+bought on the website (a version 1 token until the cut-over); the app
+claims a token from `claim.sitrshield.com` before creating the household
+and renews it in its periodic sync, with no new permission. A guardian's
+Family screen shows the Family plan's state, and leaving deletes the code
+from the phone. The iOS app sells the subscription through Apple in the
+app and is no longer join-only. Rules: [sync-protocol.md](sync-protocol.md)
+§Entitlement version 2 (planned).
 
 Both apps are MPL-2.0 source (the blocklist data is CC BY-SA 4.0). The
 Android app is free on Google Play. What a user can actually verify is

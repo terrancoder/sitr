@@ -156,8 +156,10 @@ defaults to 7; more than 7 needs `--old-style-token`).
 
 ## Entitlement version 2 (planned)
 
-> **NOT YET IN EFFECT.** Written 20 November 2026. Nothing in this section
-> is built. Until it ships, the section above describes the live system.
+> **NOT YET IN EFFECT.** Written 20 November 2026. It is built on the
+> development branch and is in no released client; the live sync server
+> runs version 1, and the claim service is not deployed. Until it ships, the
+> section above describes the live system.
 > The owner's decisions behind it are in
 > `docs/entitlement-v2-proposal-2026-11-20.md`.
 

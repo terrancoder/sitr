@@ -90,7 +90,8 @@ day-rounded. Remaining operator powers — refusing service, deleting blobs,
 serving stale blobs — are freshness attacks only: clients detect stale
 blobs via rev monotonicity and refuse to apply them, and a device that
 never syncs again keeps filtering forever. Devices without a household
-contact no server at all.
+contact no server at all. Entitlement version 2 (planned, not yet
+released) adds a second server, the claim service: see T15.
 
 ### T7: Guardian PIN bypass (Family)
 The guardian PIN is **friction, not security**. It is a salted PBKDF2 hash
@@ -586,7 +587,10 @@ they are tested.
 ### T15: The Family entitlement and the claim service (planned, not yet in effect)
 Written 20 November 2026 for entitlement version 2
 ([sync-protocol.md](sync-protocol.md) §Entitlement version 2 (planned)).
-Nothing here is built. Version 2 adds a claim service that sees proof of
+It is built on the development branch and is in no released client;
+the live sync server runs version 1, and the claim service is not
+deployed.
+Version 2 adds a claim service that sees proof of
 payment (a Polar subscription ID, or Apple's signed transaction) and issues a
 single-use token per UTC calendar month; the sync server records each
 household's end date and the hashes of used tokens. The assets at risk

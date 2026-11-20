@@ -306,3 +306,34 @@ cached Chrome for Testing in headless mode at the exact pixel size):
   unlisted, ads off, embeddable) and paste the watch URL; Play does not
   accept file uploads. Sources: `video/*.html` + the ffmpeg command in
   the session that produced it (intro 3 s, xfade 0.6 s, outro 4 s).
+
+## Version with subscription code (not yet published)
+
+> **NOT YET PUBLISHED.** For the first store version that takes a Sitr
+> Family subscription code (built on the development branch, not part of
+> 0.3.0). Nothing below applies to the listing, forms or review notes
+> above, which stay as they are until that version ships.
+
+- **Sentence the description will need:** "Sitr Family is an optional
+  paid plan sold on sitrshield.com by the publisher." No link and no call
+  to action: the app sells nothing in-app. The description is at 3,996
+  of 4,000 characters, so other text must make room for it.
+- **Pricing row:** still no in-app purchase; Sitr Family is redeemed by
+  entering a subscription code (or, until the cut-over, a token) instead
+  of a token only.
+- **Data safety:** the subscription code is sent to the publisher's claim
+  service (claim.sitrshield.com) together with a random claim secret made
+  on the phone. The code is an identifier, so it is most likely **User
+  IDs** (Personal info); the claim secret is likely covered by the
+  existing Device or other IDs answer. Whether **Purchases** (Financial
+  info) also applies, as the privacy draft suggests, is a second question.
+  Both to be confirmed by the owner before submission. Also answer from the privacy-policy text that ships with it
+  (draft: docs/entitlement-v2-privacy-text-draft.md).
+- **App access and review notes:** a subscription code binds to one
+  device, so reviewers do not get one. They get a pairing code to a demo
+  household and its guardian PIN, join it as a guardian, and test Sitr
+  Family and the child lock from there. The child-lock steps then start
+  with joining instead of creating a household.
+- **Permissions:** none added. The claim goes through the existing
+  network access, and the VpnService and Accessibility declarations do not
+  change.

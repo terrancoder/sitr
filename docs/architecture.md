@@ -79,7 +79,10 @@ are rare and a lost edit is re-enterable.
 Vector clocks were deliberately rejected as complexity without a customer.
 Sync is optional, E2E-encrypted, and specified in
 [sync-protocol.md](sync-protocol.md); a device with no household makes no
-network requests at all. Managed (enterprise) policy arrives via the
+network requests at all. Planned, not yet released: Family becomes a
+subscription, and a device that holds a subscription code also calls a
+separate claim service ([sync-protocol.md](sync-protocol.md)
+§Entitlement version 2 (planned)). Managed (enterprise) policy arrives via the
 browser's own `chrome.storage.managed` and is never fetched by us — see
 [institutions/deployment.md](institutions/deployment.md).
 

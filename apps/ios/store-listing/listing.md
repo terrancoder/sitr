@@ -143,3 +143,25 @@ email for anyone without a GitHub account.
 shows the © itself (as remembered; confirm in the field's help text); the licence line (code MPL-2.0, blocklist data CC BY-SA 4.0)
 belongs in the description or the app, where it already is (About &
 privacy).*
+
+## Version with subscription (not yet published)
+
+> **NOT YET PUBLISHED.** On the development branch the iOS app sells the
+> Sitr Family subscription through Apple in the app (docs/sync-protocol.md
+> §Entitlement version 2 (planned)). The texts in this folder still
+> describe a join-only app and wait for a separate rewrite before that
+> version is submitted. Nothing here is changed yet.
+
+Sentences that will need the rewrite:
+
+- listing.md: the JOIN-ONLY rule at the top, and the description's Sitr
+  Family line (join only).
+- review-notes.md: "This app joins existing households only; it has no
+  purchase, subscription or account screens.", and the test-household note
+  that creating a household needs a Sitr Family token.
+- app-privacy.md: the token row ("iOS never sends it (join-only)"), the
+  paragraph after the table ("iOS only joins and never sends it"), and
+  "In-app purchases: None" in §6. The claim to claim.sitrshield.com (the
+  claim secret and Apple's signed transaction) and the in-app purchase
+  are new answers.
+- screenshots.md: the Family shot shows the join screen.
