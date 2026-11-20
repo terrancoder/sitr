@@ -36,6 +36,7 @@ import {
   type HouseholdState,
 } from "../../../extension/dist/lib/household.js";
 import {
+  REFRESH_DEVICE_LIST_GATED_AS,
   gateMutation,
   type MutationKind,
 } from "../../../extension/dist/lib/gate.js";
@@ -476,9 +477,14 @@ function genGate(): object {
     }
   }
   assert.equal(cases.length, 2 * 3 * 2 * kinds.length);
+  // A child leaves only with the household PIN; without one it is refused.
+  const child = (hasPin: boolean) => ({ managed: EMPTY_MANAGED_POLICY, role: "child" as const, hasPin });
+  assert.deepEqual(gateMutation("leaveHousehold", child(true)), { allowed: true, requiresPin: true });
+  assert.deepEqual(gateMutation("leaveHousehold", child(false)), { allowed: false, reason: "child-device" });
   return {
     version: 1,
-    note: "generated — edit tools/conformance, run npm run fixtures. Exhaustive: every context x every mutation kind.",
+    note: "generated — edit tools/conformance, run npm run fixtures. Exhaustive: every context x every mutation kind. A child device leaving without a household PIN is refused as child-device; show \"Leaving needs the guardian PIN. Ask your guardian to set one in the household.\" for it. \"Refresh device list\" has no row: it is gated exactly as refreshDeviceListGatedAs.",
+    refreshDeviceListGatedAs: REFRESH_DEVICE_LIST_GATED_AS,
     cases,
   };
 }

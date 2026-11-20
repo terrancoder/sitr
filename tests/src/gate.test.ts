@@ -37,7 +37,8 @@ test("child devices may only tighten their own device rules", () => {
   for (const kind of allowed) {
     assert.deepEqual(gateMutation(kind, ctx), { allowed: true, requiresPin: false }, kind);
   }
-  for (const kind of ALL_KINDS.filter((k) => !(allowed as readonly string[]).includes(k))) {
+  // leaveHousehold: with the household PIN (householdRoles.test.ts).
+  for (const kind of ALL_KINDS.filter((k) => !(allowed as readonly string[]).includes(k) && k !== "leaveHousehold")) {
     assert.deepEqual(gateMutation(kind, ctx), { allowed: false, reason: "child-device" }, kind);
   }
 });

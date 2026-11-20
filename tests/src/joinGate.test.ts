@@ -22,7 +22,6 @@ import { PIN_KEY, createPinRecord, toB64 } from "../../extension/dist/lib/pin.js
 import { encodePairingCode, generateRootSecret } from "../../extension/dist/lib/sync/crypto.js";
 import {
   joinHousehold,
-  leaveAsChild,
   withGate,
   type GateUi,
   type HouseholdContext,
@@ -180,33 +179,4 @@ test("withGate re-checks the wait AFTER a correct PIN", async () => {
   const done = await withGate("disableCategory", ctx("guardian"), async () => void (ran = true), ui(["1234"], closes));
   assert.deepEqual([done, ran, holds, errors], [false, false, ["idle"], []]);
   assert.equal(prompts.length, 1);
-});
-
-test("child leave: the pairing code, and the wait on top", async () => {
-  const child = () => {
-    store[HOUSEHOLD_SECRET_KEY] = toB64(secret);
-    store[HOUSEHOLD_ROLE_KEY] = "child";
-    return ctx("child");
-  };
-  // No wait: the right code leaves, a wrong one does not.
-  assert.equal(await leaveAsChild(child(), ui([encodePairingCode(generateRootSecret())])), false);
-  assert.deepEqual(errors, ["That pairing code does not match this household."]);
-  assert.equal(await leaveAsChild(child(), ui([code])), true);
-  assert.equal(store[HOUSEHOLD_SECRET_KEY], undefined);
-  // Wait on, not open: held before the code is even asked.
-  prompts = [];
-  waitOn(false);
-  assert.equal(await leaveAsChild(child(), ui([code])), false);
-  assert.deepEqual([holds, prompts], [["idle"], []]);
-  // Open, but the window closes while the code prompt is open: held.
-  waitOn(true);
-  clock = T + 5 * MIN + 1000;
-  const closes = () => void (clock = T + 5 * MIN + WINDOW_MS);
-  assert.equal(await leaveAsChild(child(), ui([code], closes)), false);
-  assert.deepEqual(holds, ["idle", "idle"]);
-  assert.equal(store[HOUSEHOLD_ROLE_KEY], "child");
-  // Inside the window with the code: leaves.
-  store[DELAY_REQUEST_KEY] = { at: T };
-  clock = T + 5 * MIN + 1000;
-  assert.equal(await leaveAsChild(child(), ui([code])), true);
 });

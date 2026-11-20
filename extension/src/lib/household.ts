@@ -173,3 +173,40 @@ export function bumpRev(
 ): HouseholdState {
   return { ...s, rev: s.rev + 1, updatedAt: now, updatedBy: deviceId };
 }
+
+/**
+ * "Refresh device list": the household's device list with this device
+ * alone, as a new revision. Every device that still uses the household
+ * adds itself again at its next sync (the enrolment after each round,
+ * capped at MAX_HOUSEHOLD_DEVICES); a device that is gone stays gone and
+ * its place is free. The list holds only random ids, so no per-device
+ * remove can be offered.
+ */
+export function refreshDevices(
+  s: HouseholdState,
+  deviceId: string,
+  now: number,
+): HouseholdState {
+  return bumpRev({ ...s, devices: [deviceId] }, deviceId, now);
+}
+
+/**
+ * The enrolment after every successful sync round (service worker): this
+ * device added to the list when it is missing — after a join, or after a
+ * guardian refreshed the list. undefined: already listed. An error at the
+ * fair-use cap (filtering stays fully active; only the sync status says so).
+ */
+export function enrolDevice(
+  s: HouseholdState,
+  deviceId: string,
+  now: number,
+): Result<HouseholdState | undefined, string> {
+  if (s.devices.includes(deviceId)) return ok(undefined);
+  if (s.devices.length >= MAX_HOUSEHOLD_DEVICES) {
+    return err(
+      `household already has ${MAX_HOUSEHOLD_DEVICES} devices (fair-use limit) — ` +
+        "refresh the device list from a guardian device",
+    );
+  }
+  return ok(bumpRev({ ...s, devices: [...s.devices, deviceId].sort() }, deviceId, now));
+}

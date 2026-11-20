@@ -30,13 +30,14 @@ import {
   sanitizeManagedPolicy,
   type ManagedPolicy,
 } from "../lib/managed.js";
-import { isJoinPlaceholder } from "../lib/household.js";
+import { MAX_HOUSEHOLD_DEVICES, isJoinPlaceholder } from "../lib/household.js";
+import { REFRESH_DEVICE_LIST_GATED_AS } from "../lib/gate.js";
 import {
   addHouseholdDomain,
   joinHousehold,
-  leaveAsChild,
   leaveHousehold,
   loadHousehold,
+  refreshDeviceList,
   refusedAsAdult,
   removeHouseholdDomain,
   setGuardianPin,
@@ -473,14 +474,21 @@ function wireHousehold(): void {
     }).catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
   });
 
+  el("household-refresh-devices").addEventListener("click", () => {
+    clearError();
+    void withGate(REFRESH_DEVICE_LIST_GATED_AS, hh, async () => {
+      await refreshDeviceList(hh);
+      await hh.onChanged();
+      el("household-device-count").textContent =
+        `Devices ${hh.state?.devices.length ?? 0}/${MAX_HOUSEHOLD_DEVICES}. ` +
+        "The count rises again as the household's devices sync.";
+    }).catch((e: unknown) => showError(e instanceof Error ? e.message : String(e)));
+  });
+
   el("household-leave").addEventListener("click", () => {
     clearError();
     void (async () => {
-      if (hh.role === "child") {
-        // The pairing code, then the wait: see leaveAsChild.
-        if (await leaveAsChild(hh)) await hh.onChanged();
-        return;
-      }
+      // A child device too: the gate asks for the household's PIN.
       await withGate("leaveHousehold", hh, async () => {
         await leaveHousehold(hh);
         await hh.onChanged();

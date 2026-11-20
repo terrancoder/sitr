@@ -66,6 +66,13 @@ export function gateMutation(
     return { allowed: false, reason: "managed-locked" };
   }
   if (ctx.role === "child") {
+    // A child device leaves only with the household's guardian PIN; with
+    // no PIN set it cannot leave (no other proof is accepted).
+    if (kind === "leaveHousehold") {
+      return ctx.hasPin
+        ? { allowed: true, requiresPin: true }
+        : { allowed: false, reason: "child-device" };
+    }
     // A child device may still tighten its own device rules; everything
     // household-level or loosening is guardian territory.
     if (HOUSEHOLD_ONLY.has(kind) || LOOSENING.has(kind)) {
@@ -79,3 +86,11 @@ export function gateMutation(
     ctx.hasPin && (LOOSENING.has(kind) || kind === "changePin");
   return { allowed: true, requiresPin };
 }
+
+/**
+ * "Refresh device list" has no row of its own (gate.json
+ * "refreshDeviceListGatedAs"): it is gated exactly like changing the PIN —
+ * refused on a managed lock or a child device, PIN when one is set, no
+ * wait (it loosens nothing).
+ */
+export const REFRESH_DEVICE_LIST_GATED_AS: MutationKind = "changePin";

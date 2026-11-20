@@ -15,6 +15,7 @@ import {
   bumpRev,
   emptyHouseholdState,
   isJoinPlaceholder,
+  refreshDevices,
   sanitizeHouseholdState,
   type HouseholdState,
 } from "../lib/household.js";
@@ -104,7 +105,7 @@ async function deviceId(): Promise<string> {
 
 /* ------------------------------ PIN ceremony --------------------------- */
 
-async function loadPinState(localOnly = false) {
+async function loadPinState(localOnly = false, householdOnly = false) {
   const stored = await chrome.storage.local.get([
     PIN_KEY,
     PIN_ATTEMPTS_KEY,
@@ -116,11 +117,13 @@ async function loadPinState(localOnly = false) {
   // enough to loosen the household or replace its PIN.
   // `localOnly`: joining asks for this browser's own PIN, never a
   // household's (a PIN kept from an earlier household stays here).
+  // `householdOnly`: a child leaves with the household's PIN, never one
+  // this browser kept from before it joined.
   const household = sanitizeHouseholdState(stored[HOUSEHOLD_STATE_KEY]);
   return {
     record:
       (household.ok && !localOnly ? household.value.pin : undefined) ??
-      sanitizePinRecord(stored[PIN_KEY]),
+      (householdOnly ? undefined : sanitizePinRecord(stored[PIN_KEY])),
     attempts: sanitizeAttempts(stored[PIN_ATTEMPTS_KEY]),
   };
 }
@@ -140,6 +143,10 @@ async function heldByDelay(kind: DelayAction, ui: GateUi): Promise<boolean> {
   return true;
 }
 
+/** A child device leaves only with the household's PIN (gate.ts). */
+export const LEAVE_NEEDS_PIN =
+  "Leaving needs the guardian PIN. Ask your guardian to set one in the household.";
+
 /**
  * Run `action` behind the mutation gate, then the "wait before loosening"
  * delay, then the PIN — the order decideMutation fixes. Holds (and offers
@@ -153,7 +160,10 @@ export async function withGate(
   action: () => Promise<void>,
   ui: GateUi = PAGE_UI,
 ): Promise<boolean> {
-  const { record, attempts } = await loadPinState(kind === "joinHousehold");
+  const { record, attempts } = await loadPinState(
+    kind === "joinHousehold",
+    kind === "leaveHousehold" && ctx.role === "child",
+  );
   const delay = await readDelay();
   const step = decideMutation(
     kind,
@@ -164,7 +174,9 @@ export async function withGate(
     ctx.showError(
       step.reason === "managed-locked"
         ? "Settings are locked by your organization's administrator."
-        : "This setting can only be changed from a guardian device.",
+        : kind === "leaveHousehold"
+          ? LEAVE_NEEDS_PIN
+          : "This setting can only be changed from a guardian device.",
     );
     return false;
   }
@@ -225,7 +237,11 @@ async function saveMutatedState(
   mutate: (s: HouseholdState) => HouseholdState,
 ): Promise<void> {
   if (ctx.state === undefined || refuseBeforeFirstSync(ctx)) return;
-  const next = bumpRev(mutate(ctx.state), await deviceId(), Date.now());
+  await saveState(ctx, bumpRev(mutate(ctx.state), await deviceId(), Date.now()));
+}
+
+/** Engine first, then storage (the worker syncs it), then the page. */
+async function saveState(ctx: HouseholdContext, next: HouseholdState): Promise<void> {
   const applied = await applyHouseholdState(
     next,
     ctx.managed.forcedCategories,
@@ -331,40 +347,6 @@ export async function joinHousehold(
 }
 
 /**
- * A child device leaves only with proof of guardianship: the pairing code.
- * The wait before loosening applies on top, checked before the prompt and
- * again after it (the prompt can sit open past the window).
- */
-export async function leaveAsChild(
-  ctx: HouseholdContext,
-  ui: GateUi = PAGE_UI,
-): Promise<boolean> {
-  if (await heldByDelay("leaveHousehold", ui)) return false;
-  const code = await ui.prompt(
-    "Enter the household pairing code (from a guardian device) to remove this device:",
-  );
-  if (code === null) return false;
-  const secret = decodePairingCode(code);
-  const stored = await chrome.storage.local.get(HOUSEHOLD_SECRET_KEY);
-  const known =
-    typeof stored[HOUSEHOLD_SECRET_KEY] === "string"
-      ? fromB64(stored[HOUSEHOLD_SECRET_KEY])
-      : undefined;
-  const matches =
-    secret.ok &&
-    known?.ok === true &&
-    known.value.length === secret.value.length &&
-    known.value.every((b, i) => b === secret.value[i]);
-  if (!matches) {
-    ctx.showError("That pairing code does not match this household.");
-    return false;
-  }
-  if (await heldByDelay("leaveHousehold", ui)) return false;
-  await leaveHousehold(ctx);
-  return true;
-}
-
-/**
  * Leaving: remove the household rule layer from the engine, forget the
  * keys, then take this device off the household's device list (unenroll)
  * with the key held only in memory — key first, so a sync round still on
@@ -425,6 +407,16 @@ export async function leaveHousehold(
     },
     sync,
   );
+}
+
+/**
+ * "Refresh device list" (guardians, gated as REFRESH_DEVICE_LIST_GATED_AS):
+ * the household's device list becomes this device alone, synced like any
+ * household change; the others add themselves again as they sync.
+ */
+export async function refreshDeviceList(ctx: HouseholdContext): Promise<void> {
+  if (ctx.state === undefined || refuseBeforeFirstSync(ctx)) return;
+  await saveState(ctx, refreshDevices(ctx.state, await deviceId(), Date.now()));
 }
 
 export async function showPairingCode(ctx: HouseholdContext): Promise<string | undefined> {

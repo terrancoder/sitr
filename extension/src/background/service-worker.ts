@@ -43,8 +43,7 @@ import {
   DEVICE_ID_KEY,
   HOUSEHOLD_SECRET_KEY,
   HOUSEHOLD_STATE_KEY,
-  MAX_HOUSEHOLD_DEVICES,
-  bumpRev,
+  enrolDevice,
   sanitizeHouseholdState,
 } from "../lib/household.js";
 import { fromB64 } from "../lib/pin.js";
@@ -334,25 +333,17 @@ async function syncRound(): Promise<void> {
         ? (stored[DEVICE_ID_KEY] as string)
         : "unknown-device";
     if (!outcome.state.devices.includes(deviceId) && (await householdKept())) {
-      if (outcome.state.devices.length >= MAX_HOUSEHOLD_DEVICES) {
+      const enrolled = enrolDevice(outcome.state, deviceId, Date.now());
+      if (!enrolled.ok) {
         await chrome.storage.local.set({
-          [SYNC_STATUS_KEY]: {
-            state: "error",
-            error: `household already has ${MAX_HOUSEHOLD_DEVICES} devices (fair-use limit) — remove one from a guardian device first`,
-          },
+          [SYNC_STATUS_KEY]: { state: "error", error: enrolled.error },
         });
         return;
       }
-      const registered = bumpRev(
-        {
-          ...outcome.state,
-          devices: [...outcome.state.devices, deviceId].sort(),
-        },
-        deviceId,
-        Date.now(),
-      );
       // Persisting triggers storage.onChanged → the next sync pushes it.
-      await chrome.storage.local.set({ [HOUSEHOLD_STATE_KEY]: registered });
+      if (enrolled.value !== undefined) {
+        await chrome.storage.local.set({ [HOUSEHOLD_STATE_KEY]: enrolled.value });
+      }
     }
   }
 }
