@@ -1,12 +1,14 @@
 /// Per-query decision and upstream logic, socket-free. Ports of the
 /// portable parts of DnsForwarder.kt, DnsCache.kt and UpstreamResolver.kt.
 ///
-/// Packet flow in a tunnel extension:
-///   IpPacket.parseUdp(packet) (dstPort 53) → DnsEngine.decide(payload:…)
+/// Packet flow in the tunnel (TunnelRecoveryDriver.query):
+///   IpPacket.parseUdp(packet) (dstPort 53) → DnsEngine.classify(payload:…)
 ///     .drop                  → nothing
 ///     .answer(bytes)         → IpPacket.buildUdpReply(datagram, payload: bytes)
-///     .forward(query)        → await engine.forward(query, payload:, via: resolver) → reply
-///     .rewrite(query, rule)  → resolve rule.target, then
+///     .forward(query)        → DnsEngine.fetch(query, payload:, via:, to: the list in use) → reply,
+///                              then remember(…) only if the recovery machine says the
+///                              answer belongs to the list in use
+///     .rewrite(query, rule)  → TargetCache, else TargetCache.resolve(rule.target, …), then
 ///                              engine.rewriteAnswer(query, rule:, resolved:) → reply
 ///   non-UDP packet → TcpReset.buildRstFor(packet) ?? drop
 import Foundation
@@ -104,37 +106,69 @@ public final class DnsEngine: Sendable {
     public func decide(
         payload: [UInt8], snapshot: DecisionSnapshot, safeSearch: SafeSearchMap, now: TimeInterval
     ) -> DnsDecision {
-        guard let query = DnsMessage.parseQuery(payload), query.qclass == DnsMessage.classIN else { return .drop }
-        if query.qname == Self.dohCanary { return .answer(DnsAnswerBuilder.nodata(query)) }
+        classify(payload: payload, snapshot: snapshot, safeSearch: safeSearch, now: now).decision
+    }
+
+    /// Why an `.answer` was answered here (diagnostics counters).
+    public enum AnswerKind: Equatable, Sendable { case canary, blocked, safeSearchNoData, cached }
+
+    /// `decide`, plus the query and, for an `.answer`, its kind: one parse.
+    public func classify(
+        payload: [UInt8], snapshot: DecisionSnapshot, safeSearch: SafeSearchMap, now: TimeInterval
+    ) -> (decision: DnsDecision, query: DnsQuery?, kind: AnswerKind?) {
+        guard let query = DnsMessage.parseQuery(payload), query.qclass == DnsMessage.classIN else { return (.drop, nil, nil) }
+        if query.qname == Self.dohCanary { return (.answer(DnsAnswerBuilder.nodata(query)), query, .canary) }
         switch NameAction.of(query.qname, snapshot: snapshot, safeSearch: safeSearch) {
         case .block:
-            return .answer(DnsAnswerBuilder.blocked(query))
+            return (.answer(DnsAnswerBuilder.blocked(query)), query, .blocked)
         case .rewrite(let rule):
             switch query.qtype {
-            case DnsMessage.typeSVCB, DnsMessage.typeHTTPS, DnsMessage.typeANY: return .answer(DnsAnswerBuilder.nodata(query))
-            case DnsMessage.typeA, DnsMessage.typeAAAA: return .rewrite(query, rule)
-            default: return .forward(query)
+            case DnsMessage.typeSVCB, DnsMessage.typeHTTPS, DnsMessage.typeANY: return (.answer(DnsAnswerBuilder.nodata(query)), query, .safeSearchNoData)
+            case DnsMessage.typeA, DnsMessage.typeAAAA: return (.rewrite(query, rule), query, nil)
+            default: return (.forward(query), query, nil)
             }
         case .forward:
-            if let cached = cache.get(query.qname, query.qtype, id: query.id, now: now) { return .answer(cached) }
-            return .forward(query)
+            if let cached = cache.get(query.qname, query.qtype, id: query.id, now: now) { return (.answer(cached), query, .cached) }
+            return (.forward(query), query, nil)
         }
     }
 
-    /// Forward `payload` (the query's original bytes) and post-process the
-    /// accepted reply: TTLs capped at 60 s; cached only when complete and
-    /// settled (not truncated, rcode NOERROR or NXDOMAIN). nil → no reply.
-    public func forward(
+    /// Forward `payload` (the query's original bytes) to `upstreams` and
+    /// post-process the accepted reply: TTLs capped at 60 s. Caches
+    /// nothing: `cacheable` says whether `remember` may keep it (complete
+    /// and settled: not truncated, rcode NOERROR or NXDOMAIN). nil → no
+    /// reply.
+    public static func fetch(
+        _ query: DnsQuery, payload: [UInt8], via resolver: UpstreamResolver, to upstreams: [String]
+    ) async -> (response: [UInt8], cacheable: Bool)? {
+        guard
+            let raw = await resolver.forward(
+                payload, accept: { DnsMessage.isReplyTo(payload, question: query.questionBytes, reply: $0) }, to: upstreams)
+        else { return nil }
+        return Self.processed(raw)
+    }
+
+    /// Keeps a reply `fetch` returned as cacheable.
+    public func remember(_ query: DnsQuery, _ response: [UInt8], now: TimeInterval) {
+        cache.put(query.qname, query.qtype, response, now: now)
+    }
+
+    static func processed(_ raw: [UInt8]) -> (response: [UInt8], cacheable: Bool) {
+        let response = DnsMessage.capTtls(raw, max: DnsAnswerBuilder.blockedTTL)
+        let rcode = DnsMessage.rcode(response)
+        return (response, !DnsMessage.isTruncated(response) && (rcode == 0 || rcode == 3))
+    }
+
+    /// The old caching entry point (its tests): `fetch` through the list
+    /// `setUpstreams` holds, then `remember`.
+    func forward(
         _ query: DnsQuery, payload: [UInt8], via resolver: UpstreamResolver, now: () -> TimeInterval
     ) async -> [UInt8]? {
         guard
             let raw = await resolver.forward(payload, accept: { DnsMessage.isReplyTo(payload, question: query.questionBytes, reply: $0) })
         else { return nil }
-        let response = DnsMessage.capTtls(raw, max: DnsAnswerBuilder.blockedTTL)
-        let rcode = DnsMessage.rcode(response)
-        if !DnsMessage.isTruncated(response) && (rcode == 0 || rcode == 3) {
-            cache.put(query.qname, query.qtype, response, now: now())
-        }
+        let (response, cacheable) = Self.processed(raw)
+        if cacheable { remember(query, response, now: now()) }
         return response
     }
 
@@ -145,9 +179,7 @@ public final class DnsEngine: Sendable {
     /// getAllByName does: the fallback applies only when the target has no
     /// address at all, so an AAAA query for a v4-only target stays
     /// CNAME-only rather than getting the compiled-in v6 address.
-    /// ponytail: Android's 5-minute target cache (DnsForwarder.targetCache,
-    /// written only when addresses are non-empty) is not ported; it belongs
-    /// with whatever resolves the target in the tunnel.
+    /// The 5-minute target cache is TargetCache (TunnelNet.swift).
     public func rewriteAnswer(_ query: DnsQuery, rule: SafeSearchMap.Rule, resolved: [[UInt8]]) -> [UInt8] {
         DnsAnswerBuilder.cnameWithAddresses(
             query, target: rule.target, addresses: resolved.isEmpty ? rule.fallbackAddresses : resolved, ttl: 60)
@@ -173,9 +205,12 @@ public actor UpstreamResolver {
     /// Larger TCP answers are refused (the truncated UDP one is kept).
     static let maxReplyBytes = 4096
 
-    public private(set) var upstreams: [String] = []
-    /// Index of the upstream that answered last; it is tried first.
-    private var preferred = 0
+    /// The list `setUpstreams` holds (the old entry point, kept for its
+    /// tests; the tunnel passes its list with every forward instead).
+    private(set) var upstreams: [String] = []
+    /// The upstream that answered last; it is tried first when it is in
+    /// the list asked.
+    private var preferred: String?
     private let transport: DnsUpstreamTransport
     /// The tunnel's own resolver addresses, excluded as a loop guard.
     private let syntheticAddresses: Set<String>
@@ -187,12 +222,17 @@ public actor UpstreamResolver {
 
     /// Returns true when the list changed (the caller then clears caches).
     @discardableResult
-    public func setUpstreams(_ addresses: [String]) -> Bool {
+    func setUpstreams(_ addresses: [String]) -> Bool {
         let next = addresses.filter { !syntheticAddresses.contains($0) }
         if next == upstreams { return false }
         upstreams = next
-        preferred = 0
+        preferred = nil
         return true
+    }
+
+    /// `forward(_:accept:to:)` with the list `setUpstreams` holds.
+    func forward(_ payload: [UInt8], accept: @Sendable ([UInt8]) -> Bool) async -> [UInt8]? {
+        await forward(payload, accept: accept, to: upstreams)
     }
 
     /// The last upstream that answered goes first, then the others in
@@ -205,17 +245,17 @@ public actor UpstreamResolver {
     /// cannot replace it the client gets a well-formed TC reply (header and
     /// question only), never the cut message, so it fails at once instead
     /// of timing out, and nothing malformed is cached. `preferred` moves to any upstream that answered, truncated
-    /// or not.
-    /// ponytail: no bound on in-flight forwards here; Android caps them
-    /// (32 forward + 4 target workers, queue 64, drop when full) and the
-    /// tunnel must do the same around this call.
-    public func forward(_ payload: [UInt8], accept: @Sendable ([UInt8]) -> Bool) async -> [UInt8]? {
-        let list = upstreams
-        let first = preferred
+    /// or not. Sends to `upstreams` (the tunnel's own addresses are
+    /// skipped); holds no list of its own. No bound on in-flight forwards
+    /// here: TunnelRecoveryDriver caps them (32 forward + 4 target, queue
+    /// 64, drop when full), as Android does.
+    public func forward(_ payload: [UInt8], accept: @Sendable ([UInt8]) -> Bool, to upstreams: [String]) async -> [UInt8]? {
+        let list = upstreams.filter { !syntheticAddresses.contains($0) }
+        let first = preferred.flatMap { list.firstIndex(of: $0) } ?? 0
         for i in 0..<list.count {
             let index = (first + i) % list.count
             guard let reply = await overUdp(list[index], payload, accept) else { continue }
-            preferred = index
+            preferred = list[index]
             let cut = reply.count > Self.maxReplyBytes
             if !cut && !DnsMessage.isTruncated(reply) { return reply }
             if let full = try? await transport.tcp(payload, to: list[index]),

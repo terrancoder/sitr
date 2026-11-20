@@ -191,11 +191,49 @@ extension DnsMessage {
     }
 }
 
-/// Resolves SafeSearch targets (A and AAAA) through the network's own
-/// resolvers — outside the tunnel, never via getaddrinfo, whose system
-/// resolver IS this tunnel — and caches non-empty results for 5 minutes
-/// (Android DnsForwarder.targetCache).
-public actor SafeSearchTargets {
+/// SafeSearch target addresses (A and AAAA) resolved through the
+/// network's own resolvers — outside the tunnel, never via getaddrinfo,
+/// whose system resolver IS this tunnel — kept for 5 minutes when non-empty
+/// (Android DnsForwarder.targetCache). A plain value used on the tunnel's
+/// serial queue (TunnelRecoveryDriver): the recovery machine says when a
+/// result may be stored and when the cache is cleared.
+public struct TargetCache: Sendable {
+    public static let lifetime: TimeInterval = 300
+    private var entries: [String: (addresses: [[UInt8]], expiresAt: TimeInterval)] = [:]
+
+    public init() {}
+
+    public func addresses(for target: String, now: TimeInterval) -> [[UInt8]]? {
+        guard let hit = entries[target], hit.expiresAt > now else { return nil }
+        return hit.addresses
+    }
+
+    public mutating func store(_ target: String, _ addresses: [[UInt8]], now: TimeInterval) {
+        if !addresses.isEmpty { entries[target] = (addresses, now + Self.lifetime) }
+    }
+
+    public mutating func clear() { entries.removeAll() }
+
+    /// Both families of `target` through `upstreams`; caches nothing.
+    public static func resolve(_ target: String, via resolver: UpstreamResolver, to upstreams: [String]) async -> [[UInt8]] {
+        async let v4 = lookup(target, DnsMessage.typeA, resolver, upstreams)
+        async let v6 = lookup(target, DnsMessage.typeAAAA, resolver, upstreams)
+        return await v4 + v6
+    }
+
+    static func lookup(_ name: String, _ qtype: Int, _ resolver: UpstreamResolver, _ upstreams: [String]) async -> [[UInt8]] {
+        let query = DnsMessage.buildQuery(id: .random(in: 0...UInt16.max), name: name, qtype: qtype)
+        let question = Array(query[12...])
+        guard let reply = await resolver.forward(query, accept: { DnsMessage.isReplyTo(query, question: question, reply: $0) }, to: upstreams)
+        else { return [] }
+        return DnsMessage.addresses(in: reply)
+    }
+}
+
+/// The old actor (its tests; TargetCache replaces it in the tunnel):
+/// resolves through the list `UpstreamResolver.setUpstreams` holds and
+/// caches non-empty results for 5 minutes.
+actor SafeSearchTargets {
     public static let lifetime: TimeInterval = 300
     private var cache: [String: (addresses: [[UInt8]], expiresAt: TimeInterval)] = [:]
 
@@ -305,9 +343,11 @@ public enum NetworkKey {
 /// triggers them, so no loop (for example path updates caused by the
 /// tunnel's own settings) can open windows faster than that.
 public struct ResolverRediscovery: Sendable {
-    public static let readWaits: [TimeInterval] = [0.1, 0.5, 1.5]
-    public static let windowBudget = 3
-    public static let budgetPeriod: TimeInterval = 60
+    // Read from TunnelRecovery, which replaced this type, so the two
+    // cannot drift until this one is removed.
+    public static let readWaits = TunnelRecovery.readWaits
+    public static let windowBudget = TunnelRecovery.windowBudget
+    public static let budgetPeriod = TunnelRecovery.budgetPeriod
 
     public enum Step: Equatable, Sendable {
         /// Remove the settings `after` seconds from now and poll the

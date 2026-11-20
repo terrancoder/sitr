@@ -76,21 +76,7 @@ public struct BlocklistBundle: Sendable {
     /// each site in `mediaOff` adds `<site>-media.domains`; each opt-in
     /// list switched on adds `<id>.domains`. strict-search-hosts.json is
     /// not used: iOS has no Strict Search switch.
-    public func snapshot(_ settings: TunnelSettings) -> DecisionSnapshot {
-        let disabled = Set(settings.household?.disabledCategories ?? settings.disabledCategories)
-        var stems = ["adult"]
-        if !disabled.contains("sitr_gambling") { stems.append("gambling") }
-        if !disabled.contains("sitr_dating") { stems.append("dating") }
-        stems += settings.mediaOff.sorted().map { "\($0)-media" }
-        stems += Self.optionalLists.filter(settings.optionalOn.contains)
-        return DecisionSnapshot(
-            householdAllow: Set(settings.household?.allowDomains ?? []),
-            householdBlock: Set(settings.household?.blockDomains ?? []),
-            userAllow: Set(settings.userAllow),
-            userBlock: Set(settings.userBlock),
-            staticBlock: stems.compactMap { sets[$0] }
-        )
-    }
+    public func snapshot(_ settings: TunnelSettings) -> DecisionSnapshot { snapshot(filterInputs(settings)) }
 }
 
 /// The app settings the filter depends on, read from the App Group

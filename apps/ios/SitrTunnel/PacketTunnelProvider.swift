@@ -7,6 +7,12 @@
 /// on. Apple documents this use of a packet tunnel as unsupported
 /// (TN3120); App Review 5.4 allows it for content-blocking apps.
 ///
+/// Every decision about network changes, resolver discovery, the
+/// unfiltered-window budget, forwarding and the caches is SitrCore's
+/// TunnelRecovery, run by TunnelRecoveryDriver; this class supplies the
+/// I/O (packets, sockets, the system's tunnel settings, timers, the
+/// settings file) and the DEBUG diagnostics, and decides nothing.
+///
 /// PRIVACY: never log, store or print a looked-up name. RELEASE builds
 /// write nothing to disk and log nothing: the diagnostics file, the probe
 /// records and the os_log lines below exist only under #if DEBUG (device
@@ -19,83 +25,46 @@ import NetworkExtension
 import SitrCore
 import os
 
-final class PacketTunnelProvider: NEPacketTunnelProvider {
+/// `@unchecked Sendable`: every stored property is read and written only on
+/// `queue` (the NetworkExtension callbacks hop onto it with `queue.sync` or
+/// `queue.async`; tasks hand their results back the same way).
+final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
     #if DEBUG
     private let log = Logger(subsystem: "com.sitrshield.sitr.tunnel", category: "tunnel")
     #endif
-    private let engine = DnsEngine()
     private static let upstreamTimeout: TimeInterval = 2
     private let resolver = UpstreamResolver(transport: PosixDnsTransport(timeout: upstreamTimeout))
-    private let targets = SafeSearchTargets()
-    private let forwardGate = InFlightGate(limit: 32, queueLimit: 64)
-    private let targetGate = InFlightGate(limit: 4, queueLimit: 64)
     private let queue = DispatchQueue(label: "sitr.tunnel")
+    /// DEBUG diagnostics writes, in order, off `queue`.
+    private let diagWriter = DispatchQueue(label: "sitr.tunnel.diag")
 
-    // Guarded by `lock`.
-    private let lock = NSLock()
-    private var bundle: BlocklistBundle?
-    private var snapshot = DecisionSnapshot()
-    private var safeSearch: SafeSearchMap?  // set with `bundle`
-    /// False from a network change until resolvers are confirmed again:
-    /// queries needing an upstream are DROPPED, never sent to the previous
-    /// network's resolvers.
-    private var forwarding = false
+    // Everything below: only on `queue`.
+    private var driver: TunnelRecoveryDriver?
     private var diag = TunnelDiagnostics(writer: "tunnel")
     private var dirty = false
-
-    /// Upstream round-trips (ms) in the open interval, capped.
+    /// Upstream round-trips (ms) of answered attempts in the open interval,
+    /// capped (DEBUG only).
     private var latencies: [Int] = []
     private var intervalPeak: UInt64 = 0
     private var currentPath: Network.NWPath?
-    private var pathGeneration = 0
-    /// The network change being recovered from, and since when forwarding is off.
+    /// The network change being recovered from (diagnostics only).
     private var openChange: TunnelDiagnostics.PathChange?
-    private var offSince: TimeInterval?
-    private var rediscovering = false
-    /// Attempt limits and the window budget (SitrCore ResolverRediscovery).
-    private var discovery = ResolverRediscovery()
-    /// Consecutive forward failures on this network (SitrCore UpstreamHealth).
-    private var health = UpstreamHealth()
-    /// Gave up on this network's resolvers: lookups that need one are
-    /// dropped (fail closed) until the next real network change. Reported
-    /// to the app through handleAppMessage.
-    private var noResolver = false
-    /// The path generation on which an upstream last answered, and when
-    /// forwarding last resumed: until the first answer on a network, a
-    /// timed-out forward is retried once (ForwardRetry).
-    private var answeredGeneration: Int?
-    private var resumedAt: TimeInterval?
-    /// Stale re-read: .infinity once granted, the uptime its re-apply
-    /// finished, nil after a forward sent since then was answered (which
-    /// allows another one, ResolverRediscovery.answered).
-    private var staleReappliedAt: TimeInterval?
-    private var failedSinceStale = 0
-    /// Diagnostics only (logged when the stale check fires): wall-clock
-    /// start of the failure streak, last sleep and wake, wakes this run.
-    private var streakStart: Date?
     private var lastSleep: Date?
     private var lastWake: Date?
     private var wakes = 0
-
-    // Touched only on `queue`.
     private var monitor: NWPathMonitor?
     private var pathKey: String?
-    private var pendingRediscovery: DispatchWorkItem?
     private var diagTimer: DispatchSourceTimer?
     /// stopTunnel ran: nothing may be started after it.
     private var stopped = false
-    /// startTunnel finished: path changes now trigger rediscovery (before,
-    /// start-up compares the network with its own snapshot).
-    private var started = false
-    private var startKeyWaiter: CheckedContinuation<String?, Never>?
-    private var reloadRetryPending = false
+    private var startKeyWaiter: CheckedContinuation<Void, Never>?
 
     private static var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
 
     // MARK: - Lifecycle
 
     override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {
-        locked {
+        queue.sync {
             #if DEBUG
             // Append to the previous runs' record: reboot and on-demand
             // restarts must not erase their own evidence.
@@ -103,99 +72,89 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             #endif
             diag.writer = "tunnel"
             diag.beginRun(at: Date())
+            sampleMemory("start")
+            setState("starting")
         }
-        sampleMemory("start")
-        setState("starting")
         guard let dir = Bundle.main.url(forResource: "android", withExtension: nil) else {
             return fail("The filter's lists are missing. Reinstall Sitr.", completionHandler)
         }
         switch BlocklistBundle.load(from: dir) {
         case .failure(let e):
-            locked { diag.log("lists refused: \(e.message)") }
+            queue.sync { diag.log("lists refused: \(e.message)") }
             return fail("The filter's lists failed their integrity check. Reinstall Sitr.", completionHandler)
         case .success(let b):
-            locked {
-                bundle = b
+            queue.sync {
                 diag.listsLoaded = b.sets.keys.sorted()
                 diag.listsSkipped = b.skipped
+                let d = TunnelRecoveryDriver(bundle: b, upstreamTimeout: Self.upstreamTimeout, io: makeIO())
+                driver = d
+                d.reloadSettings()
+                sampleMemory("lists loaded")
             }
-            queue.sync { reloadSettingsOnQueue(reason: "start") }
         }
-        sampleMemory("lists loaded")
 
         Task {
-            // The network BEFORE discovery: a change while starting is
-            // caught by comparing with this once start-up is done.
-            let startKey = await firstPathKey()
+            // The first path (or nothing after 1 s), then the generation the
+            // start read belongs to: the machine compares it at `started`.
+            await waitForFirstPath()
+            let readGeneration = queue.sync { driver?.generation ?? 0 }
             // BEFORE the tunnel's DNS settings exist, res_ninit still reports
             // the physical network's resolvers. Finding none (airplane mode,
             // no network yet) is NOT a start failure: the tunnel comes up,
-            // drops what needs an upstream and keeps trying (rediscover).
+            // drops what needs an upstream and learns them later.
             let found = discover(trigger: "start", method: "res_ninit before settings", read: SystemResolvers.read, filter: SystemResolvers.usable)
-            await apply(upstreams: found)
             do {
                 try await setTunnelNetworkSettings(Self.settings())
             } catch {
                 return fail("iOS did not accept the filter's DNS settings (\(error.localizedDescription)).", completionHandler)
             }
             let proceed = queue.sync { () -> Bool in
-                guard !stopped else { return false }
-                started = true
+                guard !stopped, let driver else { return false }
+                diag.upstreams = found
+                driver.started(readGeneration: readGeneration, found: found)
+                observeSettingsChanges()
+                #if DEBUG
+                startDiagTimer()
+                #endif
+                sampleMemory("settings applied")
                 return true
             }
             guard proceed else {
                 return completionHandler(NSError(domain: "SitrTunnel", code: 3, userInfo: [NSLocalizedDescriptionKey: "Stopped while starting."]))
             }
-            locked {
-                forwarding = !found.isEmpty
-                resumedAt = Self.now
-            }
-            setState(found.isEmpty ? "running (no upstream yet)" : "running")
-            observeSettingsChanges()
-            #if DEBUG
-            queue.async { if !self.stopped { self.startDiagTimer() } }
-            #endif
-            sampleMemory("settings applied")
             readLoop()
             completionHandler(nil)
-            // A network change during start-up, or no resolvers found at
-            // start: learn them now, under the usual limits.
-            queue.async { [weak self] in
-                guard let self, !self.stopped, self.pathKey != startKey || found.isEmpty else { return }
-                self.networkChanged()
-            }
         }
     }
 
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
+        let name = Self.describe(reason)
         queue.sync {
             stopped = true
             monitor?.cancel()
             monitor = nil
             diagTimer?.cancel()
             diagTimer = nil
-            pendingRediscovery?.cancel()
-            startKeyWaiter?.resume(returning: nil)
+            driver?.stop()
+            startKeyWaiter?.resume()
             startKeyWaiter = nil
-        }
-        CFNotificationCenterRemoveEveryObserver(CFNotificationCenterGetDarwinNotifyCenter(), Unmanaged.passUnretained(self).toOpaque())
-        let name = Self.describe(reason)
-        locked {
             diag.closeInterval(at: Date(), latencies: latencies, peakFootprint: intervalPeak)
             diag.endRun(at: Date(), reason: name)
+            setState("stopped (\(name))")
         }
-        setState("stopped (\(name))")
+        CFNotificationCenterRemoveEveryObserver(CFNotificationCenterGetDarwinNotifyCenter(), Unmanaged.passUnretained(self).toOpaque())
         completionHandler()
     }
 
-    /// Only remembered for the stale-check event; no event per sleep/wake.
+    /// Only remembered for the stall log line; no event per sleep/wake (the
+    /// machine's clock is the uptime, which stops during sleep).
     override func sleep(completionHandler: @escaping () -> Void) {
-        locked { lastSleep = Date() }
+        queue.async { self.lastSleep = Date() }
         completionHandler()
     }
 
     override func wake() {
-        locked { (lastWake, wakes) = (Date(), wakes + 1) }
+        queue.async { (self.lastWake, self.wakes) = (Date(), self.wakes + 1) }
     }
 
     static func describe(_ reason: NEProviderStopReason) -> String {
@@ -225,7 +184,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     /// The app's status query: one byte, 1 = this network's resolvers could
     /// not be read (lookups that need one are dropped), 0 = otherwise.
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
-        completionHandler?(Data([locked { noResolver } ? 1 : 0]))
+        completionHandler?(Data([queue.sync { driver?.noResolver ?? false } ? 1 : 0]))
     }
 
     /// Only the synthetic resolvers are routed; their addresses are the DNS
@@ -246,12 +205,55 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         return s
     }
 
+    // MARK: - The driver's I/O
+
+    private func makeIO() -> TunnelRecoveryDriver.IO {
+        let resolver = self.resolver
+        return TunnelRecoveryDriver.IO(
+            enqueue: { [queue] work in queue.async(execute: work) },
+            background: { work in DispatchQueue.global(qos: .utility).async(execute: work) },
+            now: { Self.now },
+            removeAndRead: { [weak self] wait, done in
+                guard let self else { return }
+                Task {
+                    let r = await self.learnResolvers(readWait: wait)
+                    done(r.applied ? r.found : nil)
+                }
+            },
+            startTimer: { [queue] after, fire in
+                let item = DispatchWorkItem(block: fire)
+                queue.asyncAfter(deadline: .now() + after, execute: item)
+                return { item.cancel() }
+            },
+            send: { query, payload, upstreams, done in
+                Task { done(await DnsEngine.fetch(query, payload: payload, via: resolver, to: upstreams)) }
+            },
+            resolveTarget: { target, upstreams, done in
+                Task { done(await TargetCache.resolve(target, via: resolver, to: upstreams)) }
+            },
+            readSettings: {
+                let defaults = UserDefaults(suiteName: "group.com.sitrshield.sitr") ?? .standard
+                return (TunnelSettings(defaults: defaults), tunnelSettingsReadable(defaults))
+            },
+            cancelTunnel: { [weak self] reason in
+                guard let self else { return }
+                diag.lastError = reason
+                // Off `queue`: NetworkExtension may call stopTunnel (which
+                // does queue.sync) from inside this call.
+                let error = NSError(domain: "SitrTunnel", code: 2, userInfo: [NSLocalizedDescriptionKey: reason])
+                DispatchQueue.global().async { self.cancelTunnelWithError(error) }
+            },
+            note: { [weak self] note in self?.record(note) })
+    }
+
     // MARK: - Packets
 
     private func readLoop() {
         packetFlow.readPackets { [weak self] packets, _ in
             guard let self else { return }
-            for packet in packets { self.handle([UInt8](packet)) }
+            queue.async {
+                for packet in packets { self.handle([UInt8](packet)) }
+            }
             self.readLoop()
         }
     }
@@ -261,6 +263,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         packetFlow.writePackets([Data(bytes)], withProtocols: [NSNumber(value: family)])
     }
 
+    /// On `queue`.
     private func handle(_ packet: [UInt8]) {
         guard let datagram = IpPacket.parseUdp(packet) else {
             if let rst = TcpReset.buildRstFor(packet) {
@@ -271,180 +274,25 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             }
             return
         }
-        guard datagram.dstPort == 53 else { return count { $0.dropped += 1 } }
-        let started = Self.now
-        let (snap, loadedMap) = locked { (snapshot, safeSearch) }
-        guard let map = loadedMap else { return count { $0.dropped += 1 } }
-        let decision = engine.decide(payload: datagram.payload, snapshot: snap, safeSearch: map, now: started)
+        guard datagram.dstPort == 53, let driver else { return count { $0.dropped += 1 } }
         count { $0.seen += 1 }
-        func reply(_ bytes: [UInt8]) { write(IpPacket.buildUdpReply(datagram, payload: bytes)) }
-        func probe(_ query: DnsQuery, _ what: String) {
-            #if DEBUG
-            let ms = Int((Self.now - started) * 1000)
-            locked { diag.probe(query.qname, qtype: query.qtype, decision: what, ms: ms) }
-            #endif
-        }
-
-        switch decision {
-        case .drop:
-            count { $0.dropped += 1 }
-        case .answer(let bytes):
-            reply(bytes)
-            guard let query = DnsMessage.parseQuery(datagram.payload) else { return }
-            switch NameAction.of(query.qname, snapshot: snap, safeSearch: map) {
-            case .block:
-                count { $0.blocked += 1 }
-                probe(query, "block")
-            case .rewrite:
-                count { $0.rewritten += 1 }
-                probe(query, "safesearch nodata")
-            case .forward:
-                count { $0.cacheHits += 1 }
-                probe(query, "cache")
-            }
-        case .forward(let query):
-            guard let decidedGeneration = locked({ forwarding ? pathGeneration : nil }) else {
-                locked {
-                    diag.counters.dropped += 1
-                    openChange?.droppedWhileOff += 1
-                    dirty = true
-                }
-                return probe(query, "dropped: resolvers unconfirmed")
-            }
-            Task {
-                guard await forwardGate.enter() else {
-                    count { $0.overloaded += 1 }
-                    return probe(query, "dropped: overloaded")
-                }
-                // Re-checked after the wait for a slot: the network may have
-                // changed meanwhile, and its resolvers are not the old ones.
-                guard locked({ forwarding && pathGeneration == decidedGeneration }) else {
-                    await forwardGate.leave()
-                    count { $0.dropped += 1 }
-                    return probe(query, "dropped: network changed while queued")
-                }
-                let (sent, sentGeneration) = (Self.now, decidedGeneration)
-                var attemptStart = sent
-                var answer = await engine.forward(query, payload: datagram.payload, via: resolver, now: { Self.now })
-                let rtt = Int((Self.now - sent) * 1000)
-                var retried = false
-                if answer == nil {
-                    let (retry, changed) = locked { () -> (Bool, Bool) in
-                        let retry = ForwardRetry.shouldRetry(
-                            sentGeneration: sentGeneration, generation: pathGeneration, forwarding: forwarding,
-                            elapsed: Self.now - sent, timeout: Self.upstreamTimeout,
-                            answeredOnThisNetwork: answeredGeneration == pathGeneration)
-                        return (retry, sentGeneration != pathGeneration)
-                    }
-                    if retry {
-                        let retryGeneration = locked { pathGeneration }
-                        if !changed { try? await Task.sleep(nanoseconds: 300_000_000) }
-                        // The network may have changed during the sleep: never
-                        // retry to resolvers that are not the current network's.
-                        if locked({ forwarding && pathGeneration == retryGeneration }) {
-                            retried = true
-                            attemptStart = Self.now
-                            answer = await engine.forward(query, payload: datagram.payload, via: resolver, now: { Self.now })
-                        }
-                    }
-                }
-                await forwardGate.leave()
-                locked { if latencies.count < 5000 { latencies.append(rtt) } }
-                if let answer {
-                    locked {
-                        health.success()
-                        if sentGeneration == pathGeneration, answeredGeneration != pathGeneration {
-                            answeredGeneration = pathGeneration
-                            if let resumedAt { diag.recordFirstAnswer(ms: Int((Self.now - resumedAt) * 1000)) }
-                        }
-                        if sentGeneration == pathGeneration, let at = staleReappliedAt, sent >= at {
-                            discovery.answered()
-                            staleReappliedAt = nil
-                            diag.log("first answer after stale re-read: \(Int((Self.now - at) * 1000)) ms after re-apply, \(failedSinceStale) failed between")
-                        }
-                    }
-                    reply(answer)
-                    count { $0.forwarded += 1 }
-                    probe(query, "forward rcode \(DnsMessage.rcode(answer))\(retried ? " (retried)" : "")")
-                } else {
-                    // Timeout vs immediate send error, judged on the last try.
-                    let timedOut = Self.now - attemptStart >= Self.upstreamTimeout * 0.9
-                    var queryHash: Int?
-                    #if DEBUG
-                    var hasher = Hasher()  // per-run random seed: never a name, only "same lookup?"
-                    hasher.combine(query.qname)
-                    hasher.combine(query.qtype)
-                    queryHash = hasher.finalize()
-                    #endif
-                    locked {
-                        var open = openChange
-                        diag.recordFailure(
-                            sentBeforeChange: sentGeneration != pathGeneration, open: &open, timedOut: timedOut, queryHash: queryHash)
-                        openChange = open
-                        dirty = true
-                    }
-                    probe(query, "forward failed\(retried ? " (retried)" : "")")
-                    staleCheck(generation: sentGeneration)
-                }
-            }
-        case .rewrite(let query, let rule):
-            Task {
-                guard await targetGate.enter() else {
-                    count { $0.overloaded += 1 }
-                    return probe(query, "dropped: overloaded")
-                }
-                // Forwarding off: the resolver may still hold the previous
-                // network's upstreams, so answer from the compiled-in fallback.
-                let resolved = locked({ forwarding }) ? await targets.addresses(for: rule.target, via: resolver, now: Self.now) : []
-                await targetGate.leave()
-                reply(engine.rewriteAnswer(query, rule: rule, resolved: resolved))
-                count { $0.rewritten += 1 }
-                probe(query, "safesearch -> \(rule.target) (\(resolved.isEmpty ? "fallback" : "\(resolved.count) resolved"))")
-            }
-        }
+        driver.query(datagram.payload) { [weak self] bytes in self?.write(IpPacket.buildUdpReply(datagram, payload: bytes)) }
     }
 
     // MARK: - Settings
 
-    /// Rebuilds the snapshot from the App Group settings: at start and on the
-    /// app's Darwin notification (every SettingsStore.persist: UI changes
-    /// and household sync, foreground or background). Serialised on
-    /// `queue`, so reloads apply in order. Until the first unlock after a
-    /// reboot the settings cannot be read; the snapshot then holds the
-    /// strict defaults (adult, gambling, dating) and ONE retry chain
-    /// re-reads them every 10 s until they can be read.
-    private func reloadSettings(reason: String) {
-        queue.async { [weak self] in self?.reloadSettingsOnQueue(reason: reason) }
-    }
-
-    private func reloadSettingsOnQueue(reason: String) {
-        let defaults = UserDefaults(suiteName: "group.com.sitrshield.sitr") ?? .standard
-        if !tunnelSettingsReadable(defaults), !reloadRetryPending {
-            reloadRetryPending = true
-            queue.asyncAfter(deadline: .now() + 10) { [weak self] in
-                guard let self, !self.stopped else { return }
-                self.reloadRetryPending = false
-                self.reloadSettingsOnQueue(reason: "retry: settings unreadable")
-            }
-        }
-        let settings = TunnelSettings(defaults: defaults)
-        locked {
-            guard let bundle else { return }
-            snapshot = bundle.snapshot(settings)
-            safeSearch = bundle.safeSearch
-            diag.log("settings loaded (\(reason))")
-            dirty = true
-        }
-        engine.cache.clear()
-    }
-
+    /// The app posts this after every SettingsStore.persist (UI changes and
+    /// household sync, foreground or background); reloads apply in order
+    /// on `queue`, and one that changes nothing the snapshot reads keeps
+    /// the cache (TunnelRecovery).
     private func observeSettingsChanges() {
         let observer = Unmanaged.passUnretained(self).toOpaque()
         CFNotificationCenterAddObserver(
             CFNotificationCenterGetDarwinNotifyCenter(), observer,
             { _, observer, _, _, _ in
                 guard let observer else { return }
-                Unmanaged<PacketTunnelProvider>.fromOpaque(observer).takeUnretainedValue().reloadSettings(reason: "darwin notification")
+                let provider = Unmanaged<PacketTunnelProvider>.fromOpaque(observer).takeUnretainedValue()
+                provider.queue.async { provider.driver?.reloadSettings() }
             },
             tunnelSettingsChangedNotification as CFString, nil, .deliverImmediately)
     }
@@ -452,15 +300,16 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     // MARK: - Resolver discovery
 
     /// Reads resolvers with `read`, records the attempt, returns `filter`ed.
+    /// Any thread.
     private func discover(trigger: String, method: String, read: () -> [String], filter: ([String]) -> [String]) -> [String] {
         let t0 = Self.now
         let raw = read()
         let usable = filter(raw)
         let attempt = TunnelDiagnostics.Discovery(
             at: Date(), trigger: trigger, method: method, raw: raw, usable: usable, ms: Int((Self.now - t0) * 1000))
-        locked {
-            diag.record(attempt)
-            dirty = true
+        queue.async {
+            self.diag.record(attempt)
+            self.dirty = true
         }
         #if DEBUG
         log.info("discovery \(trigger, privacy: .public)/\(method, privacy: .public): raw \(raw, privacy: .public) usable \(usable, privacy: .public)")
@@ -468,29 +317,19 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         return usable
     }
 
-    private func apply(upstreams: [String]) async {
-        if await resolver.setUpstreams(upstreams) {
-            engine.cache.clear()
-            await targets.clear()
-        }
-        locked {
-            diag.upstreams = upstreams
-            dirty = true
-        }
-    }
-
     /// THE one place that learns a network's resolvers while the tunnel is
     /// up (kept isolated so a better method can replace it). Public API
     /// only: while our DNS settings are applied, res_ninit reports only our
     /// own server, so the settings are removed, res_ninit read, and the
     /// settings re-applied. Lookups in that window BYPASS the filter (the
-    /// provider never sees them, so they cannot be held); its length is
-    /// returned as `unfilteredMs`. Kept short: the settings object is built
-    /// first, the read is a ~1 ms in-process call made the moment removal
-    /// completes (re-read every 20 ms for up to `readWait` seconds if the
-    /// system has not switched over yet), and the re-apply follows at once.
-    /// How often this may run is ResolverRediscovery's decision.
-    private func learnResolvers(readWait: TimeInterval) async -> (method: String, found: [String], unfilteredMs: Int?) {
+    /// provider never sees them, so they cannot be held). Kept short: the
+    /// settings object is built first, the read is a ~1 ms in-process call
+    /// made the moment removal completes (re-read every 20 ms for up to
+    /// `readWait` seconds if the system has not switched over yet), and the
+    /// re-apply follows at once. When and how often is TunnelRecovery's
+    /// decision; a re-apply that fails twice is reported, and the machine
+    /// cancels the tunnel (on-demand restarts it with its settings).
+    private func learnResolvers(readWait: TimeInterval) async -> (found: [String], applied: Bool) {
         let ours = Self.settings()
         let t0 = Self.now
         var found: [String] = []
@@ -507,60 +346,57 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             }
             readMs = Int((Self.now - removedAt) * 1000)
         } catch {
-            locked { diag.lastError = "remove settings failed: \(error.localizedDescription)" }
+            let message = "remove settings failed: \(error.localizedDescription)"
+            queue.async { self.diag.lastError = message }
         }
         let reapplyAt = Self.now
-        // Never forward without our DNS settings in place: two tries, then
-        // stop with an error (on-demand restarts the tunnel with settings).
+        // Never forward without our DNS settings in place: two tries.
         var applied = false
         for _ in 0..<2 where !applied {
             do {
                 try await setTunnelNetworkSettings(ours)
                 applied = true
             } catch {
-                locked { diag.lastError = "re-apply settings failed: \(error.localizedDescription)" }
+                let message = "re-apply settings failed: \(error.localizedDescription)"
+                queue.async { self.diag.lastError = message }
             }
         }
         reasserting = false
-        if !applied {
-            setState("failed: settings could not be re-applied")
-            cancelTunnelWithError(NSError(domain: "SitrTunnel", code: 2, userInfo: [NSLocalizedDescriptionKey: "iOS did not restore the filter's DNS settings after a network change."]))
-            return ("settings re-apply failed", [], Int((Self.now - t0) * 1000))
-        }
         // Upper bound: from asking for removal to the re-apply completing.
         let end = Self.now
         let ms = Int((end - t0) * 1000)
-        locked {
-            diag.log(
-                "unfiltered window \(ms) ms (remove \(Int((removedAt - t0) * 1000)) + read \(readMs) + re-apply \(Int((end - reapplyAt) * 1000)))")
+        let (removeMs, reapplyMs) = (Int((removedAt - t0) * 1000), Int((end - reapplyAt) * 1000))
+        queue.async {
+            if var change = self.openChange {
+                change.unfilteredMs = (change.unfilteredMs ?? 0) + ms
+                self.openChange = change
+            }
+            self.diag.log("unfiltered window \(ms) ms (remove \(removeMs) + read \(readMs) + re-apply \(reapplyMs))")
+            self.dirty = true
         }
-        return ("remove/re-apply", found, ms)
+        return (found, applied)
     }
 
-    /// The first path the monitor reports, or nil after 1 s. Starts the
-    /// monitor (on `queue`, never after stopTunnel).
-    private func firstPathKey() async -> String? {
-        await withCheckedContinuation { (c: CheckedContinuation<String?, Never>) in
+    /// Starts the monitor (on `queue`, never after stopTunnel) and returns
+    /// at its first path, or after 1 s.
+    private func waitForFirstPath() async {
+        await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
             queue.async { [self] in
-                guard !stopped else { return c.resume(returning: nil) }
+                guard !stopped else { return c.resume() }
                 startKeyWaiter = c
                 startPathMonitor()
-                queue.asyncAfter(deadline: .now() + 1) { [weak self] in
-                    self?.startKeyWaiter?.resume(returning: nil)
-                    self?.startKeyWaiter = nil
+                queue.asyncAfter(deadline: .now() + 1) { [self] in
+                    startKeyWaiter?.resume()
+                    startKeyWaiter = nil
                 }
             }
         }
     }
 
-    /// Re-discovers only when the network really changed: status, the
-    /// primary physical interface (name and type) or the gateways
-    /// (SitrCore NetworkKey). The tunnel's own interface (utun = .other) is
-    /// excluded by the monitor, so applying our settings cannot change the
-    /// key; the window budget in ResolverRediscovery bounds any loop anyway.
-    /// Debounced by 0.3 s, only to coalesce the burst of updates one change
-    /// produces; the debounce adds to the dropped-lookup time, not to the
-    /// unfiltered window.
+    /// The network key (SitrCore NetworkKey): status, the primary physical
+    /// interface (name and type) and the gateways. The tunnel's own
+    /// interface (utun = .other) is excluded by the monitor, so applying
+    /// our settings cannot change the key.
     private func startPathMonitor() {
         let m = NWPathMonitor(prohibitedInterfaceTypes: [.other])
         m.pathUpdateHandler = { [weak self] path in self?.pathChanged(path) }
@@ -584,216 +420,151 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
 
-    /// On `queue`.
+    /// On `queue`: every update goes to the machine (it ignores an unchanged
+    /// key, and before `started` it only records the network).
     private func pathChanged(_ path: Network.NWPath) {
         let interfaces = Self.physical(path).map { (name: $0.name, type: Self.typeName($0.type)) }
         let key = NetworkKey.make(status: "\(path.status)", interfaces: interfaces, gateways: path.gateways.map { "\($0)" })
-        guard key != pathKey else { return }
+        guard key != pathKey, !stopped else { return }
         pathKey = key
-        locked {
-            currentPath = path
-            pathGeneration += 1
-        }
+        currentPath = path
         if let waiter = startKeyWaiter {
             startKeyWaiter = nil
-            waiter.resume(returning: key)
+            waiter.resume()
         }
-        guard started, !stopped else { return }
-        networkChanged()
+        driver?.pathUpdate(key: key, satisfied: path.status == .satisfied)
     }
 
-    /// On `queue`: forwarding off until the current network's resolvers are
-    /// learned; rediscovery after the debounce.
-    private func networkChanged() {
-        guard let path = locked({ currentPath }) else { return }
-        let interfaces = Self.physical(path).map { "\($0.name) \(Self.typeName($0.type))" }
-        let change = TunnelDiagnostics.PathChange(
-            at: Date(), status: "\(path.status)", interfaces: interfaces, gateways: path.gateways.map { "\($0)" }.sorted())
-        locked {
-            if let open = openChange { diag.record(open) }  // superseded before it resolved
-            forwarding = false
-            noResolver = false
-            staleReappliedAt = nil  // that re-read was for the previous network
-            openChange = change
-            offSince = offSince ?? Self.now
-            diag.log("path: \(path.status) via \(interfaces)")
+    // MARK: - Diagnostics (on `queue`)
+
+    private func record(_ note: TunnelRecoveryDriver.Note) {
+        switch note {
+        case .status(let s): setState(s)
+        case .settingsLoaded:
+            diag.log("settings loaded")
             dirty = true
-        }
-        pendingRediscovery?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self, !self.stopped else { return }
-            if path.status != .satisfied {
-                Task { await self.apply(upstreams: []) }
-                if self.locked({ self.diag.state }) != "no network" { self.setState("no network") }
-                return
-            }
-            Task { await self.rediscover() }
-        }
-        pendingRediscovery = work
-        queue.asyncAfter(deadline: .now() + 0.3, execute: work)
-    }
-
-    /// One locked test-and-set: only one rediscovery runs at a time.
-    private func beginRediscovery() -> Bool {
-        locked {
-            if rediscovering { return false }
-            rediscovering = true
-            return true
+        case .diag(let d): record(d)
+        case .outcome(let query, let outcome, let startedAt): record(query, outcome, startedAt)
         }
     }
 
-    /// Ends the running rediscovery only if no network change arrived since
-    /// `generation`; otherwise the caller goes round again (a rediscover()
-    /// started meanwhile returned at once, so nobody else would).
-    private func endRediscovery(ifCurrent generation: Int) -> Bool {
-        locked {
-            guard generation == pathGeneration else { return false }
-            rediscovering = false
-            return true
-        }
-    }
-
-    /// The rule: after a network change, forward again only once the NEW
-    /// network's resolvers are found; until then queries needing an
-    /// upstream are dropped (clients retry). At most three attempts per
-    /// network, each with a longer read (ResolverRediscovery); after the
-    /// third finds nothing the tunnel stops removing its settings, keeps
-    /// dropping those queries (blocked and SafeSearch answers are still
-    /// served) and reports "no resolver" to the app until the next real
-    /// network change. The tunnel stays up, so on-demand never loops.
-    private func rediscover() async {
-        guard beginRediscovery() else { return }
-        while true {
-            let (generation, path, step) = locked { (pathGeneration, currentPath, discovery.next(generation: pathGeneration, now: Self.now)) }
-            guard path?.status == .satisfied else {
-                if endRediscovery(ifCurrent: generation) { return }
-                continue
-            }
-            guard case .attempt(let readWait, let after) = step else {
-                locked {
-                    if generation == pathGeneration { noResolver = true }
-                    diag.lastError = "no network resolvers found after \(ResolverRediscovery.readWaits.count) attempts"
-                }
-                setState("no upstream: this network's DNS server could not be read")
-                if endRediscovery(ifCurrent: generation) { return }
-                continue
-            }
-            setState("rediscovering")
-            if after > 0 {
-                try? await Task.sleep(nanoseconds: UInt64(after * 1_000_000_000))
-                if locked({ generation != pathGeneration }) { continue }
-            }
-            let result = await learnResolvers(readWait: readWait)
-            if result.method == "settings re-apply failed" {
-                _ = endRediscovery(ifCurrent: locked { pathGeneration })
-                return  // the tunnel is being cancelled
-            }
-            locked {
-                let sofar = openChange?.unfilteredMs
-                openChange?.unfilteredMs = Self.add(sofar, result.unfilteredMs)
-            }
-            guard !result.found.isEmpty else { continue }  // next attempt, or give up
-            await apply(upstreams: result.found)
-            let applied = locked { () -> Bool in
-                guard generation == pathGeneration else { return false }  // moved on during apply
-                if var change = openChange {
-                    change.method = result.method
-                    change.upstreams = result.found
-                    change.forwardingOffMs = offSince.map { Int((Self.now - $0) * 1000) }
-                    diag.record(change)
-                }
+    private func record(_ d: TunnelRecovery.Diag) {
+        switch d {
+        case .pathChange:
+            guard let path = currentPath else { return }
+            let interfaces = Self.physical(path).map { "\($0.name) \(Self.typeName($0.type))" }
+            if let open = openChange { diag.record(open) }  // superseded before it resolved
+            openChange = TunnelDiagnostics.PathChange(
+                at: Date(), status: "\(path.status)", interfaces: interfaces, gateways: path.gateways.map { "\($0)" }.sorted())
+            diag.log("path: \(path.status) via \(interfaces)")
+        case .resolved(let upstreams, let offFor):
+            diag.upstreams = upstreams
+            if var change = openChange {
+                change.method = "remove/re-apply"
+                change.upstreams = upstreams
+                change.forwardingOffMs = offFor.map { Int($0 * 1000) }
+                diag.record(change)
                 openChange = nil
-                offSince = nil
-                forwarding = true
-                noResolver = false
-                resumedAt = Self.now
-                return true
             }
-            guard applied else { continue }
-            setState("running")
-            if endRediscovery(ifCurrent: generation) { return }
-        }
-    }
-
-    /// Every forward on this network keeps failing (UpstreamHealth): the
-    /// resolver list is probably stale. One re-read (it costs a window),
-    /// again on the same network only after a forward sent since the last
-    /// re-read was answered, so a dead resolver gets one; if it finds
-    /// nothing the old list is kept.
-    private func staleCheck(generation: Int) {
-        let delay = locked { () -> TimeInterval? in
-            let stale = health.failure(generation: generation, now: Self.now)
-            if health.failures == 1 { streakStart = Date() }
-            failedSinceStale += 1
-            guard stale, generation == pathGeneration, forwarding,
-                  let delay = discovery.staleRetry(generation: generation, now: Self.now) else { return nil }
-            staleReappliedAt = .infinity
+        case .firstAnswer(let after): diag.recordFirstAnswer(ms: Int(after * 1000))
+        case .gaveUp: diag.lastError = "no network resolvers found after \(TunnelRecovery.readWaits.count) attempts"
+        case .staleReRead(let failures):
             func at(_ d: Date?) -> String { d.map { "\($0)" } ?? "none" }
-            diag.log(
-                "every forward failing: \(health.failures) failures since \(at(streakStart)), last wake \(at(lastWake)), last sleep \(at(lastSleep)), \(wakes) wakes this run")
-            return delay
+            diag.log("every forward failing: \(failures) failures, last wake \(at(lastWake)), last sleep \(at(lastSleep)), \(wakes) wakes this run")
+        case .staleAnswered(let after): diag.log("first answer after stale re-read: \(Int(after * 1000)) ms after re-apply")
+        case .failure: break  // recorded with the query's outcome
         }
-        guard let delay else { return }
-        Task {
-            if delay > 0 { try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
-            guard locked({ generation == pathGeneration }), beginRediscovery() else { return }
-            setState("rediscovering (every forward failing)")
-            let result = await learnResolvers(readWait: ResolverRediscovery.readWaits[1])
-            if result.method == "settings re-apply failed" { return }
-            locked { (staleReappliedAt, failedSinceStale) = (Self.now, 0) }
-            if !result.found.isEmpty, locked({ generation == pathGeneration }) {
-                await apply(upstreams: result.found)
-                locked { health.success() }
-            }
-            setState("running")
-            if !endRediscovery(ifCurrent: generation) {
-                locked { rediscovering = false }
-                await rediscover()  // the network changed meanwhile
-            }
-        }
+        dirty = true
     }
 
-    private static func add(_ a: Int?, _ b: Int?) -> Int? { a == nil && b == nil ? nil : (a ?? 0) + (b ?? 0) }
-
-    // MARK: - Diagnostics
-
-    private func locked<T>(_ body: () -> T) -> T { lock.withLock(body) }
+    private func record(_ query: DnsQuery?, _ outcome: TunnelRecoveryDriver.Outcome, _ startedAt: TimeInterval) {
+        func probe(_ what: String) {
+            #if DEBUG
+            if let query { diag.probe(query.qname, qtype: query.qtype, decision: what, ms: Int((Self.now - startedAt) * 1000)) }
+            #endif
+        }
+        switch outcome {
+        case .dropped: count { $0.dropped += 1 }
+        case .blocked:
+            count { $0.blocked += 1 }
+            probe("block")
+        case .safeSearchNoData:
+            count { $0.rewritten += 1 }
+            probe("safesearch nodata")
+        case .cacheHit:
+            count { $0.cacheHits += 1 }
+            probe("cache")
+        case .canary:
+            count { $0.cacheHits += 1 }  // where the record counted it before
+            probe("doh canary nodata")
+        case .droppedUnconfirmed:
+            diag.counters.dropped += 1
+            openChange?.droppedWhileOff += 1
+            dirty = true
+            probe("dropped: resolvers unconfirmed")
+        case .overloaded:
+            count { $0.overloaded += 1 }
+            probe("dropped: overloaded")
+        case .droppedChangedWhileQueued:
+            count { $0.dropped += 1 }
+            probe("dropped: network changed while queued")
+        case .forwarded(let rcode, let retried, let rttMs):
+            #if DEBUG
+            if latencies.count < 5000 { latencies.append(rttMs) }
+            #endif
+            count { $0.forwarded += 1 }
+            probe("forward rcode \(rcode)\(retried ? " (retried)" : "")")
+        case .failed(let retried, let timedOut, let sentBeforeChange):
+            var queryHash: Int?
+            #if DEBUG
+            if let query {
+                var hasher = Hasher()  // per-run random seed: never a name, only "same lookup?"
+                hasher.combine(query.qname)
+                hasher.combine(query.qtype)
+                queryHash = hasher.finalize()
+            }
+            #endif
+            diag.recordFailure(sentBeforeChange: sentBeforeChange, open: &openChange, timedOut: timedOut, queryHash: queryHash)
+            dirty = true
+            probe("forward failed\(retried ? " (retried)" : "")")
+        case .safeSearch(let resolved):
+            count { $0.rewritten += 1 }
+            probe("safesearch (\(resolved == 0 ? "fallback" : "\(resolved) resolved"))")
+        }
+    }
 
     private func count(_ change: (inout TunnelDiagnostics.Counters) -> Void) {
-        locked {
-            change(&diag.counters)
-            dirty = true
-        }
+        change(&diag.counters)
+        dirty = true
     }
 
     private func setState(_ state: String) {
-        locked {
-            diag.state = state
-            diag.log("state: \(state)")
-            dirty = true
-        }
+        diag.state = state
+        diag.log("state: \(state)")
+        dirty = true
         #if DEBUG
         log.info("state \(state, privacy: .public)")
         #endif
         flushDiagnostics()
     }
 
+    /// Any thread.
     private func fail(_ message: String, _ completion: (Error?) -> Void) {
-        locked { diag.lastError = message }
-        setState("failed: \(message)")
+        queue.sync {
+            diag.lastError = message
+            setState("failed: \(message)")
+        }
         completion(NSError(domain: "SitrTunnel", code: 1, userInfo: [NSLocalizedDescriptionKey: message]))
     }
 
     private func sampleMemory(_ label: String) {
         let m = MemorySample.now()
-        locked {
-            diag.sample(m)
-            intervalPeak = max(intervalPeak, m.footprintBytes)
-            if !label.isEmpty {
-                diag.log("memory (\(label)): footprint \(m.footprintBytes / 1024) KiB, available \(m.availableBytes.map { "\($0 / 1024) KiB" } ?? "n/a")")
-            }
-            dirty = true
+        diag.sample(m)
+        intervalPeak = max(intervalPeak, m.footprintBytes)
+        if !label.isEmpty {
+            diag.log("memory (\(label)): footprint \(m.footprintBytes / 1024) KiB, available \(m.availableBytes.map { "\($0 / 1024) KiB" } ?? "n/a")")
         }
+        dirty = true
     }
 
     /// Every 30 s: memory sample and a write if anything changed; every
@@ -804,29 +575,27 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         t.schedule(deadline: .now() + 30, repeating: 30)
         t.setEventHandler { [weak self] in
             guard let self else { return }
-            self.sampleMemory("")
-            self.locked {
-                let start = self.diag.intervalStart ?? Date()
-                guard Date().timeIntervalSince(start) >= Double(TunnelDiagnostics.intervalSeconds) else { return }
-                self.diag.closeInterval(at: Date(), latencies: self.latencies, peakFootprint: self.intervalPeak)
-                self.latencies.removeAll(keepingCapacity: true)
-                self.intervalPeak = 0
+            sampleMemory("")
+            let start = diag.intervalStart ?? Date()
+            if Date().timeIntervalSince(start) >= Double(TunnelDiagnostics.intervalSeconds) {
+                diag.closeInterval(at: Date(), latencies: latencies, peakFootprint: intervalPeak)
+                latencies.removeAll(keepingCapacity: true)
+                intervalPeak = 0
             }
-            self.flushDiagnostics(onlyIfDirty: true)
+            flushDiagnostics(onlyIfDirty: true)
         }
         t.resume()
         diagTimer = t
     }
 
-    /// The only disk write in the provider, and DEBUG only.
+    /// The only disk write in the provider, and DEBUG only: a copy taken on
+    /// `queue`, written in order on `diagWriter`.
     private func flushDiagnostics(onlyIfDirty: Bool = false) {
         #if DEBUG
-        let copy: TunnelDiagnostics? = locked {
-            if onlyIfDirty && !dirty { return nil }
-            dirty = false
-            return diag
-        }
-        if let copy, let url = TunnelDiagnostics.url("tunnel.json") { copy.write(to: url) }
+        if onlyIfDirty && !dirty { return }
+        dirty = false
+        let copy = diag
+        diagWriter.async { if let url = TunnelDiagnostics.url("tunnel.json") { copy.write(to: url) } }
         #endif
     }
 }
