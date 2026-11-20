@@ -89,7 +89,7 @@ lists checked by name, so some entries will be wrong: allow the site (not
 an adult-listed one) and use "Report a site" (a public form or your
 mail app; Sitr sends nothing).
 
-Source code, blocklist, and appeals: https://github.com/terrancoder/sitr
+Source, blocklist, appeals: https://github.com/terrancoder/sitr
 
 ## Form fields
 
