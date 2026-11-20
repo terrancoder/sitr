@@ -175,16 +175,21 @@ export class SyncHandler {
         if (ifMatch === null && !isCreateIntent) {
           return text(428, 'send If-Match: "<etag>" or If-None-Match: * to create');
         }
+        // Creation rules apply to any PUT that creates a row, whichever
+        // precondition it carries (enforcing mode; open mode as before).
         // Entitlement is checked at household creation only — an expiring
         // subscription never cuts off an existing household mid-flight.
-        if (isCreateIntent) {
+        const creates =
+          isCreateIntent ||
+          (this.entitlement.enforcing && this.store.get(id, authHash).kind === "not-found");
+        if (creates) {
           const entitled = this.entitlement.check(
             req.headers["x-sitr-entitlement"],
             this.now(),
           );
           if (entitled.kind === "denied") return text(402, entitled.reason);
         }
-        if (isCreateIntent && !this.creates.allow(hashIp(req.ip), now)) {
+        if (creates && !this.creates.allow(hashIp(req.ip), now)) {
           return text(429, "too many new households from this address");
         }
         const r = this.store.put(id, authHash, req.body, ifMatch, now);

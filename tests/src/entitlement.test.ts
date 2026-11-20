@@ -92,6 +92,23 @@ test("household creation requires entitlement when enforcing; updates never do",
   assert.equal(h.handle(update).status, 200);
 });
 
+test("creation rules apply to an If-Match PUT for an unknown id when enforcing", () => {
+  const h = new SyncHandler(
+    new SyncStore(":memory:"),
+    { ...configFromEnv({}), entitlementPubKeyB64: kp.publicB64, createsPerIpPerHour: 1 },
+    () => NOW,
+  );
+  const ifMatch = (id: string, entitlement?: string): SyncRequest => ({
+    ...put(entitlement),
+    path: `/v1/blob/${id}`,
+    headers: { authorization: `Bearer ${TOKEN}`, "if-match": '"1"', "x-sitr-entitlement": entitlement },
+  });
+  assert.equal(h.handle(ifMatch(ID)).status, 402);
+  assert.equal(h.handle(ifMatch(ID, validToken)).status, 201);
+  // The creation counted against the per-IP create limit (1 an hour).
+  assert.equal(h.handle(ifMatch("f".repeat(32), validToken)).status, 429);
+});
+
 test("claim endpoint exchanges a paid Polar checkout for a valid token", async () => {
   const fetchStub = (async (input: RequestInfo | URL) => {
     const url = String(input);
