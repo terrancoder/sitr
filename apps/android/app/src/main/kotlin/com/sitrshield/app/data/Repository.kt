@@ -55,6 +55,10 @@ data class Settings(
      * household's last known end date and lapse (claims.end). Never in the
      * household blob; the code and claim secret are in SecretStore. */
     val claims: ClaimState = ClaimState(),
+    /** The last code entered was an Institutions plan's and was dropped:
+     * the Family screen says so until a code is entered again or the
+     * household is left. */
+    val planNotAccepted: Boolean = false,
     val syncStatus: SyncStatus = SyncStatus.NEVER_SYNCED,
 )
 
@@ -109,6 +113,7 @@ class Repository(context: Context) {
             maxSeenRev = prefs.getInt("syncMaxSeenRev", 0),
             entitlementToken = prefs.getString("entitlementToken", null),
             claims = Entitlement.loadClaimState(prefs.getString("claimState", null)),
+            planNotAccepted = prefs.getBoolean("planNotAccepted", false),
             syncStatus = syncStatus,
         )
     }
@@ -135,6 +140,7 @@ class Repository(context: Context) {
             .putInt("syncMaxSeenRev", next.maxSeenRev)
             .putString("entitlementToken", next.entitlementToken)
             .putString("claimState", next.claims.toJson().toString())
+            .putBoolean("planNotAccepted", next.planNotAccepted)
             .putString(
                 "syncStatus",
                 JSONObject().apply {

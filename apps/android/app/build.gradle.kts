@@ -64,8 +64,11 @@ android {
             // debug build its own application id. A locally signed build
             // can never replace the Play-signed one (different key), and
             // uninstalling that would wipe its data.
+            // `-PsideBySide=2` gives a second id (".debug2"): two household
+            // devices on one emulator.
             if (project.hasProperty("sideBySide")) {
-                applicationIdSuffix = ".debug"
+                applicationIdSuffix = ".debug" +
+                    project.property("sideBySide").toString().takeIf { it.all(Char::isDigit) }.orEmpty()
                 manifestPlaceholders["appLabel"] = "Sitr (debug)"
                 // Not debuggable: Android runs debuggable apps unoptimised
                 // (the PIN hash was 5–10x slower), so timings taken on a

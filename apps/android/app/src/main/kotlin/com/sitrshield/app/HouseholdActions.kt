@@ -23,17 +23,25 @@ import com.sitrshield.core.household.HouseholdState
 import com.sitrshield.core.pin.Pin
 import com.sitrshield.core.pin.PinRecord
 import com.sitrshield.core.sync.ClaimClient
+import com.sitrshield.core.sync.ClaimOutcome
+import com.sitrshield.core.sync.ClaimReason
 import com.sitrshield.core.sync.ClaimState
 import com.sitrshield.core.sync.CodeInput
 import com.sitrshield.core.sync.Entitlement
+import com.sitrshield.core.sync.FamilyPlan
+import com.sitrshield.core.sync.HouseholdEnd
 import com.sitrshield.core.sync.PairingCode
 import com.sitrshield.core.sync.Subscription
 import com.sitrshield.core.sync.SyncClient
 import com.sitrshield.core.sync.SyncCrypto
 import com.sitrshield.core.sync.SyncInput
+import com.sitrshield.core.sync.SyncRun
 import com.sitrshield.core.sync.SyncStatus
 import com.sitrshield.engine.EngineController
 import com.sitrshield.engine.SitrVpnService
+import java.text.DateFormat
+import java.util.Date
+import java.util.TimeZone
 import kotlin.concurrent.thread
 
 /**
@@ -46,7 +54,12 @@ import kotlin.concurrent.thread
 class HouseholdActions(private val app: SitrApp) {
     companion object {
         private const val LOCKED = "turn off the child lock first"
-        private const val CHILD_NO_CODE = "a child device does not hold a subscription code"
+
+        /** A date the claim service or sync server set (00:00 UTC), as a
+         * UTC calendar date, so it never shows the day before. */
+        fun date(ms: Double): String =
+            DateFormat.getDateInstance(DateFormat.LONG).apply { timeZone = TimeZone.getTimeZone("UTC") }
+                .format(Date(ms.toLong()))
         const val WAITING_FOR_FIRST_SYNC =
             "Waiting for the first sync with your household. Connect to the " +
                 "internet and tap Sync now. The household's PIN and lists " +
@@ -140,27 +153,80 @@ class HouseholdActions(private val app: SitrApp) {
         return Pin.verify(pin, record)
     }
 
-    /** Household creation — Android carries the neutral token field. */
-    fun createHousehold(entitlementToken: String?): SitrResult<Unit> {
+    sealed class CreateOutcome {
+        data object Created : CreateOutcome()
+
+        /** The subscription is bound to another claim secret (another
+         * device, or this phone before it left a household): ask, then call
+         * createHousehold again with replace = true. */
+        data object ConfirmMove : CreateOutcome()
+        data class Refused(val message: String) : CreateOutcome()
+    }
+
+    /**
+     * Household creation from the one input field (docs/sync-protocol.md
+     * §One input field): a version 1 token (or nothing) creates as before;
+     * a subscription code claims first (rule (a)) and creates with the
+     * token, which the next sync round sends (FamilyRound applies
+     * created()). With a code this makes a network request: call it off
+     * the main thread, after decide() let Gate.SUBSCRIPTION_GATED_AS
+     * through. `replace`: the move the user agreed to after ConfirmMove.
+     */
+    fun createHousehold(codeOrV1Token: String?, replace: Boolean = false): CreateOutcome {
         // A locked phone must not get a new household, and with it a new PIN.
-        if (settings().childLock) return SitrResult.Err(LOCKED)
-        Household.joinRefusal(settings().household)?.let { return SitrResult.Err(it) }
-        val token = entitlementToken?.trim()?.ifEmpty { null }
-        // The token goes out as an HTTP header: nothing but its own alphabet.
-        if (token != null && !Regex("sitr-ent-v1\\.[A-Za-z0-9._-]+").matches(token)) {
-            return SitrResult.Err("that doesn't look like a Sitr Family token")
+        if (settings().childLock) return CreateOutcome.Refused(LOCKED)
+        Household.joinRefusal(settings().household)?.let { return CreateOutcome.Refused(it) }
+        val input = codeOrV1Token?.trim()?.ifEmpty { null }
+        if (input == null || input.startsWith("sitr-ent-v1")) {
+            // The token goes out as an HTTP header: nothing but its own alphabet.
+            if (input != null && !Regex("sitr-ent-v1\\.[A-Za-z0-9._-]+").matches(input)) {
+                return CreateOutcome.Refused("that doesn't look like a Sitr Family token")
+            }
+            // A code left from a creation that did not finish stays out.
+            app.secretStore.clearSubscription()
+            create(input, ClaimState())
+            return CreateOutcome.Created
         }
+        val code = (Entitlement.classifyCodeInput(input) as? CodeInput.Code)?.code
+            ?: return CreateOutcome.Refused(Entitlement.TEXTS.getValue("input-invalid"))
+        codeRefusal()?.let { return CreateOutcome.Refused(it) }
+        // The claim secret is kept with the code before the request leaves.
+        val held = app.secretStore.loadSubscription()
+        val sub = Subscription(code, held?.takeIf { it.code == code }?.claimSecret ?: ClaimClient.newClaimSecret())
+        app.secretStore.saveSubscription(sub)
+        val outcome = claimForCreate(sub, replace)
+        if (outcome is ClaimOutcome.Token) {
+            // Checked again: the claim took a moment. The code stays (it
+            // is bound to this phone's claim secret now).
+            if (settings().childLock) return CreateOutcome.Refused(LOCKED)
+            Household.joinRefusal(settings().household)?.let { return CreateOutcome.Refused(it) }
+            create(null, Entitlement.record(ClaimState(), outcome, current = false, now = now()))
+            return CreateOutcome.Created
+        }
+        val bound = outcome is ClaimOutcome.Refused && outcome.reason == ClaimReason.BOUND_TO_OTHER_DEVICE
+        if (bound && !replace) return CreateOutcome.ConfirmMove
+        // Nothing created: keep the code only for a retry after no answer.
+        if (outcome != ClaimOutcome.Unavailable) app.secretStore.clearSubscription()
+        return CreateOutcome.Refused(FamilyPlan.claimText(outcome, ::date)!!)
+    }
+
+    /** The claim of rule (a), creating a household: never `current`. */
+    fun claimForCreate(sub: Subscription, replace: Boolean): ClaimOutcome =
+        ClaimClient(SyncHttp(), Endpoints.claim(app)).claim(sub.code, sub.claimSecret, replace, current = false)
+
+    private fun create(v1Token: String?, claims: ClaimState) {
         app.secretStore.save(SyncCrypto.generateRootSecret())
         app.update(kickSync = true) { s ->
             s.copy(
                 household = Household.emptyState(s.deviceId, now()),
                 role = "guardian",
-                entitlementToken = token,
+                entitlementToken = v1Token,
+                claims = claims,
+                planNotAccepted = false,
                 maxSeenRev = 0,
                 syncStatus = SyncStatus.NEVER_SYNCED,
             )
         }
-        return SitrResult.Ok(Unit)
     }
 
     fun joinHousehold(code: String, role: String): SitrResult<Unit> {
@@ -171,8 +237,9 @@ class HouseholdActions(private val app: SitrApp) {
             is SitrResult.Ok -> decoded.value
         }
         app.secretStore.save(secret)
-        // A child-role device never holds a subscription code.
-        if (role == "child") app.secretStore.clearSubscription()
+        // A code left from a creation that did not finish stays out of
+        // this household; and a child-role device never holds one.
+        app.secretStore.clearSubscription()
         app.update(kickSync = true) { s ->
             s.copy(
                 // Authored at epoch 0 (as the extension does), so the real
@@ -221,6 +288,7 @@ class HouseholdActions(private val app: SitrApp) {
                 entitlementToken = null,
                 // The code and claim secret went with clear() above.
                 claims = ClaimState(),
+                planNotAccepted = false,
                 syncStatus = SyncStatus.NEVER_SYNCED,
             )
         }
@@ -263,7 +331,9 @@ class HouseholdActions(private val app: SitrApp) {
         val held = app.secretStore.loadSubscription()
         val claimSecret = held?.takeIf { it.code == code }?.claimSecret ?: ClaimClient.newClaimSecret()
         app.secretStore.saveSubscription(Subscription(code, claimSecret))
-        app.update(kickSync = true) { it.copy(claims = Entitlement.forgetClaims(it.claims)) }
+        app.update(kickSync = true) {
+            it.copy(claims = Entitlement.forgetClaims(it.claims), planNotAccepted = false)
+        }
         return SitrResult.Ok(Unit)
     }
 
@@ -279,13 +349,57 @@ class HouseholdActions(private val app: SitrApp) {
         return SitrResult.Ok(Unit)
     }
 
+    /**
+     * "Renew on this phone": the claim with replace = true (plus current
+     * when the household is lapsed), only while Entitlement.offersReplace
+     * allows it. The screen asks first (a move is possible once in 180
+     * days), then gates it as saveSubscriptionCode. Network and the round
+     * lock: call it off the main thread.
+     */
+    fun renewHere(): SitrResult<Unit> = SyncRun.exclusive {
+        codeRefusal()?.let { return@exclusive SitrResult.Err(it) }
+        val sub = app.secretStore.loadSubscription()
+            ?: return@exclusive SitrResult.Err("there is no subscription code on this phone")
+        val now = now()
+        val claims = settings().claims
+        if (!Entitlement.offersReplace(claims, now)) {
+            return@exclusive SitrResult.Err("renewing on this phone is not offered now")
+        }
+        val current = HouseholdEnd.isLapsed(claims.end, now)
+        val outcome = ClaimClient(SyncHttp(), Endpoints.claim(app)).claim(sub.code, sub.claimSecret, replace = true, current = current)
+        recordClaim(sub, outcome, current, now)
+        FamilyPlan.claimText(outcome, ::date)?.let { SitrResult.Err(it) } ?: SitrResult.Ok(Unit)
+    }
+
+    /** "Try again": lifts the waits and stops (Entitlement.userRetry) and
+     * syncs now. Gated as saveSubscriptionCode; takes the round lock, so
+     * call it off the main thread. */
+    fun tryAgain(): SitrResult<Unit> = SyncRun.exclusive {
+        codeRefusal()?.let { return@exclusive SitrResult.Err(it) }
+        app.update(kickSync = true) { it.copy(claims = Entitlement.userRetry(it.claims)) }
+        SitrResult.Ok(Unit)
+    }
+
+    /** Folds a claim made from the screen into the claim state, as the
+     * worker does; an Institutions answer drops the code and sets the flag. */
+    private fun recordClaim(sub: Subscription, outcome: ClaimOutcome, current: Boolean, now: Double) {
+        val dropped = outcome is ClaimOutcome.NotFamily
+        app.update(kickSync = true) { s ->
+            if (app.secretStore.loadSubscription() != sub) return@update s // changed meanwhile
+            if (dropped) app.secretStore.clearSubscription()
+            s.copy(
+                claims = Entitlement.record(s.claims, outcome, current, now),
+                planNotAccepted = s.planNotAccepted || dropped,
+            )
+        }
+    }
+
     private fun codeRefusal(): String? {
         val s = settings()
-        return when {
-            s.childLock -> LOCKED
-            HouseholdRole.fromWire(s.role) == HouseholdRole.CHILD -> CHILD_NO_CODE
-            else -> null
-        }
+        return FamilyPlan.codeRefusal(
+            s.childLock,
+            GateContext(app.managedPolicy().lockOptions, HouseholdRole.fromWire(s.role), s.household?.pin != null),
+        )
     }
 
     /**

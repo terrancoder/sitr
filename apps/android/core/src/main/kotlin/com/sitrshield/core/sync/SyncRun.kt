@@ -13,6 +13,17 @@ import com.sitrshield.core.household.Household
  * code is claimed once only.
  */
 object SyncRun {
+    private val lock = Any()
+
+    /**
+     * One round at a time in this process: the worker's periodic and
+     * immediate runs, and the claims made from the Family screen, which
+     * write the same claim state. A second caller waits rather than skips,
+     * so it starts from the settings as they are after the first, and a
+     * change made during a round still gets synced.
+     */
+    fun <T> exclusive(block: () -> T): T = synchronized(lock, block)
+
     fun run(
         round: FamilyRound,
         input: SyncInput,

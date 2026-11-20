@@ -36,7 +36,11 @@ import kotlin.random.Random
  * touch protection status (EngineFacts has no sync input).
  */
 class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
-    override fun doWork(): Result {
+    // One round at a time (SyncRun.exclusive): the immediate and periodic
+    // runs can start together, and both would claim.
+    override fun doWork(): Result = SyncRun.exclusive { runRound() }
+
+    private fun runRound(): Result {
         val app = applicationContext as SitrApp
         val secret = app.secretStore.load() ?: return Result.success()
 
@@ -85,7 +89,9 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
             // change reset the claim state; keep it.
             val sameCode = app.secretStore.loadSubscription() == subscription
             if (dropped && sameCode) app.secretStore.clearSubscription()
-            val withClaims = if (sameCode) current.copy(claims = claims) else current
+            val withClaims =
+                if (!sameCode) current
+                else current.copy(claims = claims, planNotAccepted = current.planNotAccepted || dropped)
             when {
                 // Edited locally meanwhile: keep the edit, sync again from it.
                 current.household != settings.household -> {
