@@ -9,6 +9,7 @@
  *
  * Apart from that sync — one end-to-end-encrypted settings blob exchanged
  * with sync.sitrshield.com, and only after the user creates or joins a household —
+ * and the full channel's renewal claim to claim.sitrshield.com (fullChannel.ts),
  * this worker makes no network requests. Filtering is done entirely by the
  * browser's DNR engine. Managed policy arrives through the browser's own
  * chrome.storage.managed channel (GPO / plist / Google Admin), never over
@@ -47,7 +48,10 @@ import {
   sanitizeHouseholdState,
 } from "../lib/household.js";
 import { fromB64 } from "../lib/pin.js";
-import { MAX_SEEN_REV_KEY, coalesced, syncOnce } from "../lib/sync/client.js";
+import { MAX_SEEN_REV_KEY, coalesced } from "../lib/sync/client.js";
+// The Mac App Store staging rewrites this one specifier to
+// "./memberChannel.js" (tools/pack/stage-safari.mjs): same export.
+import { channelRound } from "./fullChannel.js";
 import { applySyncOutcome } from "../lib/sync/apply.js";
 import { SYNC_STATUS_KEY } from "../lib/sync/status.js";
 
@@ -266,7 +270,15 @@ async function syncRound(): Promise<void> {
     });
     return;
   }
-  const outcome = await syncOnce(
+  // A leave during the round removed the secret: write nothing, enrol
+  // nothing (it would undo the leave's unenroll).
+  // ponytail: a leave landing between a check and its write still races.
+  const householdKept = async () =>
+    (await chrome.storage.local.get(HOUSEHOLD_SECRET_KEY))[HOUSEHOLD_SECRET_KEY] ===
+    stored[HOUSEHOLD_SECRET_KEY];
+  // Both channels store the household's end date; the full channel also
+  // renews the household's plan when this device holds its code.
+  const outcome = await channelRound(
     {
       rootSecret: secret.value,
       local: local.value,
@@ -284,13 +296,8 @@ async function syncRound(): Promise<void> {
           : undefined,
     },
     { fetch: fetch.bind(globalThis), now: () => Date.now() },
+    householdKept,
   );
-  // A leave during the round removed the secret: write nothing, enrol
-  // nothing (it would undo the leave's unenroll).
-  // ponytail: a leave landing between a check and its write still races.
-  const householdKept = async () =>
-    (await chrome.storage.local.get(HOUSEHOLD_SECRET_KEY))[HOUSEHOLD_SECRET_KEY] ===
-    stored[HOUSEHOLD_SECRET_KEY];
   // Engine and storage from the outcome (applySyncOutcome): rules
   // re-asserted every successful round, an unchanged round writes nothing.
   const policy = await readManagedPolicy();

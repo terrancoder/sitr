@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, mkdtempSync, rmSync } from "node:fs";
+import { cpSync, existsSync, readFileSync, readdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -16,9 +16,12 @@ import { test } from "node:test";
 const ROOT = resolve(import.meta.dirname, "../..");
 const SCRIPT = join(ROOT, "tools/pack/stage-safari.mjs");
 
-function stage(channel: string): string {
+function stage(channel: string, ext?: string): string {
   const out = mkdtempSync(join(tmpdir(), `sitr-stage-${channel}-`));
-  execFileSync("node", [SCRIPT, out, "--channel", channel], { cwd: ROOT });
+  execFileSync("node", [SCRIPT, out, "--channel", channel, ...(ext ? ["--ext", ext] : [])], {
+    cwd: ROOT,
+    stdio: "pipe",
+  });
   return out;
 }
 
@@ -40,6 +43,9 @@ test("devid channel keeps the full-channel surface", () => {
     assert.ok(existsSync(join(out, "dist/options/fullChannel.js")));
     assert.ok(existsSync(join(out, "dist/lib/entitlement.js")));
     assert.ok(existsSync(join(out, "dist/lib/sync/claimClient.js")));
+    assert.ok(existsSync(join(out, "dist/lib/sync/renew.js")));
+    assert.ok(existsSync(join(out, "dist/background/fullChannel.js")));
+    assert.match(readFileSync(join(out, "dist/background/service-worker.js"), "utf8"), /from "\.\/fullChannel\.js"/);
     const html = readFileSync(join(out, "src/options/options.html"), "utf8");
     assert.ok(html.includes('id="full-channel-only"'));
     const channel = JSON.parse(readFileSync(join(out, "channel.json"), "utf8"));
@@ -60,6 +66,11 @@ test("mas channel is join-only and steering-free (the 3.1.1 gate)", () => {
     assert.ok(!existsSync(join(out, "dist/options/fullChannel.js")));
     assert.ok(!existsSync(join(out, "dist/lib/entitlement.js")), "no code entry or claim logic");
     assert.ok(!existsSync(join(out, "dist/lib/sync/claimClient.js")), "no claim call");
+    assert.ok(!existsSync(join(out, "dist/lib/sync/renew.js")), "no renewal round");
+    assert.ok(!existsSync(join(out, "dist/background/fullChannel.js")), "no background renewal");
+    const sw = readFileSync(join(out, "dist/background/service-worker.js"), "utf8");
+    assert.match(sw, /from "\.\/memberChannel\.js"/, "the worker runs the member round");
+    assert.ok(!sw.includes('"./fullChannel.js"'));
     assert.ok(existsSync(join(out, "dist/lib/householdEnd.js")), "a member device's end date stays");
     const html = readFileSync(join(out, "src/options/options.html"), "utf8");
     assert.ok(!/full[- ]channel|strip/i.test(html), "no residue announcing the strip");
@@ -97,5 +108,28 @@ test("both channels share the Safari manifest shape and are deterministic", () =
   } finally {
     rmSync(a, { recursive: true, force: true });
     rmSync(b, { recursive: true, force: true });
+  }
+});
+
+test("mas gate fails for a staged reference to any excluded renewal file", () => {
+  // A temp copy of the extension with one planted file, so the real build
+  // output other tests read stays untouched.
+  const ext = mkdtempSync(join(tmpdir(), "sitr-stage-ext-"));
+  try {
+    for (const part of ["manifest.json", "dist", "src", "public", "rulesets"]) {
+      cpSync(join(ROOT, "extension", part), join(ext, part), { recursive: true });
+    }
+    for (const name of ["lib/entitlement.js", "lib/sync/claimClient.js", "lib/sync/renew.js"]) {
+      writeFileSync(join(ext, "dist/probe.js"), `import "./${name}";\n`);
+      assert.throws(
+        () => stage("mas", ext),
+        (e: { stderr?: Buffer }) => /refer to excluded or missing files/.test(String(e.stderr)),
+        name,
+      );
+    }
+    rmSync(join(ext, "dist/probe.js"));
+    rmSync(stage("mas", ext), { recursive: true, force: true }); // and passes without it
+  } finally {
+    rmSync(ext, { recursive: true, force: true });
   }
 });

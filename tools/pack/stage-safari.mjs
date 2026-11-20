@@ -17,8 +17,13 @@
  * stages the join-only App Store variant: the full-channel module
  * (dist/options/fullChannel.js — household creation + entitlement token)
  * and the renewal logic (dist/lib/entitlement.js — code entry and claims —
- * and dist/lib/sync/claimClient.js, the claim call) are EXCLUDED, no staged file may import the latter, the
- * #full-channel-only block is stripped from options.html,
+ * dist/lib/sync/claimClient.js, the claim call, dist/lib/sync/renew.js and
+ * dist/background/fullChannel.js, the background renewal round) are
+ * EXCLUDED, no staged file may refer to entitlement.js, claimClient.js or
+ * renew.js, the service worker's one import of ./fullChannel.js is
+ * rewritten to ./memberChannel.js (the plain sync round, same export),
+ * every relative import of a staged script must resolve to a staged file,
+ * the #full-channel-only block is stripped from options.html,
  * and a grep gate then proves the bundle carries none of the
  * purchase-steering strings the store risk register forbids (guideline
  * 3.1.1). The gate failing is a build failure, never a warning.
@@ -28,7 +33,8 @@
  * two stagings and publish the hashes.
  *
  * Usage: node tools/pack/stage-safari.mjs [out-dir] [--channel devid|mas]
- *        (default out-dir: build/safari-extension)
+ *        [--ext <extension dir>]  (default out-dir: build/safari-extension;
+ *        --ext, default extension/, is for the stager's own tests)
  */
 import { createHash } from "node:crypto";
 import {
@@ -43,7 +49,7 @@ import { dirname, join, resolve } from "node:path";
 import { readNotice } from "../compiler/dist/notice.js";
 
 const ROOT = resolve(import.meta.dirname, "../..");
-const EXT = join(ROOT, "extension");
+let EXT = join(ROOT, "extension");
 
 const args = process.argv.slice(2);
 let channel = "devid";
@@ -52,6 +58,8 @@ for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === "--channel") {
     channel = args[++i];
+  } else if (a === "--ext") {
+    EXT = resolve(args[++i]);
   } else if (a.startsWith("--channel=")) {
     channel = a.slice("--channel=".length);
   } else if (a.startsWith("-")) {
@@ -129,6 +137,8 @@ const MAS_EXCLUDED = new Set([
   "dist/options/fullChannel.js",
   "dist/lib/entitlement.js",
   "dist/lib/sync/claimClient.js",
+  "dist/lib/sync/renew.js",
+  "dist/background/fullChannel.js",
 ]);
 for (const rel of files) {
   if (channel === "mas" && MAS_EXCLUDED.has(rel)) continue;
@@ -155,13 +165,35 @@ if (channel === "mas") {
   html = html.slice(0, open) + html.slice(close + "</div>".length);
   staged.set(rel, html);
 
-  // Nothing staged may import the excluded renewal logic: a member device
+  // The service worker's household round: the member round, not the
+  // excluded renewal round. Exactly one specifier, or the cut is wrong.
+  const sw = "dist/background/service-worker.js";
+  const swText = staged.get(sw).toString("utf8");
+  if (swText.split('"./fullChannel.js"').length !== 2) {
+    console.error(`stage-safari: ${sw} must import "./fullChannel.js" exactly once`);
+    process.exit(1);
+  }
+  staged.set(sw, swText.replace('"./fullChannel.js"', '"./memberChannel.js"'));
+
+  // Nothing staged may refer to the excluded renewal logic: a member device
   // needs only dist/lib/householdEnd.js.
-  const importers = [...staged.keys()].filter(
-    (name) => name.endsWith(".js") && /entitlement\.js/.test(staged.get(name).toString("utf8")),
-  );
+  const RENEWAL = /\b(entitlement|claimClient|renew)\.js\b/;
+  const importers = [];
+  for (const [name, body] of staged) {
+    if (!name.endsWith(".js")) continue;
+    const text = body.toString("utf8");
+    const m = RENEWAL.exec(text);
+    if (m) importers.push(`${name}: ${m[0]}`);
+    // A relative static import must land on a staged file (a module worker
+    // cannot load anything else). The options page's guarded import() of
+    // ./fullChannel.js is dynamic and not matched here.
+    for (const [, spec] of text.matchAll(/^\s*(?:import|export)\b[^;]*?["'](\.{1,2}\/[^"']+)["']/gm)) {
+      const target = join(dirname(name), spec).split("\\").join("/");
+      if (!staged.has(target)) importers.push(`${name}: unresolved ${spec}`);
+    }
+  }
   if (importers.length > 0) {
-    console.error("stage-safari: mas gate FAILED — staged files import entitlement.js:");
+    console.error("stage-safari: mas gate FAILED — staged files refer to excluded or missing files:");
     for (const name of importers) console.error("  " + name);
     process.exit(1);
   }
