@@ -254,15 +254,21 @@ enum BlockerController {
         names: [String], key: String, userAllow: [String], userBlock: [String],
         householdAllow: [String], householdBlock: [String]
     ) -> Result<(json: Data, checksum: String), ApplyError> {
-        let result = loadFragments(categories: names).flatMap { fragments in
-            SafariRules.build(
-                staticRules: fragments,
-                userBlock: userBlock,
-                userAllow: userAllow,
-                householdBlock: householdBlock,
-                householdAllow: householdAllow
-            )
-            .mapError { ApplyError.fragments($0.message) }
+        // The adult fragment goes LAST (SafariRules.build): no allow entry
+        // can cancel it. The other lists keep their place before the allows.
+        let adult = loadFragments(categories: names.filter { $0 == "adult" })
+        let result = loadFragments(categories: names.filter { $0 != "adult" }).flatMap { fragments in
+            adult.flatMap { adultRules in
+                SafariRules.build(
+                    staticRules: fragments,
+                    userBlock: userBlock,
+                    userAllow: userAllow,
+                    householdBlock: householdBlock,
+                    householdAllow: householdAllow,
+                    alwaysBlock: adultRules
+                )
+                .mapError { ApplyError.fragments($0.message) }
+            }
             .map { rules -> (json: Data, checksum: String) in
                 let json = SafariRules.serialize(rules)
                 return (json, SHA256.hash(data: json).map { String(format: "%02x", $0) }.joined())

@@ -405,7 +405,17 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Why an allow entry for `domain` is refused, if it is: a name on the
+    /// adult list (itself or under a listed parent) cannot be allowed.
+    func allowRefusal(_ domain: String) -> String? {
+        AdultList.covers(domain) ? AdultList.refusal : nil
+    }
+
     func addDeviceDomain(allow: Bool, domain: String) async {
+        if allow, let refusal = allowRefusal(domain) {
+            lastError = refusal
+            return
+        }
         await mutate { next in
             if allow {
                 next.userAllow = Array(Set(next.userAllow + [domain])).sorted()
@@ -426,6 +436,10 @@ final class AppModel: ObservableObject {
     }
 
     func addHouseholdDomain(allow: Bool, domain: String) async {
+        if allow, let refusal = allowRefusal(domain) {
+            lastError = refusal
+            return
+        }
         // Refuse at the cap instead of saving a list that
         // Household.sanitize would reject wholesale on every device.
         let list = (allow ? settings.household?.allowDomains : settings.household?.blockDomains) ?? []

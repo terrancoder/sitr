@@ -36,13 +36,18 @@ extension BlocklistBundle {
             userBlock: Set(settings.userBlock))
     }
 
+    /// The adult list is its own layer, checked before every allow entry;
+    /// the other lists keep their place after the allow and block entries.
+    public static let alwaysBlockLists: Set<String> = ["adult"]
+
     public func snapshot(_ f: FilterInputs) -> DecisionSnapshot {
         DecisionSnapshot(
             householdAllow: f.householdAllow,
             householdBlock: f.householdBlock,
             userAllow: f.userAllow,
             userBlock: f.userBlock,
-            staticBlock: f.lists.compactMap { sets[$0] }
+            staticBlock: f.lists.filter { !Self.alwaysBlockLists.contains($0) }.compactMap { sets[$0] },
+            alwaysBlock: f.lists.filter(Self.alwaysBlockLists.contains).compactMap { sets[$0] }
         )
     }
 }

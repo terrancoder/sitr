@@ -401,9 +401,14 @@ struct HouseholdListEditor: View {
                     error = e.message
                 case .success(let domain):
                     error = nil
-                    // An allow rule beats every category block on every
-                    // device, so adding one is loosening: the kind the
-                    // extension gates it with (PIN when set).
+                    // An allow rule beats every category block except adult
+                    // on every device, so adding one is loosening: the kind
+                    // the extension gates it with (PIN when set). An adult-
+                    // listed name is refused before the gate.
+                    if allow, let refusal = model.allowRefusal(domain) {
+                        error = refusal
+                        return
+                    }
                     attempt(
                         allow ? .addDeviceAllowRule : .addHouseholdRule,
                         allow ? "Allow \(domain) on every household device" : ""
@@ -417,6 +422,12 @@ struct HouseholdListEditor: View {
         .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         if let error {
             Text(error).foregroundStyle(Theme.alert).font(.caption)
+            if error == AdultList.refusal {
+                Link("Report a wrongly blocked site", destination: SupportLinks.unblockRequest)
+            }
+        }
+        if allow {
+            Text(ListsView.allowExplainer).font(.caption).foregroundStyle(Theme.inkSoft)
         }
         ForEach(domains, id: \.self) { domain in
             HStack {

@@ -70,7 +70,8 @@ enum ScreenTimeController {
 
     /// What this layer carries: Apple's own adult filter, plus the first
     /// `domainCap` sites of the household and device BLOCK lists, minus the
-    /// allow lists. It does NOT carry Sitr's gambling and dating category
+    /// allow lists. An allow entry on Sitr's adult list is never passed as
+    /// an exception to Apple's filter (`exceptions`). It does NOT carry Sitr's gambling and dating category
     /// lists — they are far larger than the set allows — so in other
     /// browsers those categories are filtered only as far as Apple's
     /// filter covers them. The setup screen says exactly this.
@@ -83,13 +84,23 @@ enum ScreenTimeController {
             // allow over block within a layer.
             let block = (householdBlock + s.userBlock.filter { !s.userAllow.contains($0) })
                 .filter { !householdAllow.contains($0) }
-            let allow = householdAllow + s.userAllow.filter { !householdBlock.contains($0) }
+            let allow = exceptions(s, isAdult: AdultList.covers)
             let store = ManagedSettingsStore(
                 named: ManagedSettingsStore.Name(storeName))
             store.webContent.blockedByFilter = .auto(
                 Set(block.prefix(domainCap).map { WebDomain(domain: $0) }),
                 except: Set(allow.prefix(domainCap).map { WebDomain(domain: $0) }))
         #endif
+    }
+
+    /// The allow entries passed to Apple's adult filter as exceptions:
+    /// household over device, as in the Safari rules, without any name on
+    /// Sitr's adult list (itself or under a listed parent).
+    static func exceptions(_ s: AppSettings, isAdult: (String) -> Bool) -> [String] {
+        let householdBlock = s.household?.blockDomains ?? []
+        let householdAllow = s.household?.allowDomains ?? []
+        return (householdAllow + s.userAllow.filter { !householdBlock.contains($0) })
+            .filter { !isAdult($0) }
     }
 
     static func disable() {

@@ -12,6 +12,9 @@ struct ListsView: View {
     @State private var blockInput = ""
     @State private var inputError: String?
 
+    static let allowExplainer =
+        "An allowed site opens even when a category blocks it, except sites on the adult list: those stay blocked."
+
     var body: some View {
         List {
             if model.safariUpdating {
@@ -28,6 +31,10 @@ struct ListsView: View {
                     input: $allowInput,
                     domains: model.settings.userAllow,
                     onAdd: { domain in
+                        if let refusal = model.allowRefusal(domain) {
+                            inputError = refusal
+                            return
+                        }
                         attempt(.addDeviceAllowRule, "Allow \(domain)") {
                             Task { await model.addDeviceDomain(allow: true, domain: domain) }
                             allowInput = ""
@@ -39,6 +46,7 @@ struct ListsView: View {
                         }
                     }
                 )
+                Text(Self.allowExplainer).font(.caption).foregroundStyle(Theme.inkSoft)
             }
             .sitrRows()
             Section("Always block these sites") {
@@ -60,8 +68,13 @@ struct ListsView: View {
             }
             .sitrRows()
             if let inputError {
-                Text(inputError).foregroundStyle(Theme.alert).font(.caption)
-                    .sitrRows()
+                Section {
+                    Text(inputError).foregroundStyle(Theme.alert).font(.caption)
+                    if inputError == AdultList.refusal {
+                        Link("Report a wrongly blocked site", destination: SupportLinks.unblockRequest)
+                    }
+                }
+                .sitrRows()
             }
             // Support links only — they change nothing here, so no gate
             // or PIN, and they carry no domain or setting from the app.

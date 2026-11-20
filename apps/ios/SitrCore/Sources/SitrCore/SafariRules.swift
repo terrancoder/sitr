@@ -5,15 +5,17 @@
 /// EARLIER rules, so emitting weakest layer first reproduces the ladder
 /// exactly (no managed layer on iOS v1):
 ///
-///   1. static category blocks   (compiler-emitted fragments)
+///   1. static category blocks   (compiler-emitted fragments, except adult)
 ///   2. device-user blocks
 ///   3. device-user allows       → ignore-previous-rules
 ///   4. household blocks         (beats user allows: comes later)
-///   5. household allows         → ignore-previous-rules (beats everything)
+///   5. household allows         → ignore-previous-rules (beats 1–4)
+///   6. the adult list           (LAST: no ignore-previous-rules comes after
+///                                it, so no allow entry can cancel it)
 ///
 /// Semantics preserved: allow wins within a layer; a higher layer's block
-/// beats a lower layer's allow. Overflow is a surfaced error, never a
-/// truncation.
+/// beats a lower layer's allow; nothing opens an adult-listed name.
+/// Overflow is a surfaced error, never a truncation.
 ///
 /// Every rule is REQUEST-level: a host-anchored `url-filter` matching a
 /// request to the domain or a subdomain, whatever page it is on — parity
@@ -76,21 +78,24 @@ public enum SafariRules {
     /// Assemble the full blocker list from the bundled static fragments and
     /// the dynamic layers. `staticRules` are the compiler-emitted rules for
     /// the ENABLED categories, in sorted-category order.
+    /// `alwaysBlock`: the adult list's rules, emitted after every allow.
     public static func build(
         staticRules: [SafariRule],
         userBlock: [String],
         userAllow: [String],
         householdBlock: [String],
-        householdAllow: [String]
+        householdAllow: [String],
+        alwaysBlock: [SafariRule] = []
     ) -> Result<[SafariRule], SitrError> {
+        let listRules = staticRules.count + alwaysBlock.count
         // Checked separately, not as one total: a total-only check would
         // let today's user rules pass and then fail after a list update
         // grows the static part. Overflow fails the whole build — static
         // rules are never dropped and Safari keeps what it had.
-        if staticRules.count > ruleBudget - ruleReserve {
+        if listRules > ruleBudget - ruleReserve {
             return .failure(
                 SitrError(
-                    "the bundled lists need \(staticRules.count) Safari rules (limit \(ruleBudget - ruleReserve)) — this app build is broken"
+                    "the bundled lists need \(listRules) Safari rules (limit \(ruleBudget - ruleReserve)) — this app build is broken"
                 ))
         }
         let own = userBlock.count + userAllow.count + householdBlock.count + householdAllow.count
@@ -105,6 +110,7 @@ public enum SafariRules {
         rules += perDomain(userAllow, action: .ignorePreviousRules)
         rules += perDomain(householdBlock, action: .block)
         rules += perDomain(householdAllow, action: .ignorePreviousRules)
+        rules += alwaysBlock
         return .success(rules)
     }
 

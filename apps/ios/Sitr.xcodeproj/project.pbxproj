@@ -17,6 +17,8 @@
 		5349545200000000000001A5 /* SitrCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5349545200000000000001A9 /* SitrCore */; };
 		5349545200000000000001A6 /* android in Resources */ = {isa = PBXBuildFile; fileRef = 5349545200000000000001A3 /* android */; };
 		5349545200000000000001B5 /* NOTICE.txt in Resources */ = {isa = PBXBuildFile; fileRef = 5349545200000000000001B4 /* NOTICE.txt */; };
+		534954520000000000000212 /* adult.domains in Resources */ = {isa = PBXBuildFile; fileRef = 534954520000000000000210 /* adult.domains */; };
+		534954520000000000000213 /* checksums.json in Resources */ = {isa = PBXBuildFile; fileRef = 534954520000000000000211 /* checksums.json */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -103,6 +105,8 @@
 		5349545200000000000001A2 /* Tunnel.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Tunnel.xcconfig; sourceTree = "<group>"; };
 		5349545200000000000001A3 /* android */ = {isa = PBXFileReference; lastKnownFileType = folder; name = android; path = "../shared/blocklists/android"; sourceTree = "<group>"; };
 		5349545200000000000001B4 /* NOTICE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = NOTICE.txt; path = "../shared/blocklists/NOTICE.txt"; sourceTree = "<group>"; };
+		534954520000000000000210 /* adult.domains */ = {isa = PBXFileReference; lastKnownFileType = text; name = adult.domains; path = "../shared/blocklists/android/adult.domains"; sourceTree = "<group>"; };
+		534954520000000000000211 /* checksums.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = checksums.json; path = "../shared/blocklists/android/checksums.json"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -261,6 +265,8 @@
 				5349545200000000000000F4 /* blockerList.default.json */,
 				5349545200000000000001A3 /* android */,
 				5349545200000000000001B4 /* NOTICE.txt */,
+				534954520000000000000210 /* adult.domains */,
+				534954520000000000000211 /* checksums.json */,
 				534954520000000000000163 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -511,6 +517,8 @@
 			files = (
 				5349545200000000000000B4 /* safari in Resources */,
 				5349545200000000000001B5 /* NOTICE.txt in Resources */,
+				534954520000000000000212 /* adult.domains in Resources */,
+				534954520000000000000213 /* checksums.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
