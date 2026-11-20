@@ -18,9 +18,10 @@ package com.sitrshield.core.lock
  *    mobile network reset, which clears always-on VPN and disconnects
  *    Sitr (checked on Android 15). Matched by the reset screen's own
  *    sentences, so the Reset options list itself stays open;
- *  - the Users page and private space setup: a new user, a guest or a
- *    private space has no Sitr, and a VPN only filters the user that
- *    started it.
+ *  - the Users page, private space setup (by window class, see
+ *    PRIVATE_SPACE_WINDOWS) and an existing private space's settings: a
+ *    new user, a guest or a private space has no Sitr, and a VPN only
+ *    filters the user that started it.
  *
  * The phrase rules apply to the Settings app alone. In an installer or the
  * Play Store only Sitr's own name counts: an unrelated store page that
@@ -69,10 +70,17 @@ object GuardRules {
 
     private fun normalise(text: String) = text.replace(MARKS, "")
 
-    /** Row titles only the network hub page carries (whole-text match). */
+    /**
+     * Row titles only the network hub page carries (whole-text match, any
+     * case). Every regional English Android ships is listed: with only the
+     * en-US wording, a phone set to English (United Kingdom) lost its way
+     * to Wi-Fi (QA 2026-11-20). Languages not listed here fall back to the
+     * Sitr-name rule, which closes the hub because it shows Sitr's VPN row.
+     */
     private val NETWORK_HUB = listOf(
         // network_dashboard_title, airplane_mode, tether_settings_title_all
-        "Network & internet", "Airplane mode", "Hotspot & tethering", // en
+        "Network & internet", "Airplane mode", "Hotspot & tethering", // en (US)
+        "Network and Internet", "Aeroplane mode", "Hotspot and tethering", // en-GB, en-AU, en-IN, en-CA
         "নেটওয়ার্ক ও ইন্টারনেট", "বিমান মোড", "হটস্পট এবং টিথারিং", // bn
         "الشبكة والإنترنت", "وضع الطيران", "نقطة الاتصال والتوصيل", // ar
         "Ağ ve internet", "Uçak modu", "Hotspot ve tethering", // tr
@@ -100,6 +108,26 @@ object GuardRules {
         "özel alanı sil", "özel alan silinsin", // tr
         "padamkan ruang persendirian", "padamkan ruang privasi", // ms (16, 15)
     ).map(::normalise)
+
+    /**
+     * The delete confirmation's own heading (private_space_delete_header,
+     * whole text). Its body says "If you have a private space on your
+     * device…", which the private-space phrases would otherwise close,
+     * stopping a guardian from removing the unfiltered profile.
+     */
+    private val DELETE_PRIVATE_SPACE_HEADER = listOf(
+        "Delete private space?", // en, en-GB, en-AU, en-IN, en-CA
+        "প্রাইভেট স্পেস মুছবেন?", // bn
+        "هل تريد حذف المساحة الخاصّة؟", // ar
+        "Özel alan silinsin mi?", // tr
+        "Padamkan ruang privasi?", "Padamkan ruang persendirian?", // ms (15, 16)
+    ).map(::normalise)
+
+    /** The private-space entries of PROTECTED_PHRASES, waived on the delete confirmation. */
+    private val PRIVATE_SPACE_PHRASES = listOf(
+        "private space", "প্রাইভেট স্পেস", "مساحة الخاص", "مساحتك الخاص", "مساحة خاصة",
+        "özel alan", "ruang privasi", "ruang persendirian", "ruang peribadi",
+    ).map(::normalise).toSet()
 
     private val PROTECTED_PHRASES = listOf(
         // en
@@ -166,6 +194,21 @@ object GuardRules {
         "semula semua tetapan rangkaian", // reset_mobile_network_settings_desc, reset_network_final_desc(_esim)
     ).map(::normalise)
 
+    /**
+     * Private space setup, matched by the window's activity class because
+     * its text never reaches this service: on Android 15 the setup window
+     * gives a non-tool accessibility service an empty node tree (checked
+     * with every service flag; uiautomator still sees the text). The class
+     * name arrives with the window event, before SET UP can be pressed —
+     * the profile is created only after that tap. The authentication step
+     * leads only to setup or to an existing private space's settings, both
+     * of which close anyway. Not exported to other apps.
+     */
+    private val PRIVATE_SPACE_WINDOWS = setOf(
+        "com.android.settings.privatespace.PrivateSpaceSetupActivity",
+        "com.android.settings.privatespace.PrivateSpaceAuthenticationActivity",
+    )
+
     /** Every app whose windows the guard may read — the service asks Android for these alone. */
     val packages: Set<String> get() = WATCHED + VPN_DIALOGS
 
@@ -173,7 +216,14 @@ object GuardRules {
     fun watches(packageName: String): Boolean =
         packageName == VPN_DIALOGS || packageName in WATCHED
 
-    fun shouldClose(packageName: String, texts: List<String>, appLabel: String): Boolean {
+    fun shouldClose(
+        packageName: String,
+        texts: List<String>,
+        appLabel: String,
+        /** The activity class from the window event, when Android gives one. */
+        windowClass: String? = null,
+    ): Boolean {
+        if (packageName == SETTINGS && windowClass in PRIVATE_SPACE_WINDOWS) return true
         val norm = texts.map(::normalise)
         if (packageName == VPN_DIALOGS) {
             // Only the connected VPN's manage dialog has "Disconnect", and
@@ -188,10 +238,12 @@ object GuardRules {
         // breadcrumb doesn't count.
         if (norm.any { t -> NETWORK_HUB.any { t.equals(it, ignoreCase = true) } }) return false
         val phrases = packageName == SETTINGS
+        val deleting = norm.any { t -> DELETE_PRIVATE_SPACE_HEADER.any { t.trim().equals(it, ignoreCase = true) } }
+        val active = if (deleting) PROTECTED_PHRASES.filter { it !in PRIVATE_SPACE_PHRASES } else PROTECTED_PHRASES
         return norm.any { n ->
             val text = DELETE_PRIVATE_SPACE.fold(n) { t, cut -> t.replace(cut, "", ignoreCase = true) }
             text.contains(appLabel) ||
-                (phrases && PROTECTED_PHRASES.any { text.contains(it, ignoreCase = true) })
+                (phrases && active.any { text.contains(it, ignoreCase = true) })
         }
     }
 }

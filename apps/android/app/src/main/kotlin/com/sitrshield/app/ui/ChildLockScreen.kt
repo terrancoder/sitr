@@ -86,9 +86,12 @@ fun ChildLockScreen(ctx: UiCtx) {
                         "info and other settings pages that show Sitr's name, " +
                         "uninstalling, its VPN and accessibility settings, the " +
                         "VPN disconnect dialog, Developer options, adding users, " +
-                        "setting up a private space, the Private DNS dialog and the " +
-                        "mobile network reset. " +
-                        "Not covered: safe mode and factory reset (Android's own " +
+                        "setting up or opening a private space, the Private DNS dialog " +
+                        "and the mobile network reset. " +
+                        "Not covered: a private space, work profile or other user " +
+                        "that already exists (Sitr filters only this phone's main " +
+                        "user, and a private space can still be opened from the " +
+                        "apps list), safe mode and factory reset (Android's own " +
                         "recovery tools), settings in a language other than " +
                         "English, Bengali, Arabic, Turkish or Malay, or worded " +
                         "differently by the phone maker, except those that name " +
@@ -147,16 +150,18 @@ fun ChildLockScreen(ctx: UiCtx) {
 /** Google Play's prominent disclosure for the Accessibility API, word for word in the dialog. */
 private const val GUARD_DISCLOSURE =
     "Sitr's child lock uses Android's Accessibility service. While a guardian " +
-        "has the lock on, Sitr reads the text of the window in front of you when " +
+        "has the lock on, Sitr reads the text and type of the window in front of you when " +
         "it is Settings, an app installer, the Play Store or a system dialog, to " +
         "recognise the screens that would switch Sitr off — its app info and " +
         "other settings pages that show Sitr's name, uninstalling, its VPN and " +
         "accessibility settings, the VPN disconnect dialog, Developer options, " +
-        "adding users, setting up a private space, the Private DNS dialog and the " +
-        "mobile network reset — and " +
+        "adding users, setting up or opening a private space, the Private DNS " +
+        "dialog and the mobile network reset — and " +
         "closes them. The text is checked on this phone and discarded at once: " +
         "nothing is stored, and nothing is sent anywhere. Sitr doesn't read other " +
-        "apps, and the lock opens only with the guardian PIN."
+        "apps, and the lock opens only with the guardian PIN. Sitr filters only " +
+        "this phone's main user: a private space, work profile or other user " +
+        "that already exists is not filtered, so remove it before you lock the phone."
 
 /**
  * Guard mode setup. Always-on VPN comes before the guard, because the
@@ -191,7 +196,12 @@ private fun GuardSetup(ctx: UiCtx, guard: Boolean, alwaysOn: Boolean?) {
             Text(
                 "Guard mode closes the screens that would switch Sitr off, so " +
                     "protection stays on until the guardian PIN opens the lock. " +
-                    "It takes two steps.",
+                    "It takes two steps.\n\n" +
+                    "First remove any private space, work profile or other user " +
+                    "on this phone (Settings → Security & privacy → Private " +
+                    "space, Settings → System → Users): Sitr filters only the " +
+                    "main user, and a private space that already exists can " +
+                    "still be opened from the apps list while the lock is on.",
                 style = MaterialTheme.typography.bodyMedium,
             )
 

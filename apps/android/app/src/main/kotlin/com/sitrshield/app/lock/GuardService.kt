@@ -19,6 +19,9 @@ import com.sitrshield.core.lock.GuardRules
  */
 class GuardService : AccessibilityService() {
     private var lastActionAt = 0L
+
+    /** Activity class of the last window that opened in a watched app. */
+    private var windowClass: String? = null
     private val handler = Handler(Looper.getMainLooper())
 
     private val recheck = Runnable {
@@ -35,6 +38,11 @@ class GuardService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString() ?: return
+        // Only a window-state event names the window's activity; content
+        // events name a view. Private space setup is known by it alone.
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            windowClass = event.className?.toString()
+        }
         check(pkg, event.text)
     }
 
@@ -50,9 +58,10 @@ class GuardService : AccessibilityService() {
         val root = rootInActiveWindow
         val texts = if (root?.packageName?.toString() == pkg) collectTexts(root) else emptyList()
         val allTexts = texts + listOfNotNull(eventText?.joinToString(" "))
-        if (!GuardRules.shouldClose(pkg, allTexts, label)) return false
+        if (!GuardRules.shouldClose(pkg, allTexts, label, windowClass)) return false
 
         lastActionAt = SystemClock.uptimeMillis()
+        windowClass = null
         // Back cancels a dialog; Home then clears whatever is left — Back
         // alone can land before a dialog is ready and be swallowed.
         performGlobalAction(GLOBAL_ACTION_BACK)
