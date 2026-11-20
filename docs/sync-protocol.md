@@ -173,7 +173,7 @@ The same rules apply in open mode as before: a server with no
   service. Website purchase: Polar's subscription ID, shown to users as
   the **subscription code**. iOS purchase: Apple's signed transaction
   (the StoreKit 2 `jwsRepresentation`).
-- **Subscription ID**: Polar's subscription ID (a UUIDv4, compared in
+- **Subscription ID**: Polar's subscription ID (a UUID, compared in
   lower case), or Apple's `originalTransactionId`. It stays the same
   across renewals. On the website it is also the subscription code.
 - **Marker**: a keyed hash of the subscription ID (below). The claim
@@ -397,8 +397,8 @@ checked, and unknown fields are ignored.
 ```
 
 - `source`: `polar` or `apple`.
-- `credential`: for `polar`, the subscription code, a UUIDv4 in its
-  canonical 36-character form (any case; lower-cased before use); for
+- `credential`: for `polar`, the subscription code, a UUID of any
+  version in its canonical 36-character form (any case; lower-cased before use); for
   `apple`, the compact JWS of the signed transaction.
 - `claim_secret`: the client's claim secret for this subscription, the
   same value every month.
@@ -494,8 +494,12 @@ Each claim secret still gets one token per day.
 **Not an oracle.** The endpoint answers only what a holder of the
 credential needs. An Apple JWS can be checked offline by anyone with
 Apple's public root certificate, so the service reveals nothing new
-about it. A Polar subscription ID is a random UUIDv4 (122 random bits);
-guessing one is slowed by the per-IP limit, and the answers
+about it. A Polar subscription ID is a UUID; the service accepts any
+version and does not rely on how many of its bits are random (a
+version 4 UUID has 122, a time-based one fewer and partly predictable).
+Guessing one is slowed only by the per-IP limit, and a guessed ID
+still meets the binding: once the buyer has claimed, it gets
+`bound-to-other-device`, not a token. The answers
 (`unknown-code`, `inactive`) say no more than version 1's answers about
 a checkout. An error never names the
 plan, the term or the paid end. `bound-to-other-device` tells a
@@ -553,7 +557,7 @@ above and drops the rest at once. It never logs a request or response
 body, and it reads `customer_id` from no answer.
 
 Why the subscription ID and not the checkout ID: Polar documents the
-subscription ID as a UUIDv4 that the customer can read through Polar's
+subscription ID as a UUID that the customer can read through Polar's
 customer portal API and that is never placed in a URL, while nothing
 guarantees that a checkout stays readable for the life of a
 subscription. A subscription ID is not presented by Polar as a secret:
@@ -687,9 +691,10 @@ receipt whose purchase was refunded or revoked: such a receipt has no
 `revocationDate` and may still have a future `expiresDate`. Each row is
 `tx_hash = HMAC-SHA-256(claim key, "sitr-claim v2 revoked transaction" ‖
 0x00 ‖ source ‖ 0x00 ‖ transactionId)`, where `source` is `apple` or
-`apple-sandbox`, and that transaction's `expiresDate`. A claim whose
-receipt's `transactionId` hash is in the table is refused with
-`revoked`. A refund blocks only the refunded transaction: a later
+`apple-sandbox`, that transaction's `expiresDate`, the `signedDate` of
+the newest refund or reversal notice for it, and whether that notice
+was a refund. A claim whose receipt's `transactionId` hash is in the
+table as refunded is refused with `revoked`. A refund blocks only the refunded transaction: a later
 renewal, or a new purchase on the same subscription, is a different
 transaction and passes. (An earlier design kept a revocation date on the
 marker; it could lock a buyer out of a later, shorter purchase after a
@@ -702,22 +707,26 @@ missing configuration (bundle ID) → `503`. The service verifies the JWS
 with steps 1 to 11; a `bundleId` that is not ours → `400`; an environment
 the verifier does not accept → `200` and nothing stored.
 
-- `REFUND` or `REVOKE`: it verifies `data.signedTransactionInfo` the same
-  way and inserts the hash of its `transactionId` with its `expiresDate`
-  (keeping the later `expiresDate` if the row exists). Notifications
-  create no marker rows.
-- `REFUND_REVERSED`: deletes that transaction's hash only.
+- `REFUND`, `REVOKE` or `REFUND_REVERSED`: it verifies
+  `data.signedTransactionInfo` the same way and writes the hash of its
+  `transactionId` with its `expiresDate` (keeping the later `expiresDate`
+  if the row exists). The notice with the later `signedDate` (the
+  notification's own) decides whether the transaction is refunded or
+  reversed, whichever arrives first; on equal dates the reversal does.
+  A reversal touches that transaction's row only. Notifications create
+  no marker rows.
 - Every other type (`DID_RENEW`, `EXPIRED`, `DID_FAIL_TO_RENEW`, …):
   `200`, nothing stored.
 
 Responses, all with an empty body: `200` for every verified
 notification; `400` only when verification fails (including a bundle ID
 that is not ours), storing nothing. A verified notification whose signed
-transaction has no `transactionId`, or (`REFUND`/`REVOKE`) no numeric
-`expiresDate`, is answered `200` and stores nothing; such a receipt is
+transaction has no `transactionId` or no numeric `expiresDate` is
+answered `200` and stores nothing; such a receipt is
 refused at claim time anyway. Other answers: `405`, `413` over 64 KiB,
 `429` over the limit, `503` when not configured. The service stores nothing from a notification
-but that hash and date, not even the notification ID; the handling is
+but that hash, the expiry, the notice's `signedDate` and the refunded or
+reversed state, not even the notification ID; the handling is
 idempotent. The URL is set in App Store Connect and needs no
 API key. An in-memory per-IP-hash limit (600 an hour) bounds the cost of
 junk requests.
@@ -752,11 +761,14 @@ CREATE TABLE markers (
 ) STRICT, WITHOUT ROWID;
 
 CREATE TABLE revoked_transactions (
-  tx_hash BLOB    PRIMARY KEY,  -- HMAC of source and transactionId (§Revocation)
-  exp     INTEGER NOT NULL      -- that transaction's expiresDate
+  tx_hash     BLOB    PRIMARY KEY,  -- HMAC of source and transactionId (§Revocation)
+  exp         INTEGER NOT NULL,     -- that transaction's expiresDate
+  notice_date INTEGER NOT NULL,     -- signedDate of the newest refund or reversal notice
+  revoked     INTEGER NOT NULL      -- 1 refunded or revoked, 0 reversed
 ) STRICT, WITHOUT ROWID;
 
--- transition only (§Transition and cut-over); dropped at the cut-over
+-- transition only (§Transition and cut-over); emptied by the first prune
+-- (hourly and at start-up) on or after the cut-over date
 CREATE TABLE v1_claims (
   checkout_hash BLOB    PRIMARY KEY,  -- HMAC-SHA-256(claim key, "sitr-claim v1 checkout" ‖ 0x00 ‖ checkout ID)
   exp           INTEGER NOT NULL      -- the exp of the version 1 token issued for it
@@ -779,8 +791,9 @@ binder and `last_period_end` (the same value for every subscription that
 claimed for the same month), and a rebind day for up to `R` days. A
 subscription that stops renewing loses its row once its newest token has
 expired (the 4th of a month), unless a recent rebind keeps it. For each
-refunded or revoked Apple transaction it holds a keyed hash and the
-transaction's expiry, until that expiry. Until the cut-over it also holds
+refunded or revoked Apple transaction (and each reversed one) it holds a
+keyed hash, the transaction's expiry, the date of the newest refund or
+reversal notice and which of the two it was, until that expiry. Until the cut-over it also holds
 one row per checkout redeemed on the version 1 route. It stores no
 token, no `jti`, no claim secret, no subscription ID, no transaction ID,
 no checkout ID, no product, no name, no email and no IP address. `WITHOUT ROWID` keeps rows in key
@@ -1383,7 +1396,12 @@ configuration.
 
 **Start-up checks.** A variable that is set but unusable stops the
 process at start-up, with a message that names the variable and never
-its value. A variable set to an empty or blank value is refused.
+its value. A variable set to an empty or blank value counts as unset
+where unset only falls back to a default; it is refused for
+`SITR_SYNC_DB`, `SITR_CLAIM_DB`, `SITR_ENTITLEMENT_PUBKEY`,
+`SITR_ENTITLEMENT_PRIVKEY`, `SITR_CLAIM_KEY`, `SITR_POLAR_TOKEN` and
+`SITR_V1_CUTOVER`, where unset would switch off a check (a blank public
+key would mean an open server). Only a variable that is absent is unset.
 `SITR_SYNC_DB` and `SITR_CLAIM_DB` must be file paths; an in-memory
 database is refused. The claim service also refuses partial setups: one of the
 signing key and the claim key without the other; a billing source

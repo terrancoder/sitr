@@ -32,7 +32,8 @@ const V1_RE = /^\/v1\/entitlement\/claim\/([A-Za-z0-9_-]{1,128})$/;
 const SUB_RE = /^\/v1\/entitlement\/subscription\/([A-Za-z0-9_-]{1,128})$/;
 const CLAIM_PATH = "/v1/entitlement/claim";
 const NOTIFY_PATH = "/v1/entitlement/apple/notifications";
-const UUID4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+/** Any UUID version (Polar may issue others than 4), canonical form, RFC 4122 variant. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type Source = "polar" | "apple" | "apple-sandbox";
 type Fail = { status: number; error: string; retry_after?: number };
@@ -230,7 +231,7 @@ export class ClaimHandler {
       secret.length !== 32 ||
       typeof replace !== "boolean" ||
       typeof current !== "boolean" ||
-      (source === "polar" && !UUID4_RE.test(credential))
+      (source === "polar" && !UUID_RE.test(credential))
     ) {
       return fail({ status: 400, error: "bad-request" });
     }
@@ -393,15 +394,12 @@ export class ClaimHandler {
     // is answered 200 and stores nothing: its receipt is refused at claim
     // time anyway (invalid-receipt, inactive).
     const transactionId = str(t["transactionId"]);
-    if (transactionId === undefined || transactionId === "") return empty(200);
+    const expires = t["expiresDate"];
+    if (transactionId === undefined || transactionId === "" || typeof expires !== "number") return empty(200);
     const txHash = deriveRevokedTx(key, env === "Production" ? "apple" : "apple-sandbox", transactionId);
-    if (type === "REFUND_REVERSED") {
-      this.store.unrevoke(txHash);
-    } else {
-      const expires = t["expiresDate"];
-      if (typeof expires !== "number") return empty(200);
-      this.store.revoke(txHash, expires);
-    }
+    // The notice's own signedDate (a number after verification) orders
+    // refunds and reversals, whichever arrives first.
+    this.store.notice(txHash, expires, n["signedDate"] as number, type !== "REFUND_REVERSED");
     return empty(200);
   }
 
@@ -443,7 +441,9 @@ export class ClaimHandler {
     if (checkout.status !== "succeeded" && checkout.status !== "confirmed") {
       return fail(402, "checkout not completed");
     }
-    if (checkout.subscriptionId === undefined) return fail(402, "inactive");
+    // Empty, missing or malformed: never put into a URL (an empty one would
+    // list every subscription).
+    if (!UUID_RE.test(checkout.subscriptionId ?? "")) return fail(402, "inactive");
     const s = await this.polarGet(`/v1/subscriptions/${checkout.subscriptionId}`);
     if (s === null) return fail(502, "billing provider unavailable");
     const sub = s.status === 200 ? pickSubscription(s.body) : undefined;

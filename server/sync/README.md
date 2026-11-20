@@ -124,6 +124,13 @@ names the variable and never its value, when a variable is set but
 unusable (a non-numeric port or limit, a key of the wrong length, a
 malformed date, product list, URL or origin, a `SITR_TRUSTED_PROXY` /
 `SITR_APPLE_SANDBOX` other than `1`/`0`) or a database cannot be opened.
+A blank value counts as unset where that only falls back to a default
+(ports, limits, origins, product lists, flags). It is refused for
+`SITR_SYNC_DB`, `SITR_CLAIM_DB`, `SITR_ENTITLEMENT_PUBKEY`,
+`SITR_ENTITLEMENT_PRIVKEY`, `SITR_CLAIM_KEY`, `SITR_POLAR_TOKEN` and
+`SITR_V1_CUTOVER`: a blank public key would otherwise make an open server
+and a blank cut-over date would never end version 1. Leave a variable out
+to unset it.
 The claim process also refuses combinations that cannot work:
 `SITR_ENTITLEMENT_DAYS` above 7; only one of `SITR_ENTITLEMENT_PRIVKEY` and
 `SITR_CLAIM_KEY`; a billing source without both keys; `SITR_POLAR_TOKEN`

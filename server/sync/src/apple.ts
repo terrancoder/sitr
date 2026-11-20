@@ -5,7 +5,9 @@
  *
  * The trust anchor and the accepted environments are constructor
  * arguments: claim-server.ts is the only place that builds the production
- * verifier, from APPLE_TRUST_ANCHOR below; tests pass their own root.
+ * verifier, from APPLE_TRUST_ANCHOR below; tests pass their own root. A
+ * TestAnchor (Xcode's StoreKit test certificate) is built only by
+ * tests/src/devClaimServer.ts; no environment variable selects one.
  */
 import { X509Certificate, verify } from "node:crypto";
 import { jsonObject } from "./http.js";
@@ -17,6 +19,15 @@ export interface TrustAnchor {
   leafOid: Buffer;
   /** Full DER TLV of the OID the intermediate must carry (step 10). */
   intermediateOid: Buffer;
+}
+
+/**
+ * DEVELOPMENT ONLY: Xcode's StoreKit test certificate, a root with no Apple
+ * OIDs. The x5c chain (1 to 3 certificates) must end in exactly this
+ * certificate and each link must verify; steps 6 and 10 do not apply.
+ */
+export interface TestAnchor {
+  testRoot: X509Certificate;
 }
 
 export const APPLE_LEAF_OID = Buffer.from("060a2a864886f76364060b01", "hex");
@@ -90,7 +101,7 @@ const json = (part: string) => jsonObject(Buffer.from(part, "base64url").toStrin
 
 export class AppleVerifier {
   constructor(
-    private readonly anchor: TrustAnchor,
+    private readonly anchor: TrustAnchor | TestAnchor,
     /** Environments accepted, e.g. Production (+ Sandbox when enabled). */
     readonly environments: ReadonlySet<string>,
   ) {
@@ -110,7 +121,8 @@ export class AppleVerifier {
     const header = json(parts[0]!);
     if (header === null || header["alg"] !== "ES256") return null; // 2
     const x5c = header["x5c"];
-    if (!Array.isArray(x5c) || x5c.length !== 3) return null; // 3
+    const test = "testRoot" in this.anchor;
+    if (!Array.isArray(x5c) || (test ? x5c.length < 1 || x5c.length > 3 : x5c.length !== 3)) return null; // 3
     const certs: X509Certificate[] = [];
     for (const c of x5c) {
       if (typeof c !== "string" || !/^[A-Za-z0-9+/]+={0,2}$/.test(c)) return null;
@@ -120,7 +132,6 @@ export class AppleVerifier {
         return null; // not a certificate
       }
     }
-    const [leaf, inter, root] = certs as [X509Certificate, X509Certificate, X509Certificate];
     const payload = json(parts[1]!);
     if (payload === null) return null;
     const signedDate = payload["signedDate"]; // 4
@@ -129,21 +140,33 @@ export class AppleVerifier {
       // 5
       if (!(c.validFromDate.getTime() <= signedDate && signedDate <= c.validToDate.getTime())) return null;
     }
+    const leaf = certs[0]!;
+    if ("testRoot" in this.anchor) {
+      if (!certs[certs.length - 1]!.raw.equals(this.anchor.testRoot.raw)) return null;
+      for (let i = 0; i + 1 < certs.length; i++) {
+        if (!certs[i]!.checkIssued(certs[i + 1]!) || !certs[i]!.verify(certs[i + 1]!.publicKey)) return null;
+      }
+      return this.signed(parts, leaf) ? payload : null;
+    }
+    const [, inter, root] = certs as [X509Certificate, X509Certificate, X509Certificate];
     if (root.fingerprint256 !== this.anchor.rootFingerprint256) return null; // 6
     if (!inter.checkIssued(root) || !inter.verify(root.publicKey)) return null; // 7
     if (!leaf.checkIssued(inter) || !leaf.verify(inter.publicKey)) return null; // 8
     if (inter.ca !== true || leaf.ca !== false) return null; // 9
     if (!hasOid(leaf, this.anchor.leafOid) || !hasOid(inter, this.anchor.intermediateOid)) return null; // 10
-    // 11
-    if (leaf.publicKey.asymmetricKeyDetails?.namedCurve !== "prime256v1") return null;
+    return this.signed(parts, leaf) ? payload : null; // 11
+  }
+
+  /** Step 11: an ES256 signature by the leaf's P-256 key. */
+  private signed(parts: string[], leaf: X509Certificate): boolean {
+    if (leaf.publicKey.asymmetricKeyDetails?.namedCurve !== "prime256v1") return false;
     const sig = Buffer.from(parts[2]!, "base64url");
-    if (sig.length !== 64) return null;
-    const ok = verify(
+    if (sig.length !== 64) return false;
+    return verify(
       "sha256",
       Buffer.from(`${parts[0]}.${parts[1]}`, "ascii"),
       { key: leaf.publicKey, dsaEncoding: "ieee-p1363" },
       sig,
     );
-    return ok ? payload : null;
   }
 }

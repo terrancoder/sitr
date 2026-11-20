@@ -128,7 +128,7 @@ test("the production anchor refuses every test chain: none chains to Apple's roo
 /* ---------------------- payload rules 12–19, via claims ----------------- */
 
 const SECRET = Buffer.alloc(32, 1).toString("base64url");
-function setup(opts: { sandbox?: boolean; envs?: string[]; db?: string } = {}) {
+function setup(opts: { sandbox?: boolean; envs?: string[]; db?: string; anchor?: ConstructorParameters<typeof AppleVerifier>[0] } = {}) {
   const kp = keygen();
   const store = new ClaimStore(opts.db ?? ":memory:");
   const config = {
@@ -144,7 +144,7 @@ function setup(opts: { sandbox?: boolean; envs?: string[]; db?: string } = {}) {
   const clock = { t: NOW };
   const h = new ClaimHandler(config, () => clock.t, fetch, {
     store,
-    apple: new AppleVerifier(ANCHOR, new Set(envs)),
+    apple: new AppleVerifier(opts.anchor ?? ANCHOR, new Set(envs)),
   });
   const claim = async (credential: string, secret = SECRET) => {
     const r = await h.handle({
@@ -274,7 +274,7 @@ test("REFUND_REVERSED lifts only its own transaction's block", async () => {
   assert.equal(await s.notify(note("REFUND_REVERSED", { transactionId: "T1" })), 200);
   assert.equal((await s.claim(jws(tx({ transactionId: "T1" })))).status, 200);
   assert.deepEqual((await s.claim(jws(tx({ transactionId: "T2" })))).body, { error: "revoked" });
-  assert.equal(s.revoked().length, 1);
+  assert.deepEqual(s.revoked().map((r) => r["revoked"]).sort(), [0, 1]); // T1 kept as reversed, until its expiry
 });
 
 test("revoked transactions are pruned once their expiresDate has passed", async () => {
@@ -371,4 +371,35 @@ test("notifications: other types and switched-off Sandbox store nothing; bad one
   let n = 9;
   while ((await bad(enc({}))).status !== 429 && n < 700) n++;
   assert.equal(n, 600);
+});
+
+test("refund and reversal: the later-signed notice wins, whichever arrives first", async () => {
+  const at = (type: string, signedDate: number) => ({ ...note(type, { transactionId: "T1" }), signedDate });
+  const orders: [string, [string, number][], number][] = [
+    ["refund, then later reversal", [["REFUND", NOW], ["REFUND_REVERSED", NOW + 1]], 200],
+    ["later reversal arrives first", [["REFUND_REVERSED", NOW + 1], ["REFUND", NOW]], 200],
+    ["reversal, then later refund", [["REFUND_REVERSED", NOW], ["REFUND", NOW + 1]], 402],
+    ["later refund arrives first", [["REFUND", NOW + 1], ["REFUND_REVERSED", NOW]], 402],
+  ];
+  for (const [name, notices, status] of orders) {
+    const s = setup();
+    for (const [type, d] of notices) assert.equal(await s.notify(at(type, d)), 200, name);
+    assert.equal((await s.claim(jws(tx({ transactionId: "T1" })))).status, status, name);
+  }
+});
+
+test("StoreKit test anchor (dev server only): a chain ending in that certificate verifies; tokens carry test", async () => {
+  const xcode = (o = {}) => jws(tx({ environment: "Xcode" }), { x5c: [der64("leaf")], key: "leaf", ...o });
+  const dev = new AppleVerifier({ testRoot: cert("leaf") }, new Set(["Xcode"]));
+  assert.ok(dev.verify(xcode()));
+  assert.equal(dev.verify(xcode({ key: "leaf_other" })), null); // signed by another key
+  assert.equal(new AppleVerifier({ testRoot: cert("root") }, new Set(["Xcode"])).verify(xcode()), null); // other root
+  assert.ok(new AppleVerifier({ testRoot: cert("root") }, new Set(["Xcode"])).verify(jws(tx()))); // 3-chain to it
+  assert.equal(new AppleVerifier({ testRoot: cert("root") }, new Set(["Xcode"])).verify(jws(tx(), { chain: ["leaf_other", "inter2", "root"] })), null);
+  assert.equal(new AppleVerifier(APPLE_TRUST_ANCHOR, new Set(["Production", "Sandbox"])).verify(xcode()), null);
+  const s = setup({ anchor: { testRoot: cert("leaf") }, envs: ["Xcode"] });
+  const r = await s.claim(xcode());
+  assert.equal(r.status, 200);
+  assert.equal(payloadOf(r.body["token"])["test"], true);
+  assert.deepEqual(s.rows(), []); // treated as Sandbox: no binding
 });

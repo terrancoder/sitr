@@ -2,8 +2,9 @@
 // the mint CLI, the shared node:http listener, and the store's request path.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { X509Certificate, createPrivateKey, sign } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:http";
@@ -12,7 +13,7 @@ import { DatabaseSync, StatementSync } from "node:sqlite";
 import type { AddressInfo } from "node:net";
 
 import { checkClaimConfig, configFromEnv } from "../../server/sync/dist/config.js";
-import { SyncHandler, syncListener, type SyncRequest } from "../../server/sync/dist/http.js";
+import { SyncHandler, guarded, syncListener, type SyncRequest } from "../../server/sync/dist/http.js";
 import { SyncStore } from "../../server/sync/dist/store.js";
 import { keygen, mintTokenV2, privateKeyFromB64 } from "../../server/sync/dist/mint.js";
 import { ClaimHandler } from "../../server/sync/dist/claim.js";
@@ -45,7 +46,7 @@ test("a set but unusable variable throws, naming the variable and never its valu
   assert.equal(configFromEnv({ SITR_TRUSTED_PROXY: "0" }).trustedProxy, false);
 });
 
-test("an empty or blank value of any variable is refused; no database in memory through the environment", () => {
+test("a blank variable counts as unset only where that is harmless; blank keys, token, cut-over and database paths are refused", () => {
   const names = [
     "SITR_SYNC_PORT", "SITR_SYNC_DB", "SITR_ENTITLEMENT_PUBKEY", "SITR_V1_CUTOVER", "SITR_SYNC_CREATES_PER_IP_HOUR",
     "SITR_SYNC_REQS_PER_ID_MIN", "SITR_TRUSTED_PROXY", "SITR_CLAIM_PORT", "SITR_ENTITLEMENT_PRIVKEY", "SITR_CLAIM_KEY",
@@ -53,11 +54,19 @@ test("an empty or blank value of any variable is refused; no database in memory 
     "SITR_APPLE_PRODUCTS", "SITR_APPLE_SANDBOX", "SITR_REPLACEMENT_DAYS", "SITR_CLAIM_PER_IP_HOUR",
     "SITR_ENTITLEMENT_DAYS", "SITR_CLAIM_ORIGIN",
   ];
+  const unset = JSON.stringify(configFromEnv({}), (_k, v) => (v instanceof Map ? [...v] : v));
   for (const name of names) {
     for (const blank of ["", " \t "]) {
-      assert.throws(() => configFromEnv({ [name]: blank }), new RegExp(`^Error: ${name} is set but empty$`), name);
+      if (["SITR_SYNC_DB", "SITR_CLAIM_DB", "SITR_ENTITLEMENT_PUBKEY", "SITR_ENTITLEMENT_PRIVKEY", "SITR_CLAIM_KEY", "SITR_POLAR_TOKEN", "SITR_V1_CUTOVER"].includes(name)) {
+        assert.throws(() => configFromEnv({ [name]: blank }), new RegExp(`^Error: ${name} is set but empty$`), name);
+      } else {
+        const c = JSON.stringify(configFromEnv({ [name]: blank }), (_k, v) => (v instanceof Map ? [...v] : v));
+        assert.equal(c, unset, name);
+      }
     }
   }
+  // A blank optional setting does not hide a broken combination.
+  assert.throws(() => checkClaimConfig(configFromEnv({ SITR_POLAR_TOKEN: "t", SITR_POLAR_PRODUCTS: " " })), /SITR_POLAR_TOKEN and SITR_POLAR_PRODUCTS/);
   assert.throws(() => configFromEnv({ SITR_POLAR_PRODUCTS: " , " }), /SITR_POLAR_PRODUCTS is set but lists no product/);
   assert.throws(() => configFromEnv({ SITR_SYNC_DB: ":memory:" }), /SITR_SYNC_DB must be a file path/);
   assert.throws(() => configFromEnv({ SITR_CLAIM_DB: ":memory:" }), /SITR_CLAIM_DB must be a file path/);
@@ -124,6 +133,7 @@ test("both processes fail fast at start-up with a message naming the variable, n
     ["server.js", { SITR_ENTITLEMENT_PUBKEY: "c2hvcnQ=", SITR_SYNC_DB: db }, /SITR_ENTITLEMENT_PUBKEY must be 32 bytes/, "c2hvcnQ="],
     ["server.js", { SITR_TRUSTED_PROXY: "yes", SITR_SYNC_DB: db }, /SITR_TRUSTED_PROXY must be 1 or 0/, "yes"],
     ["server.js", { SITR_SYNC_DB: "  " }, /SITR_SYNC_DB is set but empty/, "xx-never"],
+    ["server.js", { SITR_ENTITLEMENT_PUBKEY: " ", SITR_SYNC_DB: db }, /^sitr-sync: SITR_ENTITLEMENT_PUBKEY is set but empty/, "xx-never"],
     ["server.js", { SITR_SYNC_DB: ":memory:" }, /SITR_SYNC_DB must be a file path/, ":memory:"],
   ];
   for (const [entry, env, re, value] of cases) {
@@ -256,7 +266,7 @@ test("ClaimStore: a claim, a notification and a v1 claim prepare no statement", 
   };
   const sub = { status: "active", product_id: "prod_y", recurring_interval: "year", current_period_end: "2027-06-01T00:00:00Z" };
   const polar = (async (u: RequestInfo | URL) =>
-    new Response(JSON.stringify(String(u).includes("/checkouts/") ? { status: "succeeded", subscription_id: "s" } : sub))) as typeof fetch;
+    new Response(JSON.stringify(String(u).includes("/checkouts/") ? { status: "succeeded", subscription_id: "6f1c2a3b-1d2e-4f50-8a9b-0c1d2e3f4a5c" } : sub))) as typeof fetch;
   const h = new ClaimHandler(config, () => Date.parse("2026-11-20T12:00:00Z"), polar, { store });
   const req = (method: string, path: string, body = "") =>
     h.handle({ method, path, ip: "203.0.113.2", headers: {}, body: new TextEncoder().encode(body) });
@@ -271,10 +281,10 @@ test("ClaimStore: a claim, a notification and a v1 claim prepare no statement", 
   try {
     assert.equal((await req("POST", "/v1/entitlement/claim", claim)).status, 200);
     assert.equal((await req("GET", "/v1/entitlement/claim/chk_1")).status, 200);
-    store.revoke(new Uint8Array(32), 1);
-    store.unrevoke(new Uint8Array(32));
+    store.notice(new Uint8Array(32), 1, 1, true);
+    store.notice(new Uint8Array(32), 1, 2, false);
     store.isRevoked(new Uint8Array(32));
-    store.prune(Date.now(), 180);
+    store.prune(Date.now(), 180, 0);
   } finally {
     DatabaseSync.prototype.prepare = prepare;
   }
@@ -334,4 +344,96 @@ test("store: a PUT prepares no statement and never reads the blob it replaces", 
   assert.deepEqual(prepared, []);
   assert.ok(read.length > 0);
   for (const sql of read) assert.doesNotMatch(sql, /SELECT\s+blob\b/);
+});
+
+test("the hourly clean-up guard logs only the kind of error and never throws", () => {
+  const logged: unknown[][] = [];
+  const saved = console.error;
+  console.error = (...a: unknown[]) => void logged.push(a);
+  try {
+    guarded("sitr-claim", "hourly clean-up", () => {
+      throw new RangeError("row-data-and-secrets");
+    });
+  } finally {
+    console.error = saved;
+  }
+  assert.deepEqual(logged, [["sitr-claim: hourly clean-up failed (RangeError)"]]);
+  for (const f of ["server.ts", "claim-server.ts"]) {
+    const src = readFileSync(new URL(`../../server/sync/src/${f}`, import.meta.url), "utf8");
+    assert.match(src, /setInterval\(\s*(\(\) => guarded\(|prune,)/, f);
+  }
+});
+
+test("listener: a response that cannot be written is logged by kind and the process keeps serving", async (ctx) => {
+  let bad = true;
+  const h = { handle: () => ({ status: 200, headers: bad ? { "X-Bad": "a\nb" } : {}, body: new Uint8Array([1]) }) } as unknown as SyncHandler;
+  const server = createServer(syncListener(h, configFromEnv({})));
+  await new Promise<void>((ok) => server.listen(0, "127.0.0.1", ok));
+  ctx.after(() => server.close());
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/`;
+  const logged: unknown[][] = [];
+  const saved = console.error;
+  console.error = (...a: unknown[]) => void logged.push(a);
+  try {
+    await fetch(url).then(() => assert.fail("expected the connection to drop"), () => {});
+  } finally {
+    console.error = saved;
+  }
+  assert.deepEqual(logged, [["sitr-sync: response write failed (TypeError)"]]);
+  bad = false;
+  assert.equal((await fetch(url)).status, 200);
+});
+
+test("the deployed claim service ignores the dev server's StoreKit certificate setting", async (ctx) => {
+  for (const f of ["server.ts", "claim-server.ts", "config.ts", "apple.ts", "claim.ts"]) {
+    const src = readFileSync(new URL(`../../server/sync/src/${f}`, import.meta.url), "utf8");
+    assert.ok(!/SITR_DEV_|process\.argv/.test(src), f);
+  }
+  const dir = mkdtempSync(join(tmpdir(), "sitr-devcert-"));
+  const leaf = fileURLToPath(new URL("../fixtures/apple/leaf.pem", import.meta.url));
+  const child = spawn(process.execPath, ["--experimental-sqlite", "--no-warnings=ExperimentalWarning", dist("claim-server.js"), leaf], {
+    env: {
+      PATH: process.env["PATH"] ?? "",
+      SITR_CLAIM_PORT: "18903",
+      SITR_DEV_STOREKIT_CERT: leaf,
+      SITR_ENTITLEMENT_PRIVKEY: kp.privateB64,
+      SITR_CLAIM_KEY: CLAIM_KEY,
+      SITR_CLAIM_DB: join(dir, "c.sqlite"),
+      SITR_APPLE_BUNDLE_ID: "com.example.sitr",
+      SITR_APPLE_PRODUCTS: "com.example.family.month=family:month",
+      SITR_APPLE_SANDBOX: "1",
+    },
+  });
+  ctx.after(() => {
+    child.kill();
+    rmSync(dir, { recursive: true, force: true });
+  });
+  await new Promise<void>((ok, no) => {
+    child.stdout.on("data", (d: Buffer) => d.toString().includes("listening") && ok());
+    child.on("exit", () => no(new Error("claim-server exited")));
+  });
+  const b64u = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const pem = (n: string) => readFileSync(new URL(`../fixtures/apple/${n}.pem`, import.meta.url));
+  for (const environment of ["Xcode", "Sandbox"]) {
+    const h = b64u({ alg: "ES256", x5c: [new X509Certificate(pem("leaf")).raw.toString("base64")] });
+    const p = b64u({
+      bundleId: "com.example.sitr", environment, productId: "com.example.family.month", originalTransactionId: "1",
+      transactionId: "2", expiresDate: Date.now() + DAY, inAppOwnershipType: "PURCHASED", signedDate: Date.now(),
+    });
+    const sig = sign("sha256", Buffer.from(`${h}.${p}`), { key: createPrivateKey(pem("leaf-key")), dsaEncoding: "ieee-p1363" });
+    const r = await fetch("http://127.0.0.1:18903/v1/entitlement/claim", {
+      method: "POST",
+      body: JSON.stringify({ source: "apple", credential: `${h}.${p}.${sig.toString("base64url")}`, claim_secret: Buffer.alloc(32, 1).toString("base64url") }),
+    });
+    assert.deepEqual([r.status, await r.json()], [422, { error: "invalid-receipt" }], environment);
+  }
+});
+
+test("the dev claim server stops with the owner steps when the StoreKit certificate is missing", () => {
+  const r = spawnSync(process.execPath, ["--experimental-sqlite", "--no-warnings=ExperimentalWarning",
+    fileURLToPath(new URL("./devClaimServer.js", import.meta.url)), "/nonexistent/StoreKitTestCertificate.cer"], {
+    env: { PATH: process.env["PATH"] ?? "" }, encoding: "utf8", timeout: 10_000,
+  });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /Editor > Save Public Certificate/);
 });

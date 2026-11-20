@@ -250,6 +250,18 @@ export class SyncHandler {
 }
 
 /**
+ * Runs `fn` (the hourly clean-up); an exception is logged by its kind only
+ * and never stops the process.
+ */
+export function guarded(name: string, what: string, fn: () => void): void {
+  try {
+    fn();
+  } catch (e) {
+    console.error(`${name}: ${what} failed (${e instanceof Error ? e.name : typeof e})`);
+  }
+}
+
+/**
  * node:http wiring shared by both processes: collects the body up to
  * `maxBody` bytes (413 beyond), passes on only `headerNames`, and answers
  * 500 when the handler throws, with one log line that holds no request data.
@@ -261,13 +273,28 @@ export function nodeListener(
   headerNames: readonly string[],
   handle: (req: SyncRequest) => SyncResponse | Promise<SyncResponse>,
 ) {
+  // A response that cannot be written (the client went away, a bad header)
+  // is logged by its kind only; it never stops the process.
+  const writeError = (e: unknown): void =>
+    console.error(`${name}: response write failed (${e instanceof Error ? e.name : typeof e})`);
+  const write = (res: ServerResponse, status: number, headers: Record<string, string>, body?: Buffer): void => {
+    try {
+      if (!res.headersSent) res.writeHead(status, headers);
+      res.end(body);
+    } catch (e) {
+      writeError(e);
+      res.destroy();
+    }
+  };
   return (req: IncomingMessage, res: ServerResponse): void => {
+    req.on("error", () => {}); // an aborted upload; nothing to answer
+    res.on("error", writeError);
     const chunks: Buffer[] = [];
     let size = 0;
     req.on("data", (chunk: Buffer) => {
       size += chunk.length;
       if (size > maxBody) {
-        if (!res.headersSent) res.writeHead(413, NO_STORE).end();
+        write(res, 413, NO_STORE);
         req.destroy();
         return;
       }
@@ -289,8 +316,7 @@ export function nodeListener(
       };
       const fail = (e: unknown): void => {
         console.error(`${name}: internal error (${e instanceof Error ? e.name : typeof e})`);
-        if (!res.headersSent) res.writeHead(500, NO_STORE);
-        res.end();
+        write(res, 500, NO_STORE);
       };
       let pending: Promise<SyncResponse>;
       try {
@@ -299,10 +325,7 @@ export function nodeListener(
         fail(e);
         return;
       }
-      pending.then((response) => {
-        res.writeHead(response.status, response.headers);
-        res.end(Buffer.from(response.body));
-      }, fail);
+      pending.then((response) => write(res, response.status, response.headers, Buffer.from(response.body)), fail);
     });
   };
 }

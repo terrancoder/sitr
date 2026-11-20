@@ -172,7 +172,9 @@ test("claim: bad-request and too-large, before any Polar call", async () => {
     { source: "stripe" },
     { credential: undefined },
     { credential: "not-a-uuid" },
-    { credential: "6f1c2a3b-1d2e-1f50-8a9b-0c1d2e3f4a5b" }, // version 1 UUID
+    { credential: "6f1c2a3b1d2e1f508a9b0c1d2e3f4a5b" }, // no hyphens
+    { credential: "6f1c2a3b-1d2e-1f50-8a9b-0c1d2e3f4a5" }, // too short
+    { credential: "6f1c2a3b-1d2e-1f50-8a9b-0c1d2e3f4a5g" }, // not hex
     { claim_secret: Buffer.alloc(31).toString("base64url") },
     { claim_secret: Buffer.alloc(32).toString("base64") },
     { replace: "yes" },
@@ -572,4 +574,34 @@ test("mint.js --verify prints plan, term, exp and validity", () => {
   const bad = run(token.slice(0, -4) + "AAAA");
   assert.equal(bad.status, 1);
   assert.match(bad.stdout, /invalid \(token-invalid\)/);
+});
+
+test("claim: a well-formed UUID of any version reaches Polar (version 1, 4, 7)", async () => {
+  for (const id of ["6f1c2a3b-1d2e-1f50-8a9b-0c1d2e3f4a5b", SUB, "019a1c2a-3b1d-7e4f-8a9b-0c1d2e3f4a5b"]) {
+    const s = setup();
+    s.polar.set(`/v1/subscriptions/${id}`, { body: s.sub() });
+    assert.equal((await s.claim({ credential: id })).status, 200, id);
+    assert.deepEqual(s.calls.map((c) => c.url), [`https://api.polar.sh/v1/subscriptions/${id}`]);
+  }
+});
+
+test("v1 route: an empty, missing or malformed subscription ID from Polar is inactive and never reaches a URL", async () => {
+  const s = setup();
+  for (const [id, sid] of [["chk_e", ""], ["chk_m", undefined], ["chk_x", "../checkouts/x"], ["chk_s", "sub-1"]] as const) {
+    s.polar.set(`/v1/checkouts/${id}`, { body: { status: "succeeded", subscription_id: sid } });
+    const r = await s.raw("", "203.0.113.9", "GET", `/v1/entitlement/claim/${id}`);
+    assert.deepEqual([r.status, r.text], [402, "inactive\n"], String(sid));
+  }
+  assert.deepEqual(s.calls.filter((c) => c.url.includes("/subscriptions")), []);
+});
+
+test("v1_claims is emptied by the prune once the cut-over has passed, not before", async () => {
+  const s = setup({}, { SITR_V1_CUTOVER: "2026-12-01" });
+  s.polar.set("/v1/checkouts/chk_a", { body: { status: "succeeded", subscription_id: SUB } });
+  assert.equal((await s.raw("", "203.0.113.9", "GET", "/v1/entitlement/claim/chk_a")).status, 200);
+  const count = () => (s.store.db.prepare("SELECT count(*) AS n FROM v1_claims").get() as { n: number }).n;
+  s.store.prune(T("2026-11-30T23:59:59Z"), 180, s.config.v1CutoverMs);
+  assert.equal(count(), 1);
+  s.store.prune(T("2026-12-01"), 180, s.config.v1CutoverMs);
+  assert.equal(count(), 0);
 });

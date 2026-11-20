@@ -10,7 +10,7 @@
 import { createServer } from "node:http";
 import { configFromEnv, type Config } from "./config.js";
 import { SyncStore } from "./store.js";
-import { SyncHandler, syncListener } from "./http.js";
+import { SyncHandler, guarded, syncListener } from "./http.js";
 
 let config: Config;
 let store: SyncStore;
@@ -32,9 +32,7 @@ try {
 const server = createServer(syncListener(handler, config));
 
 setInterval(
-  () => {
-    store.gc(Date.now(), config.idleExpiryMs);
-  },
+  () => guarded("sitr-sync", "hourly clean-up", () => store.gc(Date.now(), config.idleExpiryMs)),
   60 * 60 * 1000,
 ).unref();
 

@@ -10,6 +10,7 @@
 import { createServer } from "node:http";
 import { checkClaimConfig, configFromEnv, type Config } from "./config.js";
 import { ClaimHandler, claimListener } from "./claim.js";
+import { guarded } from "./http.js";
 import { ClaimStore } from "./claim-store.js";
 import { APPLE_TRUST_ANCHOR, AppleVerifier } from "./apple.js";
 
@@ -40,7 +41,10 @@ try {
 }
 
 if (store !== undefined) {
-  setInterval(() => store.prune(Date.now(), config.replacementDays), 60 * 60 * 1000).unref();
+  const prune = () =>
+    guarded("sitr-claim", "hourly clean-up", () => store.prune(Date.now(), config.replacementDays, config.v1CutoverMs));
+  prune(); // also at start-up, so v1_claims is emptied once the cut-over has passed
+  setInterval(prune, 60 * 60 * 1000).unref();
 }
 
 createServer(claimListener(handler, config.trustedProxy)).listen(config.claimPort, () => {

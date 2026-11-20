@@ -94,15 +94,24 @@ function parseCutover(v: string | undefined): number | undefined {
  * error naming the variable (never its value), so a process fails at start-up
  * instead of silently falling back to a default.
  *
- * A variable set to an empty or blank value counts as set and unusable: an
- * empty database path, for instance, would make SQLite open a private
- * temporary database that is lost on every restart.
+ * A variable set to an empty or blank value counts as unset (existing env
+ * files carry such lines) when unset only falls back to a harmless default.
+ * It is refused where unset would silently switch off a check or lose data:
+ * the database paths (SQLite would open a temporary database lost on every
+ * restart), the keys and the Polar token (a blank public key would make an
+ * open server) and the cut-over date (version 1 tokens would never end).
  */
+const BLANK_REFUSED = new Set([
+  "SITR_SYNC_DB", "SITR_CLAIM_DB", "SITR_ENTITLEMENT_PUBKEY", "SITR_ENTITLEMENT_PRIVKEY",
+  "SITR_CLAIM_KEY", "SITR_POLAR_TOKEN", "SITR_V1_CUTOVER",
+]);
+
 export function configFromEnv(env: NodeJS.ProcessEnv): Config {
   const raw = (name: string): string | undefined => {
     const v = env[name];
-    if (v !== undefined && v.trim() === "") throw new Error(`${name} is set but empty`);
-    return v;
+    if (v === undefined || v.trim() !== "") return v;
+    if (BLANK_REFUSED.has(name)) throw new Error(`${name} is set but empty`);
+    return undefined;
   };
   const dbPath = (name: string, dflt: string): string => {
     const v = raw(name) ?? dflt;

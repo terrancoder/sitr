@@ -231,8 +231,10 @@ which the sync service never opens:
   token has expired, on the 4th of the first month it did not renew for.
 - per marker, only while needed: the day of the last rebind (kept 180
   days). Sandbox purchases store neither binder nor month.
-- per refunded or revoked Apple transaction: a keyed hash of its
-  transaction ID and its expiry, kept until that expiry (at most about a
+- per refunded or revoked Apple transaction (and per reversed one): a
+  keyed hash of its transaction ID, its expiry, the date Apple signed the
+  newest refund or reversal notice and which of the two it was, kept
+  until that expiry (at most about a
   year for a yearly subscription). The raw transaction ID is never
   stored or logged.
 - until the version 1 cut-over: a keyed hash of each checkout redeemed on

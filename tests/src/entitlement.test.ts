@@ -115,9 +115,9 @@ test("claim endpoint exchanges a paid Polar checkout for a valid token", async (
   const fetchStub = (async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith("/v1/checkouts/paid-checkout")) {
-      return new Response(JSON.stringify({ status: "succeeded", subscription_id: "sub-1" }), { status: 200 });
+      return new Response(JSON.stringify({ status: "succeeded", subscription_id: "6f1c2a3b-1d2e-4f50-8a9b-0c1d2e3f4a5b" }), { status: 200 });
     }
-    if (url.endsWith("/v1/subscriptions/sub-1")) {
+    if (url.endsWith("/v1/subscriptions/6f1c2a3b-1d2e-4f50-8a9b-0c1d2e3f4a5b")) {
       return new Response(
         JSON.stringify({ status: "active", product_id: "prod_family", current_period_end: new Date(NOW + 86_400_000).toISOString() }),
         { status: 200 },
