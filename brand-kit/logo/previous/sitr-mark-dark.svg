@@ -1,0 +1,12 @@
+<svg viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="400" fill="#121a16"/>
+  <g stroke="#2c3a32" stroke-width="1"><circle cx="200" cy="200" r="196"/><circle cx="200" cy="200" r="158"/></g>
+  <g stroke="#3aa886" stroke-width="2.5">
+    <path d="M200 30 L320 80 L370 200 L320 320 L200 370 L80 320 L30 200 L80 80 Z"/>
+    <path d="M200 30 L370 200 L200 370 L30 200 Z"/>
+    <path d="M320 80 L320 320 L80 320 L80 80 Z"/>
+  </g>
+  <path d="M200 96 L230 170 L304 200 L230 230 L200 304 L170 230 L96 200 L170 170 Z" stroke="#c9a558" stroke-width="2.5"/>
+  <circle cx="200" cy="200" r="52" fill="#121a16" stroke="#2c3a32"/>
+  <text x="200" y="200" dy="0.32em" text-anchor="middle" fill="#e4ddc9" font-size="62" font-family="'Geeza Pro','Noto Naskh Arabic',serif">سِتْر</text>
+</svg>

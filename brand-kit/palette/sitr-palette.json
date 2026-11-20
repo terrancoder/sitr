@@ -1,0 +1,36 @@
+{
+  "source": "sitr-site/src/styles/global.css (light = default, dark = [data-theme=dark] / prefers-color-scheme)",
+  "light": [
+    {"name": "Paper",         "token": "--paper",        "hex": "#f4efe4", "use": "Page background"},
+    {"name": "Paper 2",       "token": "--paper-2",      "hex": "#ece5d4", "use": "Raised / alternate bands"},
+    {"name": "Ink",           "token": "--ink",          "hex": "#1d2a24", "use": "Primary text"},
+    {"name": "Ink soft",      "token": "--ink-soft",     "hex": "#51604f", "use": "Secondary text, mono labels"},
+    {"name": "Green",         "token": "--green",        "hex": "#0f5c46", "use": "Primary accent, CTAs, mark geometry"},
+    {"name": "Green deep",    "token": "--green-deep",   "hex": "#0a3f30", "use": "CTA hover"},
+    {"name": "Gold",          "token": "--gold",         "hex": "#a37e2c", "use": "Star, link hover, highlights"},
+    {"name": "Gold soft",     "token": "--gold-soft",    "hex": "#c4a45c", "use": "Link underlines"},
+    {"name": "Rule",          "token": "--rule",         "hex": "#c9bfa6", "use": "Hairlines, mark circles"},
+    {"name": "Rule strong",   "token": "--rule-strong",  "hex": "#1d2a24", "use": "Heavy section rules"},
+    {"name": "Terminal",      "token": "--terminal",     "hex": "#10201a", "use": "Code / terminal blocks"},
+    {"name": "Terminal ink",  "token": "--terminal-ink", "hex": "#bfe8d5", "use": "Text on terminal"}
+  ],
+  "dark": [
+    {"name": "Paper",         "token": "--paper",        "hex": "#121a16", "use": "Page background; app-icon ground"},
+    {"name": "Paper 2",       "token": "--paper-2",      "hex": "#0d1411", "use": "Raised / alternate bands"},
+    {"name": "Ink",           "token": "--ink",          "hex": "#e4ddc9", "use": "Primary text; wordmark in icon"},
+    {"name": "Ink soft",      "token": "--ink-soft",     "hex": "#94a093", "use": "Secondary text, mono labels"},
+    {"name": "Green",         "token": "--green",        "hex": "#3aa886", "use": "Primary accent, CTAs, mark geometry"},
+    {"name": "Green deep",    "token": "--green-deep",   "hex": "#2c8168", "use": "CTA hover"},
+    {"name": "Gold",          "token": "--gold",         "hex": "#c9a558", "use": "Star, link hover, highlights"},
+    {"name": "Gold soft",     "token": "--gold-soft",    "hex": "#a3873f", "use": "Link underlines"},
+    {"name": "Rule",          "token": "--rule",         "hex": "#2c3a32", "use": "Hairlines, mark circles"},
+    {"name": "Rule strong",   "token": "--rule-strong",  "hex": "#e4ddc9", "use": "Heavy section rules"},
+    {"name": "Terminal",      "token": "--terminal",     "hex": "#0a110e", "use": "Code / terminal blocks"},
+    {"name": "Terminal ink",  "token": "--terminal-ink", "hex": "#a9dcc5", "use": "Text on terminal"}
+  ],
+  "type": {
+    "display_and_body": "Iowan Old Style → Palatino Linotype → Palatino → Georgia (system serif stack, no webfont)",
+    "labels_and_nav": "ui-monospace / SF Mono / Menlo — uppercase, 0.05–0.1em tracking",
+    "arabic_wordmark": "Geeza Pro / Noto Naskh Arabic"
+  }
+}

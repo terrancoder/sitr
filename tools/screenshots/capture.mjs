@@ -1,8 +1,8 @@
 /**
  * Store-asset capture: loads the built extension in a Chromium that honors
  * --load-extension and screenshots real UI (popup, options, YouTube
- * Restricted Mode proof) at the Chrome Web Store's 1280x800, plus renders
- * the 440x280 promo tile from an HTML template. Zero dependencies.
+ * Restricted Mode proof) at the Chrome Web Store's 1280x800. The 440x280
+ * promo tile is rendered by tools/icons/render-brand.mjs. Zero dependencies.
  *
  * Usage: npm run build && node tools/screenshots/capture.mjs
  * Output: extension/store-listing/assets/
@@ -11,7 +11,6 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const OUT = join(ROOT, "extension/store-listing/assets");
@@ -149,12 +148,8 @@ await shoot("screenshot-4-blocked.png", "https://pornhub.com/", {
   width: 1280, height: 800,
 });
 
-// Promo tile (440x280) from a local HTML template.
-await shoot(
-  "promo-tile-440x280.png",
-  pathToFileURL(join(ROOT, "tools/screenshots/promo-tile.html")).href,
-  { width: 440, height: 280, settle: 800 },
-);
+// The promo tile (440x280, tools/screenshots/promo-tile.html) is rendered by
+// tools/icons/render-brand.mjs, which swaps in the logo artwork resampled to size.
 
 ws.close();
 console.log(`assets -> ${OUT}`);
