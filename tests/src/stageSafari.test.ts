@@ -39,6 +39,7 @@ test("devid channel keeps the full-channel surface", () => {
   try {
     assert.ok(existsSync(join(out, "dist/options/fullChannel.js")));
     assert.ok(existsSync(join(out, "dist/lib/entitlement.js")));
+    assert.ok(existsSync(join(out, "dist/lib/sync/claimClient.js")));
     const html = readFileSync(join(out, "src/options/options.html"), "utf8");
     assert.ok(html.includes('id="full-channel-only"'));
     const channel = JSON.parse(readFileSync(join(out, "channel.json"), "utf8"));
@@ -58,6 +59,7 @@ test("mas channel is join-only and steering-free (the 3.1.1 gate)", () => {
   try {
     assert.ok(!existsSync(join(out, "dist/options/fullChannel.js")));
     assert.ok(!existsSync(join(out, "dist/lib/entitlement.js")), "no code entry or claim logic");
+    assert.ok(!existsSync(join(out, "dist/lib/sync/claimClient.js")), "no claim call");
     assert.ok(existsSync(join(out, "dist/lib/householdEnd.js")), "a member device's end date stays");
     const html = readFileSync(join(out, "src/options/options.html"), "utf8");
     assert.ok(!/full[- ]channel|strip/i.test(html), "no residue announcing the strip");

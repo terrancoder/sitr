@@ -27,8 +27,11 @@ import {
   type HouseholdKeys,
 } from "./crypto.js";
 import { type SyncStatus } from "./status.js";
+import { parseEndHeader, parseSyncRefusal, type SyncRefusal } from "../householdEnd.js";
 
 export const SYNC_BASE_URL = "https://sync.sitrshield.com";
+/** The second host, used only by the claim call (claimClient.ts). */
+export const CLAIM_BASE_URL = "https://claim.sitrshield.com";
 export const MAX_SEEN_REV_KEY = "syncMaxSeenRev";
 
 export interface SyncDeps {
@@ -49,6 +52,8 @@ export interface SyncInput {
    * as a header; the server checks it only at household creation.
    */
   entitlement?: string | undefined;
+  /** Write even when nothing changed, so a new token reaches the server. */
+  forceWrite?: boolean | undefined;
 }
 
 export interface SyncOutcome {
@@ -58,6 +63,59 @@ export interface SyncOutcome {
   status: SyncStatus;
   /** ETag of the server copy after this sync (for diagnostics only). */
   etag: number | undefined;
+  /** X-Sitr-Entitlement-Expires of the round's last answer; null: none. */
+  entExp: number | null;
+  /** The reason of a 402 in this round; null: none. */
+  refusal: SyncRefusal | null;
+}
+
+/** What the server said about the household's end in this round. */
+interface Seen {
+  entExp: number | null;
+  refusal: SyncRefusal | null;
+}
+
+/** Reads the end header of a 2xx or 402 answer, and a 402's reason. */
+async function observeAnswer(res: Response, seen: Seen): Promise<void> {
+  if (!res.ok && res.status !== 402) return;
+  const end = parseEndHeader(res.headers.get("X-Sitr-Entitlement-Expires"));
+  if (end !== null) seen.entExp = end;
+  if (res.status === 402) {
+    let body = "";
+    try {
+      body = await res.text();
+    } catch {
+      // no body: the reason stays unknown
+    }
+    seen.refusal = parseSyncRefusal(402, body);
+  }
+}
+
+/**
+ * The low-level JSON POST for the claim call, kept here so this file stays
+ * the only fetch call site. Sends no header but the content type. Null
+ * when no answer came; `body` null when the answer could not be read.
+ */
+export async function postJson(
+  f: typeof fetch,
+  url: string,
+  body: string,
+): Promise<{ status: number; body: string | null } | null> {
+  let res: Response;
+  try {
+    res = await f(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+    });
+  } catch {
+    return null;
+  }
+  try {
+    return { status: res.status, body: await res.text() };
+  } catch {
+    return { status: res.status, body: null };
+  }
 }
 
 interface Remote {
@@ -74,6 +132,7 @@ function parseEtagHeader(res: Response): number | undefined {
 async function pull(
   keys: HouseholdKeys,
   deps: SyncDeps,
+  seen: Seen,
 ): Promise<Result<Remote, string>> {
   const base = deps.baseUrl ?? SYNC_BASE_URL;
   let res: Response;
@@ -85,6 +144,7 @@ async function pull(
   } catch {
     return err("offline");
   }
+  await observeAnswer(res, seen);
   if (res.status === 404) return ok({ state: undefined, etag: undefined });
   if (!res.ok) return err(`server responded ${res.status}`);
   const etag = parseEtagHeader(res);
@@ -100,6 +160,7 @@ async function push(
   etag: number | undefined,
   deps: SyncDeps,
   entitlement: string | undefined,
+  seen: Seen,
 ): Promise<Result<number, string | "conflict">> {
   const sealed = await sealState(state, keys.encKey);
   if (!sealed.ok) return sealed;
@@ -122,6 +183,7 @@ async function push(
   } catch {
     return err("offline");
   }
+  await observeAnswer(res, seen);
   if (res.status === 409) return err("conflict");
   if (!res.ok) return err(`server responded ${res.status}`);
   return ok(parseEtagHeader(res) ?? 0);
@@ -163,18 +225,20 @@ export async function syncOnce(
   input: SyncInput,
   deps: SyncDeps,
 ): Promise<SyncOutcome> {
+  const seen: Seen = { entExp: null, refusal: null };
   const failed = (error: string, state: SyncStatus["state"] = "error"): SyncOutcome => ({
     state: input.local,
     maxSeenRev: input.maxSeenRev,
     status: { state, error },
     etag: undefined,
+    ...seen,
   });
 
   const keys = await deriveKeys(input.rootSecret);
   if (!keys.ok) return failed(keys.error);
 
   const attempt = async (): Promise<Result<SyncOutcome, string | "retry">> => {
-    const remote = await pull(keys.value, deps);
+    const remote = await pull(keys.value, deps, seen);
     if (!remote.ok) {
       return err(remote.error);
     }
@@ -187,6 +251,7 @@ export async function syncOnce(
         maxSeenRev: input.maxSeenRev,
         status: { state: "not-found" },
         etag: undefined,
+        ...seen,
       });
     }
     let merged = input.local;
@@ -200,20 +265,25 @@ export async function syncOnce(
       maxSeen = Math.max(maxSeen, remote.value.state.rev);
       merged = mergeStates(input.local, remote.value.state);
     }
-    // Push only when the server copy differs from the merge result.
+    // Push only when the server copy differs from the merge result, or
+    // when the caller forces a write to deliver a new token.
     const serverRev = remote.value.state?.rev;
-    if (serverRev === merged.rev && remote.value.state === merged) {
+    const tie = serverRev === merged.rev && remote.value.state === merged;
+    // A full tie merges to the server's object. Same content: hand back
+    // the caller's own object, so "changed" (state !== local) is false
+    // and the service worker does not rewrite storage — a rewrite may
+    // fire storage.onChanged and queue another round, forever, on a
+    // browser that reports unchanged writes. Both sides are sanitizer
+    // output (fixed key order), so JSON equality is value equality.
+    const settled = (s: HouseholdState): HouseholdState =>
+      JSON.stringify(s) === JSON.stringify(input.local) ? input.local : s;
+    if (tie && input.forceWrite !== true) {
       return ok({
-        // A full tie merges to the server's object. Same content: hand back
-        // the caller's own object, so "changed" (state !== local) is false
-        // and the service worker does not rewrite storage — a rewrite may
-        // fire storage.onChanged and queue another round, forever, on a
-        // browser that reports unchanged writes. Both sides are sanitizer
-        // output (fixed key order), so JSON equality is value equality.
-        state: JSON.stringify(merged) === JSON.stringify(input.local) ? input.local : merged,
+        state: settled(merged),
         maxSeenRev: Math.max(maxSeen, merged.rev),
         status: { state: "ok", lastSuccessAt: deps.now() },
         etag: remote.value.etag,
+        ...seen,
       });
     }
     const toPush =
@@ -226,15 +296,18 @@ export async function syncOnce(
       remote.value.etag,
       deps,
       input.entitlement,
+      seen,
     );
     if (!pushed.ok) {
       return pushed.error === "conflict" ? err("retry") : err(pushed.error);
     }
     return ok({
-      state: toPush,
+      // A forced write of a tie pushed the merge unchanged (no rev bump).
+      state: tie ? settled(toPush) : toPush,
       maxSeenRev: Math.max(maxSeen, toPush.rev),
       status: { state: "ok", lastSuccessAt: deps.now() },
       etag: pushed.value,
+      ...seen,
     });
   };
 
@@ -269,6 +342,8 @@ export async function unenroll(input: SyncInput, deps: SyncDeps): Promise<SyncOu
       maxSeenRev: input.maxSeenRev,
       status: { state: "ok", lastSuccessAt: deps.now() },
       etag: undefined,
+      entExp: null,
+      refusal: null,
     };
   }
   let outcome = await syncOnce(input, deps);

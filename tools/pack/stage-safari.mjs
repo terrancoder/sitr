@@ -16,8 +16,8 @@
  * Channels: --channel devid (default) stages the full UI. --channel mas
  * stages the join-only App Store variant: the full-channel module
  * (dist/options/fullChannel.js — household creation + entitlement token)
- * and the renewal logic (dist/lib/entitlement.js — code entry and claims)
- * are EXCLUDED, no staged file may import the latter, the
+ * and the renewal logic (dist/lib/entitlement.js — code entry and claims —
+ * and dist/lib/sync/claimClient.js, the claim call) are EXCLUDED, no staged file may import the latter, the
  * #full-channel-only block is stripped from options.html,
  * and a grep gate then proves the bundle carries none of the
  * purchase-steering strings the store risk register forbids (guideline
@@ -125,7 +125,11 @@ if (!manifest.permissions.includes("declarativeNetRequestWithHostAccess")) {
 const staged = new Map();
 staged.set("manifest.json", JSON.stringify(manifest, null, 2) + "\n");
 // Full channel only: never staged for the App Store (guideline 3.1.1).
-const MAS_EXCLUDED = new Set(["dist/options/fullChannel.js", "dist/lib/entitlement.js"]);
+const MAS_EXCLUDED = new Set([
+  "dist/options/fullChannel.js",
+  "dist/lib/entitlement.js",
+  "dist/lib/sync/claimClient.js",
+]);
 for (const rel of files) {
   if (channel === "mas" && MAS_EXCLUDED.has(rel)) continue;
   staged.set(rel, readFileSync(join(EXT, rel)));

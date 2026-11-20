@@ -200,3 +200,29 @@ test("a blob written under a different secret fails authentication cleanly", asy
   );
   assert.equal(out.status.state, "ok");
 });
+
+test("open mode: no end, no refusal; a forced write of an unchanged state writes once and keeps the caller's object", async () => {
+  const { fetch } = makeServer();
+  let puts = 0;
+  const counting = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (init?.method === "PUT") puts++;
+    return fetch(input, init);
+  }) as typeof fetch;
+  const deps = { fetch: counting, now: () => 1000, baseUrl: BASE };
+  const secret = generateRootSecret();
+  const first = await syncOnce(
+    { rootSecret: secret, local: emptyHouseholdState("a", 500), maxSeenRev: 0, deviceId: "a" },
+    deps,
+  );
+  assert.equal(first.entExp, null);
+  assert.equal(first.refusal, null);
+  const input = { rootSecret: secret, local: first.state, maxSeenRev: first.maxSeenRev, deviceId: "a" };
+  puts = 0;
+  assert.equal((await syncOnce(input, deps)).state, input.local);
+  assert.equal(puts, 0);
+  const forced = await syncOnce({ ...input, forceWrite: true }, deps);
+  assert.equal(puts, 1);
+  assert.equal(forced.status.state, "ok");
+  assert.equal(forced.state, input.local);
+  assert.equal(forced.maxSeenRev, first.maxSeenRev);
+});
