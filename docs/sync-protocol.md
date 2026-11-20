@@ -1089,11 +1089,20 @@ not burned, so the check says nothing about use. How an institution
 calls the claim route (a page on the website, which the CORS rule below
 allows, or a `curl` line in the admin guide) is decided in step 6.
 
-**CORS.** Responses from `POST /v1/entitlement/claim` carry the same
-`Access-Control-Allow-Origin` (the site's origin) as version 1, with
-`POST, OPTIONS` allowed and the `Content-Type` request header. The
-extension does not need CORS: it calls the claim host under an optional
-host permission (below).
+**CORS.** The extension calls both hosts under host permissions (below),
+which lift CORS in Chrome but not in Safari's service worker, whose
+origin (`safari-web-extension://<per-install ID>`) cannot be listed. So:
+responses from `POST /v1/entitlement/claim`, preflight (`OPTIONS`) and
+error answers included, carry `Access-Control-Allow-Origin: *` with
+`POST, OPTIONS` allowed and the `Content-Type` request header, never
+`Access-Control-Allow-Credentials`: the token is useful only to whoever
+sent the subscription code and claim secret, and no cookie or other
+ambient credential exists. The other claim routes keep the site's
+origin. Every sync-server response carries `Access-Control-Allow-Origin:
+*`, `GET, PUT, DELETE, OPTIONS`, the request headers `Authorization`,
+`If-Match`, `If-None-Match`, `X-Sitr-Entitlement` and `Content-Type`,
+and `Access-Control-Expose-Headers: ETag, X-Sitr-Entitlement-Expires`;
+`OPTIONS` on a blob path is answered `204` before the bearer check.
 
 ### What each client must do
 
@@ -1138,14 +1147,29 @@ Rules for all clients:
   holds two tokens (this month's and an early one for next month) sends
   the one that is not early first, and the early one at the next write.
 - **Claim errors.**
-  - `bound-to-other-device`: another device renews this subscription. Do
-    nothing and watch `E`. Repeat the claim with `replace: true` only
-    when a token is needed now: to create a household, or when `E` is
-    less than 2 days away and has not moved in this window. Ask the user
-    first, because a rebind can be made only once in 180 days. Once `E`
-    has passed, first try again without `replace`: the old binding is
-    stale then (its newest token has expired), and the claim binds this
-    device without using the rebind.
+  - `bound-to-other-device`: another device renews this subscription. The
+    device remembers this answer for its household until a claim
+    succeeds, the credential is entered again or removed, or the device
+    leaves.
+    - While it is remembered and `E` is in the future (or there is no
+      `E`), the device makes no automatic claim: not by rule (b), not in
+      the window, and no daily retry.
+    - Once `E` has passed (`E ≤ now`, or a `402 lapsed`), it makes one
+      claim without `replace`, with `current: true` (rule (d)). Usually
+      the old binding is stale then and this claim binds the device
+      without using the rebind. It may not be stale: when the bound claim
+      secret got a later token than the one that set `E` (next month's,
+      claimed but not applied here, or one for another household), or in
+      a legacy household, whose `E` no token set. So if this claim is
+      refused as bound, the device tries again at most once a day while
+      the household stays lapsed, and stops if `E` moves into the future.
+    - The user may choose "Renew on this device" (the claim with
+      `replace: true`, plus `current: true` on a lapsed household) only
+      when a token is needed now: to create a household, or when `E − now
+      < 2 × DAY` and, if `E` has passed, the claim without `replace` has
+      already been refused. Had `E` moved in this window it would be at
+      least 28 days away, so this test needs no stored state. Ask the
+      user first, because a rebind can be made only once in 180 days.
   - `replacement-used`: show the date in `retry_after`.
   - `payment-pending`, `inactive`, `revoked`: show the reason with the
     way to fix it (renew, update the payment method), then try at most
@@ -1176,12 +1200,87 @@ Rules for all clients:
     create: claim once more, then retry the creation once.
   - `plan-not-accepted`: "This is a code for Sitr for Institutions."
   - `v1-ended`: ask for the subscription code.
+- **No `X-Sitr-Entitlement-Expires` header.** The sync server deployed
+  today still runs version 1 (`server/sync/src/http.ts` and
+  `entitlement.ts` at the tag `server-hotfix-live`) and sends this header
+  on no response. A version 2 server also sends none in open mode, and
+  none for a legacy household before a cut-over date is set. A client
+  treats a household whose responses carry no such header as a legacy
+  version 1 household: never lapsed, no subscription notice or text, and
+  no claim unless the user has entered a subscription code. With a code
+  it claims once by rule (b) and then not again while it holds that
+  token: with no header, no response can show the token applied. It
+  claims again only after the held token's `exp` has passed (a time to
+  claim, not a judgement of the token). Rules (c) and (d) need `E`, so
+  they do not apply. On a version 1 server, creating a household needs a
+  version 1 token; a version 2 token gets `malformed entitlement token`.
+  The claim service is not deployed yet either; whatever a client meets
+  there instead (no host, or an answer that is not the claim API's JSON)
+  is handled like no network. The version 1 server's `402` bodies are
+  `text/plain`, one line, sent only on a `PUT` that creates a household,
+  and a client must still understand them: `entitlement required`
+  (read as `token-required`); `malformed entitlement token`, `invalid
+  entitlement signature`, `malformed entitlement payload` and
+  `unsupported entitlement version` (read as `token-invalid`);
+  `entitlement expired — please renew` (read as `token-expired`).
 - **Clocks.** A client never judges a token by its own clock; only the
   servers' clocks decide. A wrong device clock only moves the time a
   claim is made: too early gets the token it already has (and it tries
   again a day later), too late is covered by the rest of the 10-day
   window.
 - **Offline.** Filtering never depends on a claim or a sync.
+
+**Extension and Android (Polar clients).** They sell nothing; the buyer
+subscribes on the website and enters the subscription code.
+
+- **Who handles the code.** Only a guardian device (or a device with no
+  household, to create one) enters, removes or moves a subscription code, gated like changing the PIN: refused under a
+  managed lock and on a child device, then the household's guardian PIN
+  when one is set, with no wait. On Android it is also refused while the
+  child lock is on. A child-role device never holds a code and never
+  claims.
+- **Removing the code** while staying in the household is allowed, gated
+  the same way. The code and the claim secret are deleted together; the
+  device stops renewing, and the screen says that this device no longer
+  renews the subscription and that the household runs until `E`.
+- **Leaving the household** deletes the subscription code and the claim
+  secret from the device, together. The subscription stays bound to the
+  deleted claim secret until that binding is stale (its newest token has
+  expired). So a new household created with the same subscription before
+  then, on this or any device, gets `bound-to-other-device` and needs the
+  rebind that is possible once in 180 days; in the same month that is
+  always so. Removing the code has the same consequence.
+- **One input field.** Until the cut-over (the client learns it has
+  passed from `v1-ended`, not from a date it holds) the field accepts either a
+  subscription code (a UUID in its canonical 36-character form, any case)
+  or a version 1 token (`sitr-ent-v1.…`), and tells them apart by shape;
+  anything else is refused on the device and sends nothing. A version 1
+  token is used as today, for creation only.
+- **A code of an Institutions plan.** The claim succeeds and the token's
+  `plan` is not `family`. The client reads `plan` itself (on an update
+  the sync server ignores such a token without an error), shows "This is
+  a code for Sitr for Institutions.", deletes the code, the claim secret
+  and the token, and creates nothing. The claim has still bound the
+  institution's subscription to the deleted claim secret, when it was
+  unbound or stale, and no request undoes that: the institution's own
+  claims get `bound-to-other-device` until that binding is stale (the 4th
+  of the next month, or of the month after when the claim was made in the
+  last 7 days of a month), unless the institution uses its rebind. If the
+  institution had already bound it, the client gets
+  `bound-to-other-device` instead and cannot tell the plan, because an
+  error never names it; a rebind the user then agrees to would take the
+  institution's subscription and use up its one rebind in 180 days, and
+  the token is refused as above.
+- **A legacy household after the cut-over is announced** (its `E` is the
+  cut-over date). A device that holds no code shows: "Enter your
+  subscription code on one guardian device before <date>." It knows the
+  household is legacy when `E` is more than 41 days away (no token
+  reaches further: one claimed on the 24th of a 30-day month runs to the
+  4th of the month after next), or when `E` still has a value that this
+  device once saw more than 41 days away. Otherwise it shows the ordinary
+  notices.
+- **`v1-ended`**: "Tokens are no longer accepted. Enter your subscription
+  code."
 
 **Extension.** The subscription code and the claim secret are kept in
 `storage.local`, beside the existing subscription-token item. The user
@@ -1289,7 +1388,7 @@ today; Polar's sandbox API (`SITR_POLAR_API`) serves manual tests.
 
 | Case | What happens |
 |---|---|
-| Lost device | iOS with the iCloud copy on: the buyer's other Apple devices have the transaction and the claim secret and renew as before. Otherwise another device with the credential (extension and Android: enter the subscription code) gets `bound-to-other-device`. If `E` has not moved 2 days before it, the user may rebind with `replace: true` and get the token the period rule gives, or, without using the rebind, wait until `E` has passed (the 4th), when the old binding is stale and a plain claim binds it; the household is read-only in between, and other devices show the neutral "waiting for renewal" state. |
+| Lost device | iOS with the iCloud copy on: the buyer's other Apple devices have the transaction and the claim secret and renew as before. Otherwise another device with the credential (extension and Android: enter the subscription code) gets `bound-to-other-device`. If `E` has not moved 2 days before it, the user may rebind with `replace: true` and get the token the period rule gives, or, without using the rebind, wait until `E` has passed (the 4th), when the old binding is stale (unless the lost device had already claimed next month's token) and a plain claim binds it; the household is read-only in between, and other devices show the neutral "waiting for renewal" state. |
 | Lost everything | Every device, the pairing code and the Keychain copy are gone, so the household's key and the claim secret are gone. The subscription still works: create a new household with a rebind. If a rebind was made in the last 180 days, wait until the lost claim secret's newest token expires; its binding is then stale and the first claim binds the new device. That is the next 4th, or, if the lost device had already claimed next month's token in the last week, the 4th of the month after: at most about 40 days. The old household lapses and is deleted after 18 months idle. |
 | Lost subscription code | The household keeps working; the bound device still holds the code. If that device is lost too, the household runs until `E`, then is read-only. The buyer can read the subscription ID through Polar's customer portal (whether the portal page shows it, rather than only its API, is to confirm), or the owner looks it up in Polar from the buyer's email. |
 | Refund (Apple) | The `REFUND` notification records the refunded transaction; no further token from that receipt. A later renewal or new purchase is a different transaction and claims normally; if Apple does not stop auto-renewal after a refund (to confirm), the next renewal therefore gets tokens, which is the intended reading. Without one, the household is read-only after its current `E`: the 4th of the next month, or of the month after if next month's token was already claimed in the last week; at most about 41 days later. |

@@ -634,7 +634,7 @@ token IDs. The servers log nothing per request.
 sizes. The claim service has its own hostname, `claim.sitrshield.com`,
 so an observer of the connection or of its DNS lookup can tell that a
 device contacts it: in practice, that this device renews a subscription,
-about once a month. A claim followed by a write to the sync host looks
+or tries to, about once a month. A claim followed by a write to the sync host looks
 like two short exchanges with two hosts. The credential and the token are
 inside TLS.
 
