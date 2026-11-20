@@ -3,7 +3,10 @@ package com.sitrshield.core
 import com.sitrshield.core.household.Household
 import com.sitrshield.core.household.HouseholdState
 import com.sitrshield.core.sync.SyncClient
+import com.sitrshield.core.sync.Entitlement
+import com.sitrshield.core.sync.HouseholdEnd
 import com.sitrshield.core.sync.SyncCrypto
+import com.sitrshield.core.sync.SyncRefusal
 import com.sitrshield.core.sync.SyncHttpResponse
 import com.sitrshield.core.sync.SyncInput
 import com.sitrshield.core.sync.SyncStatus
@@ -61,8 +64,12 @@ class SyncClientTest {
 
     private fun client(transport: ScriptedTransport) = SyncClient(transport, { now })
 
-    private fun respond(status: Int, etag: String? = null, body: ByteArray = ByteArray(0)) =
-        SyncHttpResponse(status, etag, body)
+    private fun respond(
+        status: Int,
+        etag: String? = null,
+        body: ByteArray = ByteArray(0),
+        expires: String? = null,
+    ) = SyncHttpResponse(status, etag, body, expires)
 
     @Test
     fun createWhenServerHasNoBlob() {
@@ -260,5 +267,90 @@ class SyncClientTest {
         val created = state(rev = 1).copy(devices = listOf("creator"))
         val joiner = Household.emptyState("joiner", 0.0)
         assertEquals(created, Household.merge(joiner, created))
+    }
+
+    /* ------------------------------ entitlement v2 ----------------------------- */
+
+    @Test
+    fun expiresHeaderFromThePullWhenNothingIsWritten() {
+        val shared = state(rev = 4)
+        val transport = ScriptedTransport(listOf(respond(200, "\"4\"", sealed(shared), " 1796342400000 ")))
+        val outcome = client(transport).syncOnce(SyncInput(secret, shared, maxSeenRev = 4, deviceId = "device-a"))
+        assertEquals(SyncStatus.State.OK, outcome.status.state)
+        assertEquals(1_796_342_400_000.0, outcome.entExp)
+        assertNull(outcome.refusal)
+        assertEquals(false, outcome.created)
+    }
+
+    @Test
+    fun expiresHeaderFromTheWriteAndACreationIsReported() {
+        val transport = ScriptedTransport(listOf(respond(404), respond(201, "\"1\"", expires = "1799020800000")))
+        val outcome = client(transport).syncOnce(SyncInput(secret, state(rev = 1), maxSeenRev = 0, deviceId = "device-a"))
+        assertEquals(1_799_020_800_000.0, outcome.entExp)
+        assertTrue(outcome.created)
+        // No header anywhere (a version 1 server): no E.
+        val v1 = ScriptedTransport(listOf(respond(404), respond(201, "\"1\"")))
+        assertNull(client(v1).syncOnce(SyncInput(secret, state(rev = 1), maxSeenRev = 0, deviceId = "device-a")).entExp)
+    }
+
+    @Test
+    fun forcedWriteSendsAnUnchangedStateWithTheToken() {
+        val shared = state(rev = 4)
+        val transport = ScriptedTransport(listOf(respond(200, "\"4\"", sealed(shared)), respond(200, "\"5\"", expires = "1799020800000")))
+        val outcome = client(transport).syncOnce(
+            SyncInput(secret, shared, maxSeenRev = 4, deviceId = "device-a", entitlement = "sitr-ent-v2.a.b", forceWrite = true)
+        )
+        assertEquals(SyncStatus.State.OK, outcome.status.state)
+        assertEquals(listOf("GET", "PUT"), transport.recorded.map { it.method })
+        val put = transport.recorded[1]
+        assertEquals("\"4\"", put.headers["If-Match"])
+        assertEquals("sitr-ent-v2.a.b", put.headers["X-Sitr-Entitlement"])
+        // The same revision: a forced write bumps nothing.
+        assertEquals(shared, Household.openState(put.body!!, keys.encKey).getOrNull())
+        assertEquals(1_799_020_800_000.0, outcome.entExp)
+        assertEquals(false, outcome.created)
+    }
+
+    @Test
+    fun forcedWriteNeverWritesAJoinPlaceholder() {
+        val transport = ScriptedTransport(listOf(respond(404)))
+        val placeholder = Household.emptyState("device-a", 0.0)
+        val outcome = client(transport).syncOnce(
+            SyncInput(secret, placeholder, maxSeenRev = 0, deviceId = "device-a", entitlement = "sitr-ent-v2.a.b", forceWrite = true)
+        )
+        assertEquals(SyncStatus.State.NOT_FOUND, outcome.status.state)
+        assertEquals(listOf("GET"), transport.recorded.map { it.method })
+    }
+
+    @Test
+    fun syncRefusalsAreReadFromThe402Body() {
+        fun refusedBy(body: String, expires: String? = null) = client(
+            ScriptedTransport(listOf(respond(200, "\"3\"", sealed(state(rev = 3))), respond(402, body = body.toByteArray(), expires = expires)))
+        ).syncOnce(SyncInput(secret, state(rev = 4), maxSeenRev = 3, deviceId = "device-a"))
+
+        val lapsed = refusedBy("lapsed\n", "1796342400000")
+        assertEquals(SyncStatus.State.ERROR, lapsed.status.state)
+        assertEquals(SyncRefusal.LAPSED, lapsed.refusal)
+        assertEquals(HouseholdEnd.WAITING_TEXT, lapsed.status.error)
+        assertEquals(1_796_342_400_000.0, lapsed.entExp)
+        assertEquals(state(rev = 4), lapsed.state, "local changes are kept")
+
+        val used = refusedBy("token-used")
+        assertEquals(SyncRefusal.TOKEN_USED, used.refusal)
+        assertEquals(Entitlement.TEXTS["token-used"], used.status.error)
+        assertEquals(SyncRefusal.PLAN_NOT_ACCEPTED, refusedBy("plan-not-accepted\nmore").refusal)
+    }
+
+    @Test
+    fun versionOneServer402BodiesAreUnderstood() {
+        fun create(body: String) = client(ScriptedTransport(listOf(respond(404), respond(402, body = body.toByteArray()))))
+            .syncOnce(SyncInput(secret, state(rev = 1), maxSeenRev = 0, deviceId = "device-a", entitlement = "sitr-ent-v2.a.b"))
+        assertEquals(SyncRefusal.TOKEN_REQUIRED, create("entitlement required\n").refusal)
+        assertEquals(SyncRefusal.TOKEN_INVALID, create("malformed entitlement token\n").refusal)
+        assertEquals(SyncRefusal.TOKEN_EXPIRED, create("entitlement expired — please renew\n").refusal)
+        // Prose the client does not know: no reason, the plain status.
+        val unknown = create("checkout not completed\n")
+        assertNull(unknown.refusal)
+        assertEquals("server responded 402", unknown.status.error)
     }
 }

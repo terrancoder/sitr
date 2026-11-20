@@ -13,7 +13,15 @@ import com.sitrshield.core.gate.MutationStep
 import com.sitrshield.core.gate.MutationVerdict
 import com.sitrshield.core.household.Household
 import com.sitrshield.core.pin.Pin
+import com.sitrshield.core.sync.ClaimOutcome
+import com.sitrshield.core.sync.ClaimReason
+import com.sitrshield.core.sync.ClaimState
+import com.sitrshield.core.sync.CodeInput
+import com.sitrshield.core.sync.Decision
+import com.sitrshield.core.sync.Entitlement
+import com.sitrshield.core.sync.HouseholdEnd
 import com.sitrshield.core.sync.PairingCode
+import com.sitrshield.core.sync.SyncAnswer
 import com.sitrshield.core.sync.SyncCrypto
 import org.json.JSONObject
 import java.io.File
@@ -321,6 +329,201 @@ class FixtureTest {
             val got = Pin.backoffAfterFailure(c.getInt("priorCount"), c.getDouble("now"))
             assertEquals(after.getInt("count"), got.count)
             assertEquals(after.getDouble("lockedUntil"), got.lockedUntil)
+        }
+    }
+
+    /* ------------------------- claim.json (entitlement v2) ------------------------- */
+
+    private fun jsonOrNull(v: Any?): Any = v ?: JSONObject.NULL
+
+    private fun assertJson(expected: Any?, actual: Any, label: String) {
+        val ok = when (expected) {
+            null, JSONObject.NULL -> actual == JSONObject.NULL
+            is JSONObject -> expected.similar(actual)
+            else -> expected == actual
+        }
+        assertTrue(ok, "$label: expected $expected, got $actual")
+    }
+
+    private fun outcomeJson(o: ClaimOutcome): JSONObject = when (o) {
+        is ClaimOutcome.Token -> JSONObject().put("kind", "token").put("token", o.token.toJson())
+        is ClaimOutcome.NotFamily -> JSONObject().put("kind", "not-family").put("plan", o.plan)
+        is ClaimOutcome.Refused -> JSONObject().put("kind", "refused").put("reason", o.reason.wire)
+            .put("retryAfter", jsonOrNull(o.retryAfter?.toLong()))
+        ClaimOutcome.Unavailable -> JSONObject().put("kind", "unavailable")
+    }
+
+    private fun outcomeFrom(o: JSONObject): ClaimOutcome = when (val kind = o.getString("kind")) {
+        "token" -> ClaimOutcome.Token(
+            assertNotNull(Entitlement.parseToken(o.getJSONObject("token").getString("raw")))
+        )
+        "not-family" -> ClaimOutcome.NotFamily(o.getString("plan"))
+        "refused" -> ClaimOutcome.Refused(
+            assertNotNull(ClaimReason.fromWire(o.getString("reason"))),
+            if (o.isNull("retryAfter")) null else o.getDouble("retryAfter"),
+        )
+        "unavailable" -> ClaimOutcome.Unavailable
+        else -> fail("unknown outcome $kind")
+    }
+
+    private fun decisionJson(d: Decision): JSONObject = when (d) {
+        Decision.None -> JSONObject().put("kind", "none")
+        is Decision.Claim -> JSONObject().put("kind", "claim").put("replace", d.replace).put("current", d.current)
+        is Decision.Wait -> JSONObject().put("kind", "wait").put("until", d.until)
+    }
+
+    @Test
+    fun claimCases() {
+        val fx = fixture("claim.json")
+        assertJson(
+            JSONObject()
+                .put("dayMs", HouseholdEnd.DAY.toLong())
+                .put("hourMs", HouseholdEnd.HOUR.toLong())
+                .put("firstBackoffMs", Entitlement.FIRST_BACKOFF_MS.toLong())
+                .put("maxBackoffMs", Entitlement.MAX_BACKOFF_MS.toLong())
+                .put("windowOpensDaysBeforeE", 10)
+                .put("windowNoDelayDaysBeforeE", 5)
+                .put("noticeDaysBeforeE", 2)
+                .put("legacyDays", Entitlement.LEGACY_DAYS),
+            fx.getJSONObject("constants"),
+            "constants",
+        )
+
+        val tokens = objects(fx, "tokens")
+        assertEquals(27, tokens.size)
+        for (c in tokens) {
+            val got = Entitlement.parseToken(c.getString("raw"))
+            assertJson(c.opt("parsed"), got?.toJson() ?: JSONObject.NULL, c.getString("name"))
+        }
+
+        val inputs = objects(fx, "codeInput")
+        assertEquals(18, inputs.size)
+        for (c in inputs) {
+            val name = c.getString("name")
+            val input = c.getString("input")
+            assertEquals(c.opt("normalized").takeIf { it != JSONObject.NULL }, Entitlement.normalizeSubscriptionCode(input), name)
+            val got = when (val r = Entitlement.classifyCodeInput(input)) {
+                is CodeInput.Code -> JSONObject().put("kind", "code").put("code", r.code)
+                is CodeInput.V1Token -> JSONObject().put("kind", "v1-token").put("token", r.token)
+                CodeInput.Invalid -> JSONObject().put("kind", "invalid")
+            }
+            assertJson(c.getJSONObject("classified"), got, name)
+        }
+
+        val outcomes = objects(fx, "claimOutcomes")
+        assertEquals(26, outcomes.size)
+        for (c in outcomes) {
+            val body = if (c.isNull("body")) null else c.getString("body")
+            assertJson(c.getJSONObject("outcome"), outcomeJson(Entitlement.claimOutcome(c.getInt("status"), body)), c.getString("name"))
+        }
+
+        val refusals = objects(fx, "syncRefusals")
+        assertEquals(16, refusals.size)
+        for (c in refusals) {
+            val name = c.getString("name")
+            val r = HouseholdEnd.parseSyncRefusal(c.getInt("status"), c.getString("body"))
+            assertEquals(c.opt("refusal").takeIf { it != JSONObject.NULL }, r?.wire, name)
+            assertEquals(c.getBoolean("retriesCreate"), r != null && Entitlement.retriesCreate(r), name)
+        }
+    }
+
+    @Test
+    fun claimScenarios() {
+        val fx = fixture("claim.json")
+        val scenarios = objects(fx, "scenarios")
+        assertEquals(31, scenarios.size)
+        var steps = 0
+        for (sc in scenarios) {
+            val holdsCode = sc.getBoolean("holdsCode")
+            for ((i, st) in objects(sc, "steps").withIndex()) {
+                steps++
+                val label = "${sc.getString("name")} — step $i"
+                val now = st.getDouble("now")
+                // The committed state is already in stored form.
+                val state = Entitlement.sanitizeClaimState(st.getJSONObject("state"))
+                assertJson(st.getJSONObject("state"), state.toJson(), "$label: stored state")
+                val e = st.getJSONObject("event")
+                var decision: Decision? = null
+                val after: ClaimState = when (val type = e.getString("type")) {
+                    "next" -> {
+                        val r = Entitlement.next(state, now, e.getString("householdId")) {
+                            if (st.isNull("random")) fail("$label: draws a random value")
+                            st.getDouble("random")
+                        }
+                        decision = r.decision
+                        r.state
+                    }
+                    "record" -> Entitlement.record(state, outcomeFrom(e.getJSONObject("outcome")), e.getBoolean("current"), now)
+                    "observe" -> {
+                        val a = e.getJSONObject("answer")
+                        Entitlement.observe(
+                            state,
+                            SyncAnswer(
+                                entExp = if (a.isNull("entExp")) null else a.getDouble("entExp"),
+                                lapsed = a.getBoolean("lapsed"),
+                                succeeded = a.getBoolean("succeeded"),
+                                forced = if (a.isNull("forced")) null else a.getString("forced"),
+                            ),
+                            e.getString("householdId"),
+                            now,
+                        )
+                    }
+                    "created" -> Entitlement.created(
+                        state,
+                        assertNotNull(Entitlement.parseToken(e.getJSONObject("token").getString("raw"))),
+                        e.getString("householdId"),
+                        if (e.isNull("entExp")) null else e.getDouble("entExp"),
+                    )
+                    "userRetry" -> Entitlement.userRetry(state)
+                    "forgetClaims" -> Entitlement.forgetClaims(state)
+                    else -> fail("$label: unknown event $type")
+                }
+                assertJson(st.opt("decision"), decision?.let(::decisionJson) ?: JSONObject.NULL, "$label: decision")
+                val r = st.getJSONObject("result")
+                assertJson(r.getJSONObject("state"), after.toJson(), "$label: state")
+                assertEquals(r.getString("notice"), Entitlement.notice(after, now, holdsCode).wire, "$label: notice")
+                assertEquals(r.getBoolean("offersReplace"), Entitlement.offersReplace(after, now), "$label: offersReplace")
+                assertEquals(
+                    r.opt("tokenToSend").takeIf { it != JSONObject.NULL },
+                    Entitlement.tokenToSend(after)?.raw,
+                    "$label: tokenToSend",
+                )
+                assertEquals(r.getBoolean("forcesWrite"), Entitlement.forcesWrite(after), "$label: forcesWrite")
+                // The stored form reads back to the same state.
+                assertEquals(after, Entitlement.loadClaimState(after.toJson().toString()), "$label: round trip")
+            }
+        }
+        assertEquals(159, steps)
+    }
+
+    @Test
+    fun subscriptionCodeIsGatedAsAPinChange() {
+        val fx = fixture("gate.json")
+        assertEquals("changePin", fx.getString("subscriptionGatedAs"))
+        assertEquals(Gate.SUBSCRIPTION_GATED_AS.wire, fx.getString("subscriptionGatedAs"))
+        val rows = objects(fx, "cases").filter { it.getString("kind") == fx.getString("subscriptionGatedAs") }
+        assertEquals(12, rows.size)
+        for (c in rows) {
+            val locked = c.getBoolean("managedLockOptions")
+            val role = if (c.isNull("role")) null else HouseholdRole.fromWire(c.getString("role"))
+            val hasPin = c.getBoolean("hasPin")
+            // Refused under a managed lock and on a child device; otherwise
+            // the PIN exactly when one is set; never a wait.
+            val expected = when {
+                locked -> MutationVerdict.Refused(MutationVerdict.Reason.MANAGED_LOCKED)
+                role == HouseholdRole.CHILD -> MutationVerdict.Refused(MutationVerdict.Reason.CHILD_DEVICE)
+                else -> MutationVerdict.Allowed(hasPin)
+            }
+            val label = "subscription lock=$locked role=${c.opt("role")} pin=$hasPin"
+            assertEquals(expected, Gate.gateMutation(Gate.SUBSCRIPTION_GATED_AS, GateContext(locked, role, hasPin)), label)
+            val v = c.getJSONObject("verdict")
+            when (expected) {
+                is MutationVerdict.Allowed -> assertEquals(v.getBoolean("requiresPin"), expected.requiresPin, label)
+                is MutationVerdict.Refused -> assertEquals(v.getString("reason"), expected.reason.wire, label)
+            }
+        }
+        for (phase in DelayPhase.entries) {
+            assertEquals(false, Delay.needsWait(DelayAction.Kind(Gate.SUBSCRIPTION_GATED_AS), phase), "$phase")
         }
     }
 }

@@ -82,6 +82,14 @@ object Gate {
      */
     val LEAVE_JOIN_PLACEHOLDER_GATED_AS = MutationKind.ENABLE_CATEGORY
 
+    /**
+     * Entering, removing or moving a subscription code (gate.json
+     * "subscriptionGatedAs"): gated exactly like changing the PIN — refused
+     * on a managed lock or a child device, PIN when one is set, no wait.
+     * The caller also refuses it while the child lock is on.
+     */
+    val SUBSCRIPTION_GATED_AS = MutationKind.CHANGE_PIN
+
     /** The kind "Leave household" is gated as, from the state read from storage now. */
     fun leaveKind(stored: HouseholdState?): MutationKind =
         if (Household.isPinlessPlaceholder(stored)) LEAVE_JOIN_PLACEHOLDER_GATED_AS
