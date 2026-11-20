@@ -81,7 +81,9 @@ extension AppModel {
                 await createHousehold(credential: verification.jwsRepresentation)
             } else {
                 // Subscribed again with a household: renew it (a lapsed one
-                // claims with current: true and reopens).
+                // claims with current: true and reopens). A new purchase is a
+                // new credential: what this device knew about claims goes.
+                Family.update { $0 = ClaimPlan.forgetClaims($0) }
                 await retryFamilyClaim()
                 if Family.loadState().backoff == nil { await finishUnfinished() }
             }
@@ -156,13 +158,8 @@ extension AppModel {
                             maxSeenRev: 0, deviceId: settings.deviceId, entitlement: token.raw))
                     if created.status.state == .ok {
                         Family.createPending = false
-                        Family.update { s in
-                            s.tokens.removeAll { $0 == token }
-                            s.appliedHousehold = id
-                            s.testHousehold = token.test
-                            s.entExp = created.entExp ?? s.entExp
-                            s.lapsed = false
-                            s.lapseClaimed = false
+                        Family.update {
+                            $0 = ClaimPlan.created($0, token: token, householdId: id, entExp: created.entExp)
                         }
                         await mutate { next in
                             next.household = created.state

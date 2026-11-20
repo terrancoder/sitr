@@ -222,6 +222,18 @@ func expectJSONEqual(
     /// Leaving a household never received: gated as the fixture field says,
     /// so on that kind's rows it is refused under a managed lock and goes
     /// otherwise — any role, PIN or not — in every delay phase.
+    @Test func subscriptionGatedAsTheFixtureSays() throws {
+        let fx = try fixture("gate.json")
+        #expect(fx["subscriptionGatedAs"] as? String == Gate.subscriptionGatedAs.rawValue)
+        let k = Gate.subscriptionGatedAs
+        let ctx = { (role: HouseholdRole?, pin: Bool) in GateContext(managedLockOptions: false, role: role, hasPin: pin) }
+        #expect(Delay.decide(.kind(k), ctx: ctx(.child, true), phase: .idle) == .refused(.childDevice))
+        #expect(Delay.decide(.kind(k), ctx: ctx(.guardian, true), phase: .idle) == .pin)
+        #expect(Delay.decide(.kind(k), ctx: ctx(.guardian, false), phase: .idle) == .go)
+        #expect(Delay.decide(.kind(k), ctx: ctx(nil, false), phase: .idle) == .go, "creating, no household yet")
+        #expect(!Delay.needsWait(.kind(k), .idle), "no wait")
+    }
+
     @Test func leaveJoinPlaceholderGatedAsTheFixtureSays() throws {
         let fx = try fixture("gate.json")
         #expect(fx["leaveJoinPlaceholderGatedAs"] as? String == Gate.leaveJoinPlaceholderGatedAs.rawValue)
@@ -329,5 +341,180 @@ func expectJSONEqual(
             #expect(got.count == after["count"] as? Int)
             #expect(got.lockedUntil == Double(lockedUntil))
         }
+    }
+}
+
+/// claim.json (entitlement version 2 on the client). An Apple client skips
+/// what the fixture's note marks as website-code only: codeInput, the
+/// not-family outcome and the Institutions scenario, and the enter-code
+/// notice (scenarios with holdsCode false); legacyEnd stays null.
+@Suite struct ClaimFixtureTests {
+    static func state(_ raw: Any?) throws -> ClaimState {
+        let data = try JSONSerialization.data(withJSONObject: try #require(raw as? [String: Any]))
+        return try JSONDecoder().decode(ClaimState.self, from: data)
+    }
+
+    static func json(_ s: some Encodable) -> [String: Any] {
+        let data = try! JSONEncoder().encode(s)
+        return try! JSONSerialization.jsonObject(with: data) as! [String: Any]
+    }
+
+    static func token(_ raw: Any?) -> EntitlementToken? {
+        ((raw as? [String: Any])?["raw"] as? String).flatMap(EntitlementToken.parse)
+    }
+
+    static func outcome(_ raw: [String: Any]) -> ClaimOutcome? {
+        switch raw["kind"] as? String {
+        case "token": return token(raw["token"]).map { .token($0) }
+        case "refused":
+            return (raw["reason"] as? String).flatMap(ClaimReason.init(rawValue:)).map {
+                .refused($0, retryAfter: (raw["retryAfter"] as? NSNumber)?.doubleValue)
+            }
+        case "unavailable": return .unavailable("fixture")
+        default: return nil
+        }
+    }
+
+    static func noticeName(_ n: FamilyNotice) -> String {
+        switch n {
+        case .none: return "none"
+        case .waiting: return "waiting"
+        case .ended: return "ended"
+        case .paymentProblem: return "payment-problem"
+        case .replacementUsed: return "replacement-used"
+        }
+    }
+
+    /// Every field on both sides, a missing one read as null. legacyEnd is
+    /// for website-code clients only (the fixture's note): not in this port.
+    static func compareState(_ got: ClaimState, _ expected: Any?, _ label: String) {
+        let g = json(got)
+        let e = expected as? [String: Any] ?? [:]
+        for key in Set(g.keys).union(e.keys).subtracting(["legacyEnd"]).sorted() {
+            let a = g[key] ?? NSNull()
+            let b = e[key] ?? NSNull()
+            #expect((a as AnyObject).isEqual(b as AnyObject), "\(label) state.\(key): got \(a) expected \(b)")
+        }
+    }
+
+    @Test func constants() throws {
+        let c = try #require(try fixture("claim.json")["constants"] as? [String: Any])
+        #expect((c["dayMs"] as? NSNumber)?.doubleValue == Entitlement.day)
+        #expect((c["hourMs"] as? NSNumber)?.doubleValue == Entitlement.hour)
+        #expect((c["firstBackoffMs"] as? NSNumber)?.doubleValue == ClaimPlan.firstBackoff)
+        #expect((c["maxBackoffMs"] as? NSNumber)?.doubleValue == ClaimPlan.maxBackoff)
+    }
+
+    @Test func tokens() throws {
+        for c in try #require(try fixture("claim.json")["tokens"] as? [[String: Any]]) {
+            let name = c["name"] as? String ?? "?"
+            let got = EntitlementToken.parse(try #require(c["raw"] as? String))
+            if let parsed = c["parsed"] as? [String: Any] {
+                guard let got else {
+                    Issue.record("token \(name): expected to parse")
+                    continue
+                }
+                expectJSONEqual(Self.json(got), parsed, "token \(name)")
+            } else {
+                #expect(got == nil, "token \(name): expected nil, got \(String(describing: got))")
+            }
+        }
+    }
+
+    @Test func claimOutcomes() throws {
+        for c in try #require(try fixture("claim.json")["claimOutcomes"] as? [[String: Any]]) {
+            let name = c["name"] as? String ?? "?"
+            let expected = try #require(c["outcome"] as? [String: Any])
+            // No answer at all is the transport throwing: ClaimClient.claim.
+            guard let body = c["body"] as? String else {
+                #expect(expected["kind"] as? String == "unavailable", "\(name)")
+                continue
+            }
+            let got = ClaimClient.outcome(status: try #require(c["status"] as? Int), body: Data(body.utf8))
+            switch (expected["kind"] as? String, got) {
+            case ("not-family", _):
+                // Apple client: not stored, never a token to send.
+                if case .token = got { Issue.record("outcome \(name): a non-family token is not a token here") }
+            case ("unavailable", .unavailable): break
+            default:
+                #expect(Self.outcome(expected) == got, "outcome \(name): got \(got) expected \(expected)")
+            }
+        }
+    }
+
+    @Test func syncRefusals() throws {
+        for c in try #require(try fixture("claim.json")["syncRefusals"] as? [[String: Any]]) {
+            let name = c["name"] as? String ?? "?"
+            let status = try #require(c["status"] as? Int)
+            let got = status == 402 ? SyncRefusal.parse(Data(try #require(c["body"] as? String).utf8)) : nil
+            #expect(got?.rawValue == c["refusal"] as? String, "refusal \(name): got \(String(describing: got))")
+            #expect((got?.retryCreateWithNewClaim ?? false) == c["retriesCreate"] as? Bool, "refusal \(name) retriesCreate")
+        }
+    }
+
+    @Test func scenarios() throws {
+        var replayed = 0
+        for sc in try #require(try fixture("claim.json")["scenarios"] as? [[String: Any]]) {
+            let name = String((sc["name"] as? String ?? "?").prefix(70))
+            let steps = try #require(sc["steps"] as? [[String: Any]])
+            let notFamily = steps.contains {
+                (($0["event"] as? [String: Any])?["outcome"] as? [String: Any])?["kind"] as? String == "not-family"
+            }
+            if sc["holdsCode"] as? Bool == false || notFamily { continue }
+            for (i, step) in steps.enumerated() {
+                let label = "[\(name)] step \(i)"
+                let now = try #require((step["now"] as? NSNumber)?.doubleValue)
+                let random = (step["random"] as? NSNumber)?.doubleValue ?? 0
+                let event = try #require(step["event"] as? [String: Any])
+                var s = try Self.state(step["state"])
+                var decision: ClaimPlan.Decision?
+                switch event["type"] as? String {
+                case "next":
+                    (decision, s) = ClaimPlan.next(
+                        s, now: now, householdId: try #require(event["householdId"] as? String), random: { random })
+                case "record":
+                    let raw = try #require(event["outcome"] as? [String: Any])
+                    let outcome = try #require(Self.outcome(raw))
+                    s = ClaimPlan.record(outcome, current: try #require(event["current"] as? Bool), state: s, now: now)
+                case "observe":
+                    let a = try #require(event["answer"] as? [String: Any])
+                    s = ClaimPlan.observe(
+                        entExp: (a["entExp"] as? NSNumber)?.doubleValue,
+                        lapsedResponse: try #require(a["lapsed"] as? Bool),
+                        succeeded: try #require(a["succeeded"] as? Bool),
+                        state: s, householdId: try #require(event["householdId"] as? String), now: now,
+                        forced: a["forced"] as? String)
+                case "created":
+                    s = ClaimPlan.created(
+                        s, token: try #require(Self.token(event["token"])),
+                        householdId: try #require(event["householdId"] as? String),
+                        entExp: (event["entExp"] as? NSNumber)?.doubleValue)
+                case "userRetry":
+                    s = ClaimPlan.userRetry(s)
+                case "forgetClaims":
+                    s = ClaimPlan.forgetClaims(s)
+                default:
+                    Issue.record("\(label): unknown event \(event)")
+                    continue
+                }
+                replayed += 1
+                // The fixture's "wait" is "no claim before `until`"; this port
+                // keeps that time as notBefore / windowAt (compared in state).
+                if let d = step["decision"] as? [String: Any], let decision {
+                    let claims = d["kind"] as? String == "claim"
+                    #expect(decision.claim == claims, "\(label) decision: got \(decision) expected \(d)")
+                    if claims { #expect(decision.current == d["current"] as? Bool, "\(label) current") }
+                }
+                let r = try #require(step["result"] as? [String: Any])
+                Self.compareState(s, r["state"], label)
+                let notice = Self.noticeName(ClaimPlan.notice(s, now: now))
+                #expect(notice == r["notice"] as? String, "\(label) notice: got \(notice) expected \(r["notice"] ?? "")")
+                let offers = ClaimPlan.offersReplace(s, now: now)
+                #expect(offers == r["offersReplace"] as? Bool, "\(label) offersReplace: got \(offers)")
+                #expect(ClaimPlan.tokenToSend(s)?.raw == r["tokenToSend"] as? String, "\(label) tokenToSend")
+                #expect(ClaimPlan.forcesWrite(s) == r["forcesWrite"] as? Bool, "\(label) forcesWrite")
+            }
+        }
+        #expect(replayed > 100)
     }
 }

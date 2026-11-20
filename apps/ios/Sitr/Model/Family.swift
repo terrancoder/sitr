@@ -92,10 +92,14 @@ enum Family {
     }
 
     /// One claim with this device's credential and claim secret. nil: no
-    /// credential (no purchase on this Apple ID) or no claim secret.
+    /// credential (no purchase on this Apple ID), no claim secret, or a
+    /// child-role device, which never claims.
     /// `credential`: the just-purchased transaction (right after a purchase
     /// `Transaction.latest` may not list it yet); otherwise the latest one.
     static func claim(current: Bool, replace: Bool = false, credential: String? = nil) async -> ClaimOutcome? {
+        guard ClaimPlan.mayClaim(role: SettingsStore.load().role.flatMap(HouseholdRole.init(rawValue:))) else {
+            return nil
+        }
         var jws = credential
         if jws == nil { jws = await latestTransaction()?.jwsRepresentation }
         guard let credential = jws, let secret = Storage.claimSecret() else { return nil }
@@ -132,13 +136,15 @@ enum Family {
             return nil
         case .waiting(let lapsed):
             return (lapsed ? "" : "Renewal is due. ")
-                + "Waiting for renewal on the subscriber's device. Filtering continues; changes will sync after renewal."
+                + "Waiting for renewal on the guardian device that renews the Family plan. Filtering continues; changes will sync after renewal."
         case .ended(let lapsed):
             return lapsed
                 ? "Sitr Family has ended. Filtering continues with the last settings; renew the subscription to sync changes again."
                 : "Sitr Family is ending: the subscription is no longer active. Renew it to keep the household syncing."
         case .paymentProblem:
             return "Payment problem: update the payment method of your Apple Account to keep Sitr Family. Filtering continues."
+        case .replacementUsed(let until):
+            return text(.replacementUsed, retryAfter: until)
         }
     }
 

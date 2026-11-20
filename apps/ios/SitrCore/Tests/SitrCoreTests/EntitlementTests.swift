@@ -168,11 +168,16 @@ import Testing
         let s = applied(dec4)
         let now = dec4 - 3 * day
         let bound = ClaimPlan.record(.refused(.boundToOtherDevice, retryAfter: nil), current: false, state: s, now: now)
-        #expect(bound.notBefore == now + day && !bound.stopped)
-        // Once E has passed, a plain (current) claim goes at once despite the wait.
+        #expect(bound.notBefore == nil && !bound.stopped)
+        // E in the future: no automatic claim at all, Try again included.
+        #expect(!ClaimPlan.next(bound, now: now + day, householdId: "h1", random: { 0 }).0.claim)
+        #expect(!ClaimPlan.next(ClaimPlan.userRetry(bound), now: now, householdId: "h1", random: { 0 }).0.claim)
+        // Once E has passed: one claim with current at once.
         #expect(ClaimPlan.next(bound, now: dec4 + 1, householdId: "h1", random: { 0 }).0 == .init(claim: true, current: true))
         let used = ClaimPlan.record(.refused(.replacementUsed, retryAfter: now + 30 * day), current: false, state: s, now: now)
-        #expect(used.retryAfter == now + 30 * day && used.notBefore == now + 30 * day)
+        #expect(used.retryAfter == now + 30 * day && used.notBefore == nil)
+        #expect(!ClaimPlan.next(used, now: now + day, householdId: "h1", random: { 0 }).0.claim)
+        #expect(ClaimPlan.notice(used, now: dec4 - day) == .replacementUsed(until: now + 30 * day))
         for r in [ClaimReason.paymentPending, .inactive, .revoked] {
             let x = ClaimPlan.record(.refused(r, retryAfter: nil), current: false, state: s, now: now)
             #expect(x.notBefore == now + day && !x.stopped && x.lastRefusal == r)
@@ -329,5 +334,35 @@ import Testing
         s = ClaimPlan.observe(entExp: nil, lapsedResponse: false, succeeded: true, state: s, householdId: "h1", now: dec1, forced: t.raw)
         #expect(!ClaimPlan.forcesWrite(s))
         #expect(ClaimPlan.tokenToSend(s) == t, "still sent on every PUT until E covers it")
+    }
+}
+
+@Suite struct ClaimStateStorageTests {
+    /// What the app stored before lapseRefused existed still reads, held
+    /// tokens and E included.
+    @Test func stateStoredByAnEarlierVersionStillDecodes() throws {
+        let raw = "sitr-ent-v2.\(base64URLEncode(Data(#"{"v":2,"plan":"family","term":"month","per":1,"exp":2}"#.utf8))).c2ln"
+        let old = """
+            {"appliedHousehold":"h1","testHousehold":false,"entExp":1796342400000,"stopped":false,
+             "lastRefusal":"bound-to-other-device","lapsed":true,"lapseClaimed":false,"notBefore":1796428800000,
+             "tokens":[{"raw":"\(raw)","plan":"family","term":"month","per":1,"exp":2,"test":false}]}
+            """
+        let s = try JSONDecoder().decode(ClaimState.self, from: Data(old.utf8))
+        #expect(s.appliedHousehold == "h1" && s.entExp == 1_796_342_400_000 && s.lapsed)
+        #expect(s.lastRefusal == .boundToOtherDevice && s.tokens.count == 1 && !s.lapseRefused)
+        #expect(s.notBefore == nil, "the old bound wait goes: the lapsed claim is due")
+        #expect(ClaimPlan.next(s, now: 1_796_400_000_000, householdId: "h1", random: { 0 }).0 == .init(claim: true, current: true))
+        // And the new shape round-trips.
+        var n = s
+        n.lapseRefused = true
+        #expect(try JSONDecoder().decode(ClaimState.self, from: JSONEncoder().encode(n)) == n)
+        #expect(try JSONDecoder().decode(ClaimState.self, from: Data("{}".utf8)) == ClaimState())
+    }
+
+    /// A child-role device never claims (Family.claim checks this).
+    @Test func aChildDeviceMakesNoClaims() {
+        #expect(!ClaimPlan.mayClaim(role: .child))
+        #expect(ClaimPlan.mayClaim(role: .guardian))
+        #expect(ClaimPlan.mayClaim(role: nil), "no household yet: creating one")
     }
 }

@@ -35,21 +35,35 @@ public struct EntitlementToken: Equatable, Codable, Sendable {
     public let exp: Double
     public let test: Bool
 
+    /// `v: 2`, string `plan` and `term`, integer `per` and `exp`; `test` is
+    /// true only when it is the JSON `true`. Anything else: nil.
     public static func parse(_ raw: String) -> EntitlementToken? {
         let parts = raw.split(separator: ".", omittingEmptySubsequences: false)
         guard parts.count == 3, parts[0] == "sitr-ent-v2",
             let bytes = base64URLDecode(String(parts[1])),
             let json = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
-            (json["v"] as? NSNumber)?.intValue == 2,
+            integer(json["v"]) == 2,
             let plan = json["plan"] as? String,
             let term = json["term"] as? String,
-            let per = (json["per"] as? NSNumber)?.doubleValue,
-            let exp = (json["exp"] as? NSNumber)?.doubleValue
+            let per = integer(json["per"]),
+            let exp = integer(json["exp"])
         else { return nil }
         return EntitlementToken(
             raw: raw, plan: plan, term: term, per: per, exp: exp,
-            test: (json["test"] as? Bool) ?? false)
+            test: isJSONBool(json["test"]) && (json["test"] as? Bool) == true)
     }
+}
+
+/// JSONSerialization reads `true` as an NSNumber too: tell them apart.
+private func isJSONBool(_ v: Any?) -> Bool {
+    (v as? NSNumber).map { CFGetTypeID($0) == CFBooleanGetTypeID() } ?? false
+}
+
+/// A JSON integer (no fraction, within 2^53), not a boolean.
+private func integer(_ v: Any?) -> Double? {
+    guard let n = v as? NSNumber, !isJSONBool(n) else { return nil }
+    let d = n.doubleValue
+    return d.rounded() == d && abs(d) <= 9_007_199_254_740_991 ? d : nil
 }
 
 func base64URLDecode(_ s: String) -> Data? {
@@ -158,12 +172,19 @@ public struct ClaimClient {
             guard let raw = json?["token"] as? String, let token = EntitlementToken.parse(raw) else {
                 return .unavailable("the claim service sent a token this app cannot read")
             }
+            // A token of another plan (Institutions) is never stored. Apple
+            // sells only Family, so this stops until the user acts.
+            guard token.plan == "family" else { return .refused(.wrongProduct, retryAfter: nil) }
             return .token(token)
         }
         if status == 429 || status >= 500 {
             return .unavailable("claim service unavailable (\(status))")
         }
-        let reason = (json?["error"] as? String).flatMap(ClaimReason.init(rawValue:)) ?? .unrecognized
+        // Not the claim API's JSON (no claim route on that host): as no network.
+        guard let error = json?["error"] as? String else {
+            return .unavailable("the claim service is not reachable (\(status))")
+        }
+        let reason = ClaimReason(rawValue: error) ?? .unrecognized
         let retryAfter = (json?["retry_after"] as? NSNumber)?.doubleValue
         return .refused(reason, retryAfter: retryAfter)
     }
@@ -196,6 +217,8 @@ public struct ClaimState: Codable, Equatable, Sendable {
     public var lapsed = false
     /// Rule (d) was answered with a token for the current lapse.
     public var lapseClaimed = false
+    /// Rule (d) was refused as bound-to-other-device in the current lapse.
+    public var lapseRefused = false
     /// Tokens held and not yet covered by `E`.
     public var tokens: [EntitlementToken] = []
     /// The token already written with a forced write: "write the household
@@ -203,17 +226,46 @@ public struct ClaimState: Codable, Equatable, Sendable {
     public var forcedToken: String?
 
     public init() {}
+
+    /// A missing field takes its default, so state stored by an earlier
+    /// version of the app still reads.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        appliedHousehold = try c.decodeIfPresent(String.self, forKey: .appliedHousehold)
+        testHousehold = try c.decodeIfPresent(Bool.self, forKey: .testHousehold) ?? false
+        entExp = try c.decodeIfPresent(Double.self, forKey: .entExp)
+        windowFor = try c.decodeIfPresent(Double.self, forKey: .windowFor)
+        windowAt = try c.decodeIfPresent(Double.self, forKey: .windowAt)
+        notBefore = try c.decodeIfPresent(Double.self, forKey: .notBefore)
+        backoff = try c.decodeIfPresent(Double.self, forKey: .backoff)
+        stopped = try c.decodeIfPresent(Bool.self, forKey: .stopped) ?? false
+        lastRefusal = try c.decodeIfPresent(ClaimReason.self, forKey: .lastRefusal)
+        retryAfter = try c.decodeIfPresent(Double.self, forKey: .retryAfter)
+        lapsed = try c.decodeIfPresent(Bool.self, forKey: .lapsed) ?? false
+        lapseClaimed = try c.decodeIfPresent(Bool.self, forKey: .lapseClaimed) ?? false
+        lapseRefused = try c.decodeIfPresent(Bool.self, forKey: .lapseRefused) ?? false
+        tokens = try c.decodeIfPresent([EntitlementToken].self, forKey: .tokens) ?? []
+        forcedToken = try c.decodeIfPresent(String.self, forKey: .forcedToken)
+        // Stored before lapseRefused existed: a bound-elsewhere answer then
+        // set a daily or retry_after wait, which now would hold back the
+        // claim due once E has passed.
+        if !c.contains(.lapseRefused), lastRefusal == .boundToOtherDevice || lastRefusal == .replacementUsed {
+            notBefore = nil
+        }
+    }
 }
 
 /// What the Family screen says about the subscription (§Sync 402).
 public enum FamilyNotice: Equatable, Sendable {
     case none
-    /// "Waiting for renewal on the subscriber's device." The default.
+    /// The neutral "Waiting for renewal" notice. The default.
     case waiting(lapsed: Bool)
     /// Only after a claim on THIS device came back inactive or revoked.
     case ended(lapsed: Bool)
     /// After a claim on this device came back payment-pending.
     case paymentProblem(lapsed: Bool)
+    /// After a rebind refused as replacement-used, until its retry_after.
+    case replacementUsed(until: Double)
 }
 
 public enum ClaimPlan {
@@ -239,19 +291,19 @@ public enum ClaimPlan {
         var s = state
         if s.stopped { return (.none, s) }
         let lapsed = isLapsed(s, now: now)
-        // (d) at once, also past a daily wait set by bound-to-other-device:
-        // once E has passed, the old binding is stale and a plain claim binds.
+        // Bound elsewhere and E in the future (or no E): no automatic claim.
+        if boundElsewhere(s) && !lapsed { return (.none, s) }
         if lapsed {
-            // Wait for the held current token to reach the server; but an
+            // (d). Wait for the held current token to reach the server; an
             // early token alone, or none (it expired unused), asks again.
+            // Refused as bound in this lapse: at most once a day (notBefore).
             if s.lapseClaimed, s.tokens.contains(where: { $0.per <= now }) { return (.none, s) }
-            if let nb = s.notBefore, now < nb, s.lastRefusal != .boundToOtherDevice {
-                return (.none, s)
-            }
+            if let nb = s.notBefore, now < nb { return (.none, s) }
             return (Decision(claim: true, current: true), s)
         }
         if let nb = s.notBefore, now < nb { return (.none, s) }
-        // (b): never applied a v2 token to this household.
+        // (b): never applied a v2 token to this household. With no E header
+        // this is the only rule: one claim, then none while the token is held.
         if s.appliedHousehold != householdId {
             return (s.tokens.isEmpty ? Decision(claim: true, current: false) : .none, s)
         }
@@ -287,6 +339,7 @@ public enum ClaimPlan {
             s.retryAfter = nil
             s.backoff = nil
             s.notBefore = nil
+            s.lapseRefused = false
             if current { s.lapseClaimed = true }
             // A token that does not move E (a monthly renewal still ahead):
             // try again a day later.
@@ -297,11 +350,16 @@ public enum ClaimPlan {
             if reason.stops {
                 s.stopped = true
             } else if reason == .replacementUsed {
+                // Still bound elsewhere (next() reads lastRefusal); the date
+                // is for the text and for "Renew on this device".
                 s.retryAfter = retryAfter
-                s.notBefore = max(retryAfter ?? 0, now + Entitlement.day)
+            } else if reason == .boundToOtherDevice {
+                // Refused while lapsed: at most once a day. Otherwise no
+                // retry at all while E is in the future.
+                s.notBefore = current ? now + Entitlement.day : nil
+                if current { s.lapseRefused = true }
             } else {
-                // bound-to-other-device: watch E; payment-pending, inactive,
-                // revoked: at most once a day.
+                // payment-pending, inactive, revoked: at most once a day.
                 s.notBefore = now + Entitlement.day
             }
         case .unavailable:
@@ -312,7 +370,44 @@ public enum ClaimPlan {
         return s
     }
 
-    /// The user asked (Restore, Try again): lift waits and stops.
+    /// The household was just created with `token` (201). `entExp` is the
+    /// answer's header, nil when it had none: an E seen before goes too.
+    public static func created(
+        _ state: ClaimState, token: EntitlementToken, householdId: String, entExp: Double?
+    ) -> ClaimState {
+        var s = state
+        s.tokens.removeAll { $0.raw == token.raw }
+        s.appliedHousehold = householdId
+        s.testHousehold = token.test
+        s.entExp = entExp
+        s.lapsed = false
+        s.lapseClaimed = false
+        s.lapseRefused = false
+        return s
+    }
+
+    /// The credential changed (a new purchase on this device): everything
+    /// this device knew about its own claims goes; what the sync server said
+    /// about the household stays.
+    public static func forgetClaims(_ state: ClaimState) -> ClaimState {
+        var s = ClaimState()
+        s.testHousehold = state.testHousehold
+        s.entExp = state.entExp
+        s.lapsed = state.lapsed
+        return s
+    }
+
+    /// The bound-to-other-device answer is remembered (replacement-used is
+    /// also an answer that the subscription is bound elsewhere).
+    static func boundElsewhere(_ s: ClaimState) -> Bool {
+        s.lastRefusal == .boundToOtherDevice || s.lastRefusal == .replacementUsed
+    }
+
+    /// Only a device that may hold the subscription claims: never a child.
+    public static func mayClaim(role: HouseholdRole?) -> Bool { role != .child }
+
+    /// The user asked (Restore, Try again): lift waits and stops. The memory
+    /// of a bound-to-other-device answer stays (§Claim errors).
     public static func userRetry(_ state: ClaimState) -> ClaimState {
         var s = state
         s.stopped = false
@@ -330,7 +425,9 @@ public enum ClaimPlan {
     }
 
     /// Folds a sync round's answer into the state: the server's `E`, a
-    /// `402 lapsed`, and whether the round succeeded.
+    /// `402 lapsed`, and whether the round succeeded. A successful round
+    /// without the header is a version 1 household: no E, never lapsed. A
+    /// failed round without it changes nothing about E.
     public static func observe(
         entExp: Double?, lapsedResponse: Bool, succeeded: Bool,
         state: ClaimState, householdId: String, now: Double, forced: String? = nil
@@ -343,12 +440,15 @@ public enum ClaimPlan {
             // "Delete it once a response shows E ≥ its exp."
             s.tokens.removeAll { $0.exp <= e }
             if s.tokens.count < before { s.appliedHousehold = householdId }
+        } else if succeeded {
+            s.entExp = nil
         }
         if lapsedResponse {
             s.lapsed = true
-        } else if succeeded, let e = s.entExp, e > now {
+        } else if succeeded, s.entExp.map({ $0 > now }) ?? true {
             s.lapsed = false
             s.lapseClaimed = false
+            s.lapseRefused = false
         }
         // An unused token simply expires; the same claim gets it again.
         s.tokens.removeAll { $0.exp <= now }
@@ -370,16 +470,20 @@ public enum ClaimPlan {
         switch s.lastRefusal {
         case .inactive, .revoked: return .ended(lapsed: lapsed)
         case .paymentPending: return .paymentProblem(lapsed: lapsed)
-        default: return .waiting(lapsed: lapsed)
+        default:
+            if let until = s.retryAfter, now < until { return .replacementUsed(until: until) }
+            return .waiting(lapsed: lapsed)
         }
     }
 
-    /// Offer "renew on this device" (replace: true, asked first): only when
-    /// another device holds the binding and E is less than 2 days away.
+    /// Offer "Renew on this device" (replace: true, plus current: true when
+    /// lapsed; asked first): another device holds the binding and E is less
+    /// than 2 days away; once E has passed, only after the claim without
+    /// replace was refused; never before a replacement-used retry_after.
     public static func offersReplace(_ s: ClaimState, now: Double) -> Bool {
-        guard s.lastRefusal == .boundToOtherDevice, let e = s.entExp, !isLapsed(s, now: now) else {
-            return false
-        }
+        guard boundElsewhere(s), let e = s.entExp else { return false }
+        if let until = s.retryAfter, now < until { return false }
+        if isLapsed(s, now: now) { return s.lapseRefused }
         return e - now < 2 * Entitlement.day
     }
 }
@@ -396,10 +500,21 @@ public enum SyncRefusal: String, Sendable {
     case tokenUsed = "token-used"
     case v1Ended = "v1-ended"
 
+    /// The version 1 server's 402 bodies (server-hotfix-live), read as reasons.
+    static let version1Bodies: [String: SyncRefusal] = [
+        "entitlement required": .tokenRequired,
+        "malformed entitlement token": .tokenInvalid,
+        "invalid entitlement signature": .tokenInvalid,
+        "malformed entitlement payload": .tokenInvalid,
+        "unsupported entitlement version": .tokenInvalid,
+        "entitlement expired — please renew": .tokenExpired,
+    ]
+
     public static func parse(_ body: Data) -> SyncRefusal? {
         let text = String(decoding: body, as: UTF8.self)
-        let first = text.split(separator: "\n", omittingEmptySubsequences: false).first ?? ""
-        return SyncRefusal(rawValue: first.trimmingCharacters(in: .whitespacesAndNewlines))
+        let first = (text.split(separator: "\n", omittingEmptySubsequences: false).first ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return SyncRefusal(rawValue: first) ?? version1Bodies[first]
     }
 
     /// "Claim once more, then retry the creation once."

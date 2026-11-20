@@ -394,6 +394,9 @@ final class AppModel: ObservableObject {
                     maxSeenRev: before.maxSeenRev, deviceId: before.deviceId,
                     entitlement: ClaimPlan.tokenToSend(Family.loadState())?.raw))
         }
+        // The claim state belongs to the household left (a remembered
+        // bound-to-other-device answer included).
+        Family.saveState(ClaimState())
         await refreshFamily()
     }
 

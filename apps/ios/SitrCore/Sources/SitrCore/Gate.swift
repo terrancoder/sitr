@@ -78,6 +78,12 @@ public enum Gate {
     /// `.leaveJoinPlaceholder` runs it.
     public static let leaveJoinPlaceholderGatedAs: MutationKind = .enableCategory
 
+    /// "Renew on this device" and anything else that moves the Sitr Family
+    /// binding: gated exactly like changing the PIN — refused on a child
+    /// device, the PIN when one is set, no wait. Pinned by gate.json's
+    /// `subscriptionGatedAs`.
+    public static let subscriptionGatedAs: MutationKind = .changePin
+
     static let loosening: Set<MutationKind> = [
         .disableCategory,
         .removeDeviceBlockRule,

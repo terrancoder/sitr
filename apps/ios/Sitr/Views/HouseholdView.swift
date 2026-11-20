@@ -28,13 +28,23 @@ struct HouseholdView: View {
         .sitrScreenBackground()
         .task { await model.refreshFamily() }
         .alert("Renew on this device?", isPresented: $model.askReplace) {
-            Button("Renew here") { Task { await model.createHousehold(replace: true) } }
+            Button("Renew here") {
+                attempt(Gate.subscriptionGatedAs, "Renew on this device") {
+                    Task { await model.createHousehold(replace: true) }
+                }
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(Self.replaceWarning)
         }
         .alert("Renew on this device?", isPresented: $confirmRenewHere) {
-            Button("Renew here") { Task { await model.renewOnThisDevice() } }
+            // Gated after the question: an alert raised while the PIN sheet
+            // closes would be dropped.
+            Button("Renew here") {
+                attempt(Gate.subscriptionGatedAs, "Renew on this device") {
+                    Task { await model.renewOnThisDevice() }
+                }
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(Self.replaceWarning)
