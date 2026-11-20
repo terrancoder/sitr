@@ -22,6 +22,7 @@ import { HOUSEHOLD_END_KEY } from "../../extension/dist/background/memberChannel
 import {
   CLAIM_SECRET_KEY,
   CLAIM_STATE_KEY,
+  OTHER_PLAN_KEY,
   SUBSCRIPTION_CODE_KEY,
 } from "../../extension/dist/background/fullChannel.js";
 import { encodePairingCode, generateRootSecret } from "../../extension/dist/lib/sync/crypto.js";
@@ -51,7 +52,6 @@ let store: Record<string, unknown>;
 let prompts: string[];
 let errors: string[];
 let requested: string[][];
-let alarms: number;
 let claims: Array<Record<string, unknown>>;
 let granted: boolean;
 Date.now = () => T;
@@ -73,7 +73,6 @@ Date.now = () => T;
     request: async (p: { origins: string[] }) => (requested.push(p.origins), granted),
     contains: async () => granted,
   },
-  alarms: { create: async () => void alarms++ },
   declarativeNetRequest: {
     getDynamicRules: async () => [],
     updateDynamicRules: async () => {},
@@ -128,7 +127,6 @@ beforeEach(() => {
   prompts = [];
   errors = [];
   requested = [];
-  alarms = 0;
   claims = [];
   granted = true;
 });
@@ -138,7 +136,8 @@ beforeEach(() => {
 const REFUSED_CHILD = "This setting can only be changed from a guardian device.";
 const REFUSED_LOCK = "Settings are locked by your organization's administrator.";
 
-test("enter a code on a guardian device: stored with a new claim secret, claims forgotten, a round started", async () => {
+test("enter a code on a guardian device: stored with a new claim secret, claims forgotten, the Institutions notice cleared", async () => {
+  store[OTHER_PLAN_KEY] = true;
   store[CLAIM_STATE_KEY] = { ...emptyClaimState(), stopped: true, lastRefusal: "unknown-code", entExp: T + DAY };
   assert.equal(await submitCode(ctx("guardian"), ` ${CODE.toUpperCase()} `, ui([])), true);
   assert.deepEqual(requested, [["https://sync.sitrshield.com/*", "https://claim.sitrshield.com/*"]]);
@@ -146,7 +145,7 @@ test("enter a code on a guardian device: stored with a new claim secret, claims 
   assert.match(store[CLAIM_SECRET_KEY] as string, /^[A-Za-z0-9_-]{43}$/);
   const s = store[CLAIM_STATE_KEY] as ClaimState;
   assert.deepEqual([s.stopped, s.lastRefusal, s.entExp], [false, null, T + DAY]);
-  assert.equal(alarms, 1);
+  assert.equal(store[OTHER_PLAN_KEY], undefined);
   assert.deepEqual([prompts, errors, claims], [[], [], []]);
   // The same code again keeps its secret.
   const secret = store[CLAIM_SECRET_KEY];
@@ -219,7 +218,6 @@ test("renew on this browser: permission first, then the question, then the gate;
   assert.deepEqual([claims[0]?.["replace"], claims[0]?.["current"], claims[0]?.["credential"]], [true, true, CODE]);
   const s = store[CLAIM_STATE_KEY] as ClaimState;
   assert.deepEqual([s.lastRefusal, s.tokens.length], [null, 1]);
-  assert.equal(alarms, 1);
 });
 
 test("renew on this browser: PIN when set; refused on a child device and under a managed lock", async () => {
@@ -300,13 +298,14 @@ test("leaving removes the code, the claim secret, the claim state and the end da
   const c = ctx("guardian");
   await wireFullChannelHooks(c);
   holding();
+  store[OTHER_PLAN_KEY] = true;
   store[HOUSEHOLD_END_KEY] = { entExp: T, lapsed: false, testHousehold: false };
   store[HOUSEHOLD_STATE_KEY] = c.state;
   store["entitlementToken"] = "kept";
   assert.equal(await c.family!.confirmLeave(ui([null])), false);
   assert.deepEqual(prompts, [LEAVE_QUESTION]);
   await leaveHousehold(c, { fetch: claimService(), now: () => T });
-  for (const k of [SUBSCRIPTION_CODE_KEY, CLAIM_SECRET_KEY, CLAIM_STATE_KEY, HOUSEHOLD_END_KEY, HOUSEHOLD_STATE_KEY]) {
+  for (const k of [SUBSCRIPTION_CODE_KEY, CLAIM_SECRET_KEY, CLAIM_STATE_KEY, OTHER_PLAN_KEY, HOUSEHOLD_END_KEY, HOUSEHOLD_STATE_KEY]) {
     assert.equal(store[k], undefined, k);
   }
   assert.equal(store["entitlementToken"], "kept");

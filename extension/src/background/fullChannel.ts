@@ -20,6 +20,25 @@ import { HOUSEHOLD_END_KEY, storeChanged } from "./memberChannel.js";
 export const SUBSCRIPTION_CODE_KEY = "subscriptionCode";
 export const CLAIM_SECRET_KEY = "claimSecret";
 export const CLAIM_STATE_KEY = "claimState";
+/** `true` after a round dropped the code because its token was for another
+ * plan (Sitr for Institutions), for the options page's text. Removed when
+ * a code is entered again, on leave, or when the user dismisses it. */
+export const OTHER_PLAN_KEY = "claimOtherPlan";
+
+/** The claim state this worker last wrote (JSON): its own write must not
+ * start a round. Lost with the worker, as is any round that wrote it. */
+let written: string | undefined;
+
+/**
+ * Whether a storage change starts a round (service-worker.ts listener): a
+ * code entered, or a claim state written by someone else (the options
+ * page). The round's own writes do not, so rounds cannot loop.
+ */
+export function startsRound(changes: Record<string, { newValue?: unknown }>): boolean {
+  if (typeof changes[SUBSCRIPTION_CODE_KEY]?.newValue === "string") return true;
+  const c = changes[CLAIM_STATE_KEY];
+  return c !== undefined && c.newValue !== undefined && JSON.stringify(c.newValue) !== written;
+}
 
 export async function channelRound(
   input: SyncInput,
@@ -56,13 +75,20 @@ export async function channelRound(
   // A code saved or removed during the round comes with its own claim
   // state: keep that one.
   if (!(await householdKept())) return result.outcome;
-  const now = await chrome.storage.local.get(SUBSCRIPTION_CODE_KEY);
+  const now = await chrome.storage.local.get([SUBSCRIPTION_CODE_KEY, CLAIM_STATE_KEY]);
   if ((now[SUBSCRIPTION_CODE_KEY] ?? null) !== code) return result.outcome;
+  // Written during the round (the page's "Try again" or "Renew on this
+  // browser"): drop this round's state; that write starts the next round.
+  if (JSON.stringify(now[CLAIM_STATE_KEY]) !== JSON.stringify(stored[CLAIM_STATE_KEY])) return result.outcome;
   const s = result.claimState;
+  written = JSON.stringify(s);
   await storeChanged({
     [CLAIM_STATE_KEY]: s,
     [HOUSEHOLD_END_KEY]: { entExp: s.entExp, lapsed: s.lapsed, testHousehold: s.testHousehold },
   });
-  if (result.forgetCode) await chrome.storage.local.remove([SUBSCRIPTION_CODE_KEY, CLAIM_SECRET_KEY]);
+  if (result.forgetCode) {
+    await chrome.storage.local.remove([SUBSCRIPTION_CODE_KEY, CLAIM_SECRET_KEY]);
+    await chrome.storage.local.set({ [OTHER_PLAN_KEY]: true });
+  }
   return result.outcome;
 }

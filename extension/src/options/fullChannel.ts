@@ -39,6 +39,7 @@ import { newClaimSecret } from "../lib/sync/renew.js";
 import {
   CLAIM_SECRET_KEY,
   CLAIM_STATE_KEY,
+  OTHER_PLAN_KEY,
   SUBSCRIPTION_CODE_KEY,
 } from "../background/fullChannel.js";
 import {
@@ -57,8 +58,6 @@ import {
 
 const ENTITLEMENT_KEY = "entitlementToken";
 const CLAIM_ORIGIN = `${CLAIM_BASE_URL}/*`;
-/** The service worker's sync alarm (background/service-worker.ts). */
-const SYNC_ALARM = "sitr-sync";
 
 /** Asked before a rebind, on creation too: re-creating a household with
  * the same subscription in the same month always needs it. */
@@ -131,19 +130,13 @@ async function readStored(): Promise<Stored> {
 
 const claimPermitted = () => chrome.permissions.contains({ origins: [CLAIM_ORIGIN] });
 
-/** A sync round now: the worker's own alarm, fired at once and kept at
- * its 30-minute period. ponytail: a browser may delay a `when` alarm (packed
- * Chrome is said to, by up to 30 seconds; not measured); a message to the
- * worker would be immediate, but the worker has no listener for one. */
-async function startRound(): Promise<void> {
-  await chrome.alarms.create(SYNC_ALARM, { when: Date.now(), periodInMinutes: 30 });
-}
-
 /** Stores the code with its claim secret, kept when the same code is
  * entered again (a new secret would cost the rebind). Returns the secret. */
 async function keepCode(code: string, forget: boolean): Promise<string> {
   const s = await readStored();
   const secret = s.code === code && s.secret !== null ? s.secret : newClaimSecret();
+  await chrome.storage.local.remove(OTHER_PLAN_KEY);
+  // The worker starts a round on this write (background/fullChannel.ts startsRound).
   await chrome.storage.local.set({
     [SUBSCRIPTION_CODE_KEY]: code,
     [CLAIM_SECRET_KEY]: secret,
@@ -252,7 +245,6 @@ export async function submitCode(
   await withGate(FAMILY_CODE_GATED_AS, ctx, async () => {
     if (inHousehold) {
       await keepCode(input.code, true);
-      await startRound();
       done = true;
     } else {
       done = await createWithCode(ctx, input.code, ui, fetchFn);
@@ -277,11 +269,10 @@ export async function removeCode(ctx: HouseholdContext, ui: GateUi = PAGE_UI): P
   return fill(TEXTS["code-removed"], entExp);
 }
 
-/** "Try again": lifts waits and stops, then a round. Not gated. */
+/** "Try again": lifts waits and stops; the write starts a round. Not gated. */
 export async function retryClaim(): Promise<void> {
   const s = await readStored();
   await chrome.storage.local.set({ [CLAIM_STATE_KEY]: userRetry(s.state) });
-  await startRound();
 }
 
 /** "Renew on this browser": the rebind, asked and gated (offersReplace). */
@@ -306,13 +297,16 @@ export async function renewHere(
       { credential: s.code, claimSecret: s.secret, replace: true, current },
       { fetch: fetchFn },
     );
-    // ponytail: a round in flight can overwrite this write (same code).
+    // Starts a round; a round already running drops its own claim state.
     await chrome.storage.local.set({ [CLAIM_STATE_KEY]: record(s.state, outcome, current, now) });
     got = await handleOutcome(ctx, outcome);
-    if (got) await startRound();
   }, ui);
   return got;
 }
+
+/** The last action's status (e.g. the code removed), kept across the
+ * re-renders that sync rounds cause until a code is stored again. */
+let said = "";
 
 function el<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
@@ -326,15 +320,22 @@ async function renderFamily(ctx: HouseholdContext): Promise<void> {
   el("full-channel-only").hidden = inHousehold && (ctx.role !== "guardian" || placeholder);
   el("family-code-submit").textContent = inHousehold ? "Save code" : "Create a household (guardian)";
   const s = await readStored();
-  const token = (await chrome.storage.local.get(ENTITLEMENT_KEY))[ENTITLEMENT_KEY];
+  const more = await chrome.storage.local.get([ENTITLEMENT_KEY, OTHER_PLAN_KEY]);
+  const token = more[ENTITLEMENT_KEY];
+  const otherPlan = more[OTHER_PLAN_KEY] === true && s.code === null;
   const holdsCode = s.code !== null;
   const permitted = await claimPermitted();
   const now = Date.now();
   el("family-status").textContent = holdsCode
     ? inHousehold ? RENEWS_HERE : CODE_SAVED
-    : typeof token === "string" && token !== ""
+    : otherPlan
+      ? TEXTS["plan-not-accepted"]
+      : said !== "" && inHousehold
+        ? said
+      : typeof token === "string" && token !== ""
       ? "Subscription token saved on this device."
       : "";
+  el("family-dismiss").hidden = !otherPlan;
   el("family-remove").hidden = !holdsCode;
   el("family-allow").hidden = !holdsCode || permitted;
   el("family-retry").hidden =
@@ -344,7 +345,7 @@ async function renderFamily(ctx: HouseholdContext): Promise<void> {
 
 export async function wireFullChannel(ctx: HouseholdContext): Promise<void> {
   ctx.family = {
-    keys: [SUBSCRIPTION_CODE_KEY, CLAIM_SECRET_KEY, CLAIM_STATE_KEY],
+    keys: [SUBSCRIPTION_CODE_KEY, CLAIM_SECRET_KEY, CLAIM_STATE_KEY, OTHER_PLAN_KEY],
     confirmLeave: async (ui) =>
       (await readStored()).code === null ||
       (await ui.prompt(LEAVE_QUESTION, { noInput: true, confirmLabel: "Leave" })) !== null,
@@ -362,9 +363,9 @@ export async function wireFullChannel(ctx: HouseholdContext): Promise<void> {
   const run = (action: () => Promise<unknown>) => {
     ctx.showError("");
     void action()
-      .then(async (said) => {
+      .then(async (status) => {
+        if (typeof status === "string") said = status;
         await ctx.onChanged();
-        if (typeof said === "string") el("family-status").textContent = said;
       })
       .catch((e: unknown) => ctx.showError(e instanceof Error ? e.message : String(e)));
   };
@@ -377,13 +378,13 @@ export async function wireFullChannel(ctx: HouseholdContext): Promise<void> {
   });
   el("family-remove").addEventListener("click", () => run(() => removeCode(ctx)));
   el("family-retry").addEventListener("click", () => run(retryClaim));
+  el("family-dismiss").addEventListener("click", () => run(() => chrome.storage.local.remove(OTHER_PLAN_KEY)));
   el("family-replace").addEventListener("click", () => run(() => renewHere(ctx)));
   el("family-allow").addEventListener("click", () =>
     run(async () => {
-      // First await: Safari drops the user gesture across awaits.
-      if ((await chrome.permissions.request({ origins: [CLAIM_ORIGIN] })) && ctx.state !== undefined) {
-        await startRound();
-      }
+      // First await: Safari drops the user gesture across awaits. A grant
+      // starts a round in the worker (permissions.onAdded).
+      await chrome.permissions.request({ origins: [CLAIM_ORIGIN] });
     }),
   );
   await renderFamily(ctx);

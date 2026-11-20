@@ -42,6 +42,11 @@ export async function storeChanged(items: Record<string, unknown>): Promise<void
   if (Object.keys(changed).length > 0) await chrome.storage.local.set(changed);
 }
 
+/** The member round starts no round of its own from a storage change. */
+export function startsRound(_changes: Record<string, { newValue?: unknown }>): boolean {
+  return false;
+}
+
 /** `householdKept`: false when the user left during the round; then
  * nothing is written. */
 export async function channelRound(

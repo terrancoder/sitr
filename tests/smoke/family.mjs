@@ -218,7 +218,7 @@ report(
     (await stored("householdSecret")) !== null,
   await page("document.getElementById('family-status').textContent"),
 );
-// 7. Enter it again as a guardian: stored, and the page's alarm wakes a round.
+// 7. Enter it again as a guardian: stored, and the worker's storage listener starts a round.
 const before = hits.length;
 await page(`document.getElementById('family-code').value = ${JSON.stringify(CODE)}`);
 await page("document.getElementById('family-code-submit').click()", true);
@@ -229,7 +229,7 @@ for (let t = 0; t < 45_000 && !woke; t += 500) {
   if (!woke) await sleep(500);
 }
 report(
-  "Save code in the household: stored, and a sync round follows (the page's alarm)",
+  "Save code in the household: stored, and a sync round follows (the worker's storage listener)",
   saved && woke && (await stored("subscriptionCode")) === CODE,
   hits.slice(before).join(", "),
 );

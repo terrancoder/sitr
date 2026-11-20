@@ -51,7 +51,7 @@ import { fromB64 } from "../lib/pin.js";
 import { MAX_SEEN_REV_KEY, coalesced } from "../lib/sync/client.js";
 // The Mac App Store staging rewrites this one specifier to
 // "./memberChannel.js" (tools/pack/stage-safari.mjs): same export.
-import { channelRound } from "./fullChannel.js";
+import { channelRound, startsRound } from "./fullChannel.js";
 import { applySyncOutcome } from "../lib/sync/apply.js";
 import { SYNC_STATUS_KEY } from "../lib/sync/status.js";
 
@@ -365,6 +365,9 @@ async function ensureSyncAlarm(): Promise<void> {
   }
 }
 
+// A host access granted on the options page (the full channel's claim
+// host): the round that needed it runs now.
+chrome.permissions.onAdded.addListener(() => void runSync());
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === SYNC_ALARM) void runSync();
 });
@@ -381,7 +384,7 @@ chrome.runtime.onStartup.addListener(() => {
 // (local) and admins can push or update policy at runtime (managed).
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" || area === "managed") void refresh();
-  if (area === "local" && HOUSEHOLD_STATE_KEY in changes) void runSync();
+  if (area === "local" && (HOUSEHOLD_STATE_KEY in changes || startsRound(changes))) void runSync();
   if (area === "local" && HOUSEHOLD_SECRET_KEY in changes) void ensureSyncAlarm();
 });
 void refresh();
