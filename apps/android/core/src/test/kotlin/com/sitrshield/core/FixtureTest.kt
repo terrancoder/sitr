@@ -9,6 +9,7 @@ import com.sitrshield.core.gate.Gate
 import com.sitrshield.core.gate.GateContext
 import com.sitrshield.core.gate.HouseholdRole
 import com.sitrshield.core.gate.MutationKind
+import com.sitrshield.core.gate.MutationStep
 import com.sitrshield.core.gate.MutationVerdict
 import com.sitrshield.core.household.Household
 import com.sitrshield.core.pin.Pin
@@ -204,6 +205,28 @@ class FixtureTest {
                 val reason = MutationVerdict.Reason.entries
                     .first { it.wire == expected.getString("reason") }
                 assertEquals(MutationVerdict.Refused(reason), verdict, label)
+            }
+        }
+
+        // Leaving a household never received: gated as that kind's rows,
+        // refused under a managed lock, otherwise go in every delay phase.
+        assertEquals(Gate.LEAVE_JOIN_PLACEHOLDER_GATED_AS.wire, fx.getString("leaveJoinPlaceholderGatedAs"))
+        val placeholder = Household.emptyState("device-a", 0.0)
+        val leaveKind = Gate.leaveKind(placeholder)
+        assertEquals(Gate.LEAVE_JOIN_PLACEHOLDER_GATED_AS, leaveKind)
+        for (c in cases.filter { it.getString("kind") == leaveKind.wire }) {
+            val locked = c.getBoolean("managedLockOptions")
+            val ctx = GateContext(
+                managedLockOptions = locked,
+                role = if (c.isNull("role")) null else HouseholdRole.fromWire(c.getString("role")),
+                hasPin = c.getBoolean("hasPin"),
+            )
+            for (phase in DelayPhase.entries) {
+                assertEquals(
+                    if (locked) MutationStep.Refused(MutationVerdict.Reason.MANAGED_LOCKED) else MutationStep.Go,
+                    Delay.decide(DelayAction.Kind(leaveKind), ctx, phase),
+                    "placeholder leave lock=$locked role=${c.opt("role")} pin=${c.getBoolean("hasPin")} $phase",
+                )
             }
         }
     }

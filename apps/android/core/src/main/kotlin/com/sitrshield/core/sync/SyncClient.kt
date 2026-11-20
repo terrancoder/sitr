@@ -146,6 +146,11 @@ class SyncClient(
      * revision. Best effort — offline or an error leaves the place taken.
      */
     fun unenroll(input: SyncInput): SyncOutcome {
+        // A join placeholder was never enrolled and has nothing to take
+        // off a list: it sends nothing.
+        if (Household.isJoinPlaceholder(input.local)) {
+            return SyncOutcome(input.local, input.maxSeenRev, SyncStatus.NEVER_SYNCED, null)
+        }
         var outcome = syncOnce(input)
         repeat(2) {
             if (outcome.status.state != SyncStatus.State.OK ||
@@ -191,6 +196,12 @@ class SyncClient(
                 is SitrResult.Ok -> pulled.value
             }
 
+            // A joiner never creates the household: with no server copy, its
+            // placeholder stays local and the round writes nothing (a wrong
+            // code must not create a household; the creator pushes its own).
+            if (remote.state == null && Household.isJoinPlaceholder(input.local)) {
+                return SyncOutcome(input.local, input.maxSeenRev, SyncStatus(SyncStatus.State.NOT_FOUND), null)
+            }
             var merged = input.local
             var maxSeen = input.maxSeenRev
             val remoteState = remote.state

@@ -10,8 +10,10 @@ import com.sitrshield.core.gate.DelayAction
 import com.sitrshield.core.gate.DelayClockReading
 import com.sitrshield.core.gate.DelayPhase
 import com.sitrshield.core.gate.DelayStamp
+import com.sitrshield.core.gate.Gate
 import com.sitrshield.core.gate.GateContext
 import com.sitrshield.core.gate.HouseholdRole
+import com.sitrshield.core.gate.MutationKind
 import com.sitrshield.core.gate.MutationStep
 import com.sitrshield.core.gate.Pause
 import com.sitrshield.core.gate.PauseRecord
@@ -48,17 +50,28 @@ class HouseholdActions(private val app: SitrApp) {
 
     private fun settings(): Settings = app.repository.current()
 
-    /** Gate first, then "wait before loosening", then the PIN. */
-    fun decide(action: DelayAction, phase: DelayPhase): MutationStep =
-        Delay.decide(
-            action,
+    /**
+     * Gate first, then "wait before loosening", then the PIN. Leaving a
+     * household never received is gated from the stored state, read now.
+     */
+    fun decide(action: DelayAction, phase: DelayPhase): MutationStep {
+        val s = settings()
+        val asked =
+            if (action == DelayAction.Kind(MutationKind.LEAVE_HOUSEHOLD)) DelayAction.Kind(Gate.leaveKind(s.household))
+            else action
+        return Delay.decide(
+            asked,
             GateContext(
                 managedLockOptions = app.managedPolicy().lockOptions,
-                role = HouseholdRole.fromWire(settings().role),
-                hasPin = settings().household?.pin != null,
+                role = HouseholdRole.fromWire(s.role),
+                hasPin = s.household?.pin != null,
             ),
             phase,
         )
+    }
+
+    /** Read just before gating a leave; passed on to leaveHousehold. */
+    fun leavesAsJoinPlaceholder(): Boolean = Household.isPinlessPlaceholder(settings().household)
 
     // --- Wait before loosening (device-local; see Repository) ---
 
@@ -124,6 +137,7 @@ class HouseholdActions(private val app: SitrApp) {
     fun createHousehold(entitlementToken: String?): SitrResult<Unit> {
         // A locked phone must not get a new household, and with it a new PIN.
         if (settings().childLock) return SitrResult.Err(LOCKED)
+        Household.joinRefusal(settings().household)?.let { return SitrResult.Err(it) }
         val token = entitlementToken?.trim()?.ifEmpty { null }
         // The token goes out as an HTTP header: nothing but its own alphabet.
         if (token != null && !Regex("sitr-ent-v1\\.[A-Za-z0-9._-]+").matches(token)) {
@@ -144,6 +158,7 @@ class HouseholdActions(private val app: SitrApp) {
 
     fun joinHousehold(code: String, role: String): SitrResult<Unit> {
         if (settings().childLock) return SitrResult.Err(LOCKED)
+        Household.joinRefusal(settings().household)?.let { return SitrResult.Err(it) }
         val secret = when (val decoded = PairingCode.decode(code)) {
             is SitrResult.Err -> return decoded
             is SitrResult.Ok -> decoded.value
@@ -170,27 +185,27 @@ class HouseholdActions(private val app: SitrApp) {
     fun pairingCode(): String? =
         app.secretStore.load()?.let { PairingCode.encode(it) }
 
-    fun leaveHousehold() {
-        val before = settings()
-        // Leaving takes the PIN with it; the lock would have no key left.
-        if (before.childLock) return
-        val secret = app.secretStore.load()
-        // Secret first: a sync still on the network checks for it before
-        // writing, so its late result cannot bring the household back.
-        app.secretStore.clear()
-        SyncWorker.cancel(app)
-        // Free this device's fair-use place, off the main thread, with the
-        // secret held only in memory. Offline, the place stays taken.
-        val household = before.household
-        if (secret != null && household != null) {
-            thread(name = "sitr-unenroll") {
-                SyncClient(SyncHttp(), ::now).unenroll(
-                    SyncInput(secret, household, before.maxSeenRev, before.deviceId, before.entitlementToken)
-                )
-            }
-        }
-        app.update {
-            it.copy(
+    /**
+     * `asJoinPlaceholder`: the gate let this leave through as a household
+     * never received (no PIN asked); refused if it has arrived since.
+     */
+    fun leaveHousehold(asJoinPlaceholder: Boolean = false): SitrResult<Unit> {
+        var refusal: String? = null
+        var left: Settings? = null
+        var secret: ByteArray? = null
+        // Checked and cleared under the settings lock: a sync result is
+        // written under it too, so it cannot land between the two.
+        app.update { s ->
+            // Leaving takes the PIN with it; the lock would have no key left.
+            if (s.childLock) return@update s
+            refusal = Household.leaveRefusal(asJoinPlaceholder, s.household)
+            if (refusal != null) return@update s
+            left = s
+            secret = app.secretStore.load()
+            // Secret first: a sync still on the network checks for it before
+            // writing, so its late result cannot bring the household back.
+            app.secretStore.clear()
+            s.copy(
                 household = null,
                 role = null,
                 maxSeenRev = 0,
@@ -198,6 +213,22 @@ class HouseholdActions(private val app: SitrApp) {
                 syncStatus = SyncStatus.NEVER_SYNCED,
             )
         }
+        refusal?.let { return SitrResult.Err(it) }
+        val before = left ?: return SitrResult.Ok(Unit)
+        SyncWorker.cancel(app)
+        // Free this device's fair-use place, off the main thread, with the
+        // secret held only in memory. Offline, the place stays taken. A
+        // placeholder sends nothing (SyncClient.unenroll).
+        val key = secret
+        val household = before.household
+        if (key != null && household != null) {
+            thread(name = "sitr-unenroll") {
+                SyncClient(SyncHttp(), ::now).unenroll(
+                    SyncInput(key, household, before.maxSeenRev, before.deviceId, before.entitlementToken)
+                )
+            }
+        }
+        return SitrResult.Ok(Unit)
     }
 
     /**

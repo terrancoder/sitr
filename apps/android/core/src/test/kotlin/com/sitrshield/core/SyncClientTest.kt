@@ -90,6 +90,27 @@ class SyncClientTest {
     }
 
     @Test
+    fun joinPlaceholderWritesNothingOn404() {
+        val transport = ScriptedTransport(listOf(respond(404)))
+        val placeholder = Household.emptyState("device-a", 0.0)
+        val outcome = client(transport).syncOnce(
+            SyncInput(secret, placeholder, maxSeenRev = 0, deviceId = "device-a")
+        )
+        assertEquals(SyncStatus.State.NOT_FOUND, outcome.status.state)
+        assertEquals(placeholder, outcome.state)
+        assertEquals(listOf("GET"), transport.recorded.map { it.method })
+    }
+
+    @Test
+    fun leavingAJoinPlaceholderSendsNothing() {
+        val transport = ScriptedTransport(emptyList())
+        client(transport).unenroll(
+            SyncInput(secret, Household.emptyState("device-a", 0.0), maxSeenRev = 0, deviceId = "device-a")
+        )
+        assertTrue(transport.recorded.isEmpty())
+    }
+
+    @Test
     fun entitlementHeaderSentOnCreateWhenProvided() {
         val transport = ScriptedTransport(listOf(respond(404), respond(201, "\"1\"")))
         client(transport).syncOnce(

@@ -35,6 +35,7 @@ import com.sitrshield.core.SitrResult
 import com.sitrshield.core.gate.Gate
 import com.sitrshield.core.gate.MutationKind
 import com.sitrshield.core.household.Household
+import com.sitrshield.core.sync.SyncStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -169,7 +170,7 @@ private fun InHousehold(ctx: UiCtx) {
     // Joined but never synced: this phone doesn't have the household's
     // PIN and lists yet, so there is nothing here it may change.
     val waiting = Household.isJoinPlaceholder(household)
-    if (waiting) {
+    if (waiting && ctx.settings.syncStatus.state != SyncStatus.State.NOT_FOUND) {
         Spacer(Modifier.height(12.dp))
         Text(HouseholdActions.WAITING_FOR_FIRST_SYNC, style = MaterialTheme.typography.bodyMedium)
     }
@@ -337,9 +338,11 @@ private fun InHousehold(ctx: UiCtx) {
         if (ctx.settings.childLock) {
             message = "Turn off the child lock before you leave the household."
         } else {
+            val asPlaceholder = ctx.actions.leavesAsJoinPlaceholder()
             ctx.attempt(MutationKind.LEAVE_HOUSEHOLD, "Leave the household") {
                 // The PIN dialog is the confirmation when there is a PIN.
-                if (household.pin == null) confirmLeave = true else ctx.actions.leaveHousehold()
+                if (household.pin == null) confirmLeave = true
+                else (ctx.actions.leaveHousehold(asPlaceholder) as? SitrResult.Err)?.let { message = it.message }
             }
         }
     }) { Text("Leave household") }
@@ -357,8 +360,9 @@ private fun InHousehold(ctx: UiCtx) {
                 TextButton(onClick = {
                     confirmLeave = false
                     // Again: the dialog can sit open past the wait's window.
+                    val asPlaceholder = ctx.actions.leavesAsJoinPlaceholder()
                     ctx.attempt(MutationKind.LEAVE_HOUSEHOLD, "Leave the household") {
-                        ctx.actions.leaveHousehold()
+                        (ctx.actions.leaveHousehold(asPlaceholder) as? SitrResult.Err)?.let { message = it.message }
                     }
                 }) { Text("Leave") }
             },

@@ -177,6 +177,26 @@ object Household {
      */
     fun isJoinPlaceholder(s: HouseholdState): Boolean = s.rev == 1 && s.updatedAt == 0.0
 
+    /** A placeholder with no PIN: leaving it needs no PIN (Gate.leaveKind). */
+    fun isPinlessPlaceholder(s: HouseholdState?): Boolean =
+        s != null && isJoinPlaceholder(s) && s.pin == null
+
+    const val ALREADY_IN_HOUSEHOLD = "This device is already in a household. Leave it first."
+    const val HOUSEHOLD_ARRIVED = "The household has just arrived on this device. Leave again."
+
+    /** Joining or creating: refused while a household is stored. */
+    fun joinRefusal(stored: HouseholdState?): String? =
+        if (stored != null) ALREADY_IN_HOUSEHOLD else null
+
+    /**
+     * A leave the gate let through as a pinless placeholder (no PIN asked),
+     * checked again against the stored state at the moment of leaving:
+     * refused when the real household has arrived since.
+     */
+    fun leaveRefusal(asJoinPlaceholder: Boolean, stored: HouseholdState?): String? =
+        if (asJoinPlaceholder && stored != null && !isPinlessPlaceholder(stored)) HOUSEHOLD_ARRIVED
+        else null
+
     /** A new revision authored by this device. */
     /**
      * "Refresh device list": the device list with this device alone, as a

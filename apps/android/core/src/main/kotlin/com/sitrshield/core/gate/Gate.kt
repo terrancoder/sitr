@@ -1,5 +1,8 @@
 package com.sitrshield.core.gate
 
+import com.sitrshield.core.household.Household
+import com.sitrshield.core.household.HouseholdState
+
 /**
  * Mutation gate — the entire "who may change what, and with what
  * ceremony" policy as one pure, exhaustively testable table.
@@ -69,6 +72,20 @@ object Gate {
      * wait (it loosens nothing).
      */
     val REFRESH_DEVICE_LIST_GATED_AS = MutationKind.CHANGE_PIN
+
+    /**
+     * Leaving a household this device never received (gate.json
+     * "leaveJoinPlaceholderGatedAs"): the STORED state is a join
+     * placeholder with no PIN in it. Gated exactly like enabling a
+     * category — refused on a managed lock, otherwise allowed for any
+     * role, no PIN, no wait. A synced household's leave stays LEAVE_HOUSEHOLD.
+     */
+    val LEAVE_JOIN_PLACEHOLDER_GATED_AS = MutationKind.ENABLE_CATEGORY
+
+    /** The kind "Leave household" is gated as, from the state read from storage now. */
+    fun leaveKind(stored: HouseholdState?): MutationKind =
+        if (Household.isPinlessPlaceholder(stored)) LEAVE_JOIN_PLACEHOLDER_GATED_AS
+        else MutationKind.LEAVE_HOUSEHOLD
 
     /** A child device's leave refused for want of a household PIN (gate.json note). */
     const val CHILD_LEAVE_NEEDS_PIN =
