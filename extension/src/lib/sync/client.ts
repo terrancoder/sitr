@@ -16,6 +16,7 @@
 import { type Result, err, ok } from "../result.js";
 import {
   bumpRev,
+  isJoinPlaceholder,
   mergeStates,
   type HouseholdState,
 } from "../household.js";
@@ -238,4 +239,45 @@ export async function syncOnce(
     );
   }
   return failed(first.error, first.error === "offline" ? "offline" : "error");
+}
+
+/**
+ * Leaving a household: take this device out of the shared device list so
+ * its fair-use place is freed (as Android SyncClient.unenroll and iOS
+ * Unenroll.swift). A normal round first (adopt the latest state), then the
+ * same state without this device as a new revision; a second pass if a
+ * concurrent write put it back. Best effort: offline or an error leaves
+ * the place taken. Never sends DELETE — the last device leaving leaves the
+ * household's record with an empty device list. A join placeholder sends
+ * nothing: it was never enrolled, and a round would PUT it if the server
+ * had no record.
+ */
+export async function unenroll(input: SyncInput, deps: SyncDeps): Promise<SyncOutcome> {
+  if (isJoinPlaceholder(input.local)) {
+    return {
+      state: input.local,
+      maxSeenRev: input.maxSeenRev,
+      status: { state: "ok", lastSuccessAt: deps.now() },
+      etag: undefined,
+    };
+  }
+  let outcome = await syncOnce(input, deps);
+  for (let pass = 0; pass < 2; pass++) {
+    if (outcome.status.state !== "ok" || !outcome.state.devices.includes(input.deviceId)) {
+      return outcome;
+    }
+    const without = {
+      ...outcome.state,
+      devices: outcome.state.devices.filter((d) => d !== input.deviceId),
+    };
+    outcome = await syncOnce(
+      {
+        ...input,
+        local: bumpRev(without, input.deviceId, deps.now()),
+        maxSeenRev: outcome.maxSeenRev,
+      },
+      deps,
+    );
+  }
+  return outcome;
 }

@@ -4,7 +4,8 @@
  *
  * All persistence is storage.local; all filtering changes go through the
  * engine first (applyHouseholdState). Sync (if the household chooses it)
- * runs in the background worker — this page only edits state and bumps rev.
+ * runs in the background worker — this page only edits state and bumps rev,
+ * except leaving, which takes this device off the household's device list.
  */
 import {
   DEVICE_ID_KEY,
@@ -23,6 +24,8 @@ import {
   generateRootSecret,
 } from "../lib/sync/crypto.js";
 import { applyHouseholdState } from "../lib/sync/apply.js";
+import { MAX_SEEN_REV_KEY, unenroll, type SyncDeps } from "../lib/sync/client.js";
+import { DISABLED_CATEGORIES_KEY, sanitizeDisabled } from "../lib/categories.js";
 import {
   NO_ATTEMPTS,
   PIN_ATTEMPTS_KEY,
@@ -65,6 +68,8 @@ const engineDeps = {
   persist: async (state: HouseholdState) => {
     await chrome.storage.local.set({ [HOUSEHOLD_STATE_KEY]: state });
   },
+  readDeviceDisabled: async () =>
+    sanitizeDisabled((await chrome.storage.local.get(DISABLED_CATEGORIES_KEY))[DISABLED_CATEGORIES_KEY]),
 };
 
 export async function loadHousehold(): Promise<{
@@ -354,15 +359,34 @@ export async function leaveAsChild(
   return true;
 }
 
-export async function leaveHousehold(ctx: HouseholdContext): Promise<void> {
-  // Remove the household rule layer from the engine, then forget the keys.
-  const cleared = { ...emptyHouseholdState(await deviceId(), Date.now()) };
+/**
+ * Leaving: remove the household rule layer from the engine, forget the
+ * keys, then take this device off the household's device list (unenroll)
+ * with the key held only in memory — key first, so a sync round still on
+ * the network finds no household and cannot bring it back. Offline, the
+ * device leaves anyway and its place stays taken (options.html says so).
+ */
+export async function leaveHousehold(
+  ctx: HouseholdContext,
+  sync: SyncDeps = { fetch: fetch.bind(globalThis), now: () => Date.now() },
+): Promise<void> {
+  const before = await chrome.storage.local.get([
+    HOUSEHOLD_SECRET_KEY,
+    HOUSEHOLD_STATE_KEY,
+    MAX_SEEN_REV_KEY,
+    "entitlementToken",
+  ]);
+  const me = await deviceId();
+  const cleared = { ...emptyHouseholdState(me, Date.now()) };
   cleared.allowDomains = [];
   cleared.blockDomains = [];
+  // Passed as `stored` too: persisting it while the secret is still stored
+  // would start a sync round of the cleared state.
   const applied = await applyHouseholdState(
     cleared,
     ctx.managed.forcedCategories,
     engineDeps,
+    cleared,
   );
   if (!applied.ok) {
     ctx.showError(`Could not remove household rules: ${applied.error}`);
@@ -375,6 +399,27 @@ export async function leaveHousehold(ctx: HouseholdContext): Promise<void> {
   ]);
   ctx.role = undefined;
   ctx.state = undefined;
+  const secret =
+    typeof before[HOUSEHOLD_SECRET_KEY] === "string"
+      ? fromB64(before[HOUSEHOLD_SECRET_KEY])
+      : undefined;
+  const state = sanitizeHouseholdState(before[HOUSEHOLD_STATE_KEY]);
+  if (secret?.ok !== true || !state.ok) return;
+  await ctx.onChanged(); // show the page as left while the request runs
+  await unenroll(
+    {
+      rootSecret: secret.value,
+      local: state.value,
+      maxSeenRev:
+        typeof before[MAX_SEEN_REV_KEY] === "number" ? before[MAX_SEEN_REV_KEY] : 0,
+      deviceId: me,
+      entitlement:
+        typeof before["entitlementToken"] === "string"
+          ? before["entitlementToken"]
+          : undefined,
+    },
+    sync,
+  );
 }
 
 export async function showPairingCode(ctx: HouseholdContext): Promise<string | undefined> {

@@ -286,6 +286,12 @@ async function syncRound(): Promise<void> {
     },
     { fetch: fetch.bind(globalThis), now: () => Date.now() },
   );
+  // A leave during the round removed the secret: write nothing, enrol
+  // nothing (it would undo the leave's unenroll).
+  // ponytail: a leave landing between a check and its write still races.
+  const householdKept = async () =>
+    (await chrome.storage.local.get(HOUSEHOLD_SECRET_KEY))[HOUSEHOLD_SECRET_KEY] ===
+    stored[HOUSEHOLD_SECRET_KEY];
   // Engine and storage from the outcome (applySyncOutcome): rules
   // re-asserted every successful round, an unchanged round writes nothing.
   const policy = await readManagedPolicy();
@@ -305,6 +311,7 @@ async function syncRound(): Promise<void> {
         await chrome.storage.local.set({ [HOUSEHOLD_STATE_KEY]: state });
       },
       readDeviceDisabled,
+      householdKept,
     },
   );
   if (!applied.ok) {
@@ -313,6 +320,7 @@ async function syncRound(): Promise<void> {
     });
     return;
   }
+  if (!applied.value) return; // left during the round
   await chrome.storage.local.set({
     [SYNC_STATUS_KEY]: outcome.status,
     [MAX_SEEN_REV_KEY]: outcome.maxSeenRev,
@@ -325,7 +333,7 @@ async function syncRound(): Promise<void> {
       typeof stored[DEVICE_ID_KEY] === "string"
         ? (stored[DEVICE_ID_KEY] as string)
         : "unknown-device";
-    if (!outcome.state.devices.includes(deviceId)) {
+    if (!outcome.state.devices.includes(deviceId) && (await householdKept())) {
       if (outcome.state.devices.length >= MAX_HOUSEHOLD_DEVICES) {
         await chrome.storage.local.set({
           [SYNC_STATUS_KEY]: {

@@ -85,13 +85,21 @@ export async function applyHouseholdState(
  * successful round re-asserts the household's rules, which repairs drift.
  * syncOnce hands back `local` itself when nothing changed; passed as
  * `stored`, such a round persists nothing (no onChanged, no loop).
+ *
+ * `householdKept`: whether the household the round started with is still
+ * the stored one. When the user left during the round it is not: nothing
+ * is applied or written (that would bring the household back) and the
+ * result is ok(false), so the worker also skips its status write and the
+ * device enrolment.
  */
 export async function applySyncOutcome(
   outcome: { state: HouseholdState; status: { state: string } },
   local: HouseholdState,
   forcedCategories: readonly string[],
-  deps: EngineDeps,
-): Promise<Result<void, string>> {
-  if (outcome.status.state !== "ok") return ok(undefined);
-  return applyHouseholdState(outcome.state, forcedCategories, deps, local);
+  deps: EngineDeps & { householdKept?(): Promise<boolean> },
+): Promise<Result<boolean, string>> {
+  if (deps.householdKept !== undefined && !(await deps.householdKept())) return ok(false);
+  if (outcome.status.state !== "ok") return ok(true);
+  const applied = await applyHouseholdState(outcome.state, forcedCategories, deps, local);
+  return applied.ok ? ok(true) : applied;
 }
