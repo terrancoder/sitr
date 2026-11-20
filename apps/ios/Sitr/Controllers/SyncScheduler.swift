@@ -136,8 +136,11 @@ enum SyncScheduler {
         next.maxSeenRev = outcome.maxSeenRev
         next.syncStatus = outcome.status
 
+        // Not after a leave during the round: that would undo its unenroll.
+        // ponytail: a leave landing after this check still races.
         if outcome.status.state == .ok,
-            !outcome.state.devices.contains(settings.deviceId)
+            !outcome.state.devices.contains(settings.deviceId),
+            Storage.loadRootSecret() == secret
         {
             if outcome.state.devices.count >= Household.maxHouseholdDevices {
                 next.syncStatus = SyncStatus(

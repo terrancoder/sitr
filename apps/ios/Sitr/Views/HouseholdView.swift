@@ -193,6 +193,11 @@ struct HouseholdView: View {
                     Task { await model.leaveHousehold() }
                 }
             }
+            Text(
+                "Leaving removes this device from the household's device list. "
+                    + "If the sync server cannot be reached, the other devices will still list it.")
+                .font(.caption)
+                .foregroundStyle(Theme.inkSoft)
         }
         .sitrRows()
     }

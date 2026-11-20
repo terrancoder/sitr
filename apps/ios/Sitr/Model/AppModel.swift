@@ -313,6 +313,8 @@ final class AppModel: ObservableObject {
     }
 
     func leaveHousehold() async {
+        let secret = Storage.loadRootSecret()
+        let before = settings
         // Key first: a sync still on the network checks for it before
         // merging, so its late result cannot bring the household back.
         Storage.clearRootSecret()
@@ -322,6 +324,16 @@ final class AppModel: ObservableObject {
             next.role = nil
             next.maxSeenRev = 0
             next.syncStatus = .neverSynced
+        }
+        // Then free this device's fair-use place, as Android does, with the
+        // key held only in memory. Offline, the place stays taken.
+        if let secret, let household = before.household {
+            let client = SyncClient(
+                transport: URLSessionTransport(), now: { Date().timeIntervalSince1970 * 1000 })
+            _ = await client.unenroll(
+                SyncInput(
+                    rootSecret: secret, local: household,
+                    maxSeenRev: before.maxSeenRev, deviceId: before.deviceId))
         }
     }
 
