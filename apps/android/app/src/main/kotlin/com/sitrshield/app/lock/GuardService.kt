@@ -9,6 +9,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
 import com.sitrshield.app.SitrApp
 import com.sitrshield.core.lock.GuardRules
+import com.sitrshield.core.lock.WindowClasses
 
 /**
  * Guard mode's enforcer. Reads the text of the window in front when it
@@ -20,12 +21,11 @@ import com.sitrshield.core.lock.GuardRules
 class GuardService : AccessibilityService() {
     private var lastActionAt = 0L
 
-    /** Activity class of the last window that opened in a watched app. */
-    private var windowClass: String? = null
+    private val windowClasses = WindowClasses()
     private val handler = Handler(Looper.getMainLooper())
 
     private val recheck = Runnable {
-        rootInActiveWindow?.packageName?.toString()?.let { check(it, null) }
+        rootInActiveWindow?.let { root -> root.packageName?.toString()?.let { check(it, null, root.windowId) } }
     }
 
     /** From here on Android delivers only the watched apps' window events. */
@@ -41,13 +41,13 @@ class GuardService : AccessibilityService() {
         // Only a window-state event names the window's activity; content
         // events name a view. Private space setup is known by it alone.
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            windowClass = event.className?.toString()
+            windowClasses.opened(event.windowId, event.className?.toString())
         }
-        check(pkg, event.text)
+        check(pkg, event.text, event.windowId)
     }
 
     /** Close the window in front if it is a way to switch Sitr off. */
-    private fun check(pkg: String, eventText: List<CharSequence>?): Boolean {
+    private fun check(pkg: String, eventText: List<CharSequence>?, windowId: Int): Boolean {
         val app = application as SitrApp
         if (!app.repository.current().childLock) return false
         if (pkg == packageName || !GuardRules.watches(pkg)) return false
@@ -58,10 +58,9 @@ class GuardService : AccessibilityService() {
         val root = rootInActiveWindow
         val texts = if (root?.packageName?.toString() == pkg) collectTexts(root) else emptyList()
         val allTexts = texts + listOfNotNull(eventText?.joinToString(" "))
-        if (!GuardRules.shouldClose(pkg, allTexts, label, windowClass)) return false
+        if (!GuardRules.shouldClose(pkg, allTexts, label, windowClasses.of(windowId))) return false
 
         lastActionAt = SystemClock.uptimeMillis()
-        windowClass = null
         // Back cancels a dialog; Home then clears whatever is left — Back
         // alone can land before a dialog is ready and be swallowed.
         performGlobalAction(GLOBAL_ACTION_BACK)

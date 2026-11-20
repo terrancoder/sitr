@@ -247,3 +247,22 @@ object GuardRules {
         }
     }
 }
+
+/**
+ * The activity class of the last window that opened, tied to that window.
+ * A class only counts for the window it came from: private space setup
+ * sends a second window event just after it is closed, and a class kept
+ * without its window closed the next Settings page that opened (emulator,
+ * Android 15, QA 2026-11-20).
+ */
+class WindowClasses {
+    private var windowId = 0
+    private var windowClass: String? = null
+
+    fun opened(windowId: Int, windowClass: String?) {
+        this.windowId = windowId
+        this.windowClass = windowClass
+    }
+
+    fun of(windowId: Int): String? = windowClass.takeIf { windowId == this.windowId }
+}

@@ -1,6 +1,7 @@
 package com.sitrshield.core
 
 import com.sitrshield.core.lock.GuardRules
+import com.sitrshield.core.lock.WindowClasses
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -101,5 +102,23 @@ class GuardRulesPrivateSpaceAndEnglishTest {
         for (d in dialogs) assertFalse(decide(SETTINGS, "com.android.settings.SubSettings", *d.toTypedArray()), "$d")
         // The same body without the delete heading is the private space itself: closes.
         assertTrue(decide(SETTINGS, null, "Jika anda mempunyai ruang privasi pada peranti anda"))
+    }
+
+    @Test
+    fun aClosedSetupWindowsClassDoesNotCloseTheNextSettingsPage() {
+        // Emulator log, Android 15: setup (window 284) closes, sends one more
+        // window event, then Settings home (window 277) sends a content event
+        // before its own window event. Home must stay open.
+        val classes = WindowClasses()
+        classes.opened(284, SETUP)
+        assertTrue(decide(SETTINGS, classes.of(284)))
+        classes.opened(284, SETUP)
+        assertFalse(decide(SETTINGS, classes.of(277), "Settings", "Search settings", "Network & internet"))
+        assertFalse(decide(SETTINGS, classes.of(277), "Settings", "Search settings", "Apps"))
+        // The setup window itself still closes, e.g. on the re-checks after Back and Home.
+        assertTrue(decide(SETTINGS, classes.of(284)))
+        // Setting it up again opens a new window, which closes too.
+        classes.opened(290, SETUP)
+        assertTrue(decide(SETTINGS, classes.of(290)))
     }
 }
