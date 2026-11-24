@@ -9,12 +9,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -28,8 +30,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.sitrshield.app.R
 import com.sitrshield.app.Screen
 import com.sitrshield.app.UiCtx
 import com.sitrshield.app.lock.ChildLock
@@ -68,68 +76,85 @@ fun ChildLockScreen(ctx: UiCtx) {
         }
     }
 
-    Text("Child lock", style = MaterialTheme.typography.headlineSmall)
-    Spacer(Modifier.height(8.dp))
+    ScreenTitle("Child lock")
+    Spacer(Modifier.height(14.dp))
 
     when {
-        ctx.settings.childLock -> Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    if (guard) "Guard mode is on" else "Guard mode is NOT fully on",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = if (guard) MaterialTheme.colorScheme.primary else ProtectionRed,
-                )
-                LockRow("Accessibility guard", guard)
-                LockRow("Always-on VPN", alwaysOn)
-                Text(
-                    "The screens that would switch Sitr off are closed: its app " +
-                        "info and other settings pages that show Sitr's name, " +
-                        "uninstalling, its VPN and accessibility settings, the " +
-                        "VPN disconnect dialog, Developer options, adding users, " +
-                        "setting up or opening a private space, the Private DNS dialog " +
-                        "and the mobile network reset. " +
-                        "Not covered: a private space, work profile or other user " +
-                        "that already exists (Sitr filters only this phone's main " +
-                        "user, and a private space can still be opened from the " +
-                        "apps list), safe mode and factory reset (Android's own " +
-                        "recovery tools), settings in a language other than " +
-                        "English, Bengali, Arabic, Turkish or Malay, or worded " +
-                        "differently by the phone maker, except those that name " +
-                        "Sitr, a browser's " +
-                        "own \"Secure DNS\" (the encrypted-DNS switch in Filter " +
-                        "categories covers well-known providers only), apps that use " +
-                        "their own DNS server, and phone " +
-                        "\"cleaner\" tools that force-stop apps — Android then " +
-                        "switches the guard off until a guardian turns it back on, " +
-                        "and filtering stops until Sitr is opened again. " +
-                        "Check this screen when you pick the phone up.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                OutlinedButton(onClick = {
-                    unlock("Turn off child lock") {
-                        ctx.app.update { it.copy(childLock = false) }
-                    }
-                }) { Text("Turn off child lock (guardian PIN)") }
+        ctx.settings.childLock -> {
+            // The lock's own status, as on Home: green only when the guard
+            // is whole, red when any part of it is off.
+            val container = if (guard) Hero.Green else Hero.Red
+            val content = if (guard) Hero.OnGreen else Hero.OnRed
+            HeroCard(container = container, content = content, goldRing = guard) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconBadge(
+                        if (guard) R.drawable.ic_shield_check else R.drawable.ic_warning,
+                        content,
+                        large = true,
+                    )
+                    Text(
+                        if (guard) "Guard mode is on" else "Guard mode is NOT fully on",
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics { heading() },
+                    )
+                }
+                Column {
+                    LockRow("Accessibility guard", guard, onHero = content)
+                    LockRow("Always-on VPN", alwaysOn, onHero = content)
+                }
             }
+
+            Spacer(Modifier.height(14.dp))
+            SitrCard {
+                CardTitle("Closed while the lock is on")
+                Note("The screens that would switch Sitr off are closed:")
+                for (screen in CLOSED_SCREENS) {
+                    BulletLine(R.drawable.ic_nav_lock, screen, MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+            SitrCard {
+                CardTitle("Not covered")
+                for (gap in NOT_COVERED) {
+                    BulletLine(R.drawable.ic_warning, gap, MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                RowDivider()
+                Text(
+                    "Check this screen when you pick the phone up.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+            SecondaryButton("Turn off child lock (guardian PIN)", onClick = {
+                unlock("Turn off child lock") {
+                    ctx.app.update { it.copy(childLock = false) }
+                }
+            })
         }
 
-        !hasPin -> Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "The child lock is part of Sitr Family. Join this phone to your " +
-                        "household and set a guardian PIN — the PIN is the only way " +
-                        "to open the lock again.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Button(onClick = { ctx.navigate(Screen.FAMILY) }) { Text("Open Sitr Family") }
-            }
+        !hasPin -> SitrCard {
+            Text(
+                "The child lock is part of Sitr Family. Join this phone to your " +
+                    "household and set a guardian PIN — the PIN is the only way " +
+                    "to open the lock again.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            PrimaryButton("Open Sitr Family", onClick = { ctx.navigate(Screen.FAMILY) })
         }
 
         else -> GuardSetup(ctx, guard, alwaysOn)
     }
 
     if (adb && hasPin) {
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
         Text(
             "USB debugging is on. With a computer it can wipe Sitr, lock and PIN " +
                 "included. Turn it off in Developer options before you lock this phone.",
@@ -139,12 +164,59 @@ fun ChildLockScreen(ctx: UiCtx) {
     }
 
     note?.let {
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
         Text(it, style = MaterialTheme.typography.bodyMedium, color = ProtectionRed)
     }
+}
 
-    Spacer(Modifier.height(16.dp))
-    TextButton(onClick = { ctx.navigate(Screen.HOME) }) { Text("Back") }
+/**
+ * What the armed guard closes, and what it does not: the same items, in
+ * the same words, as the accessibility service's description
+ * (guard_service_description) and the disclosure below. One per line so
+ * a guardian can check them off.
+ */
+private val CLOSED_SCREENS = listOf(
+    "Sitr's app info and other settings pages that show Sitr's name",
+    "Uninstalling",
+    "Sitr's VPN and accessibility settings",
+    "The VPN disconnect dialog",
+    "Developer options",
+    "Adding users",
+    "Setting up or opening a private space",
+    "The Private DNS dialog",
+    "The mobile network reset",
+)
+
+private val NOT_COVERED = listOf(
+    "A private space, work profile or other user that already exists (Sitr " +
+        "filters only this phone's main user, and a private space can still " +
+        "be opened from the apps list)",
+    "Safe mode and factory reset (Android's own recovery tools)",
+    "Settings in a language other than English, Bengali, Arabic, Turkish or " +
+        "Malay, or worded differently by the phone maker, except those that " +
+        "name Sitr",
+    "A browser's own \"Secure DNS\" (the encrypted-DNS switch in Filter " +
+        "categories covers well-known providers only)",
+    "Apps that use their own DNS server",
+    "Phone \"cleaner\" tools that force-stop apps — Android then switches " +
+        "the guard off until a guardian turns it back on, and filtering stops " +
+        "until Sitr is opened again",
+)
+
+/** One line of a list inside a card: a small mark, then the text. */
+@Composable
+private fun BulletLine(icon: Int, text: String, tint: Color) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(
+            painterResource(icon),
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier
+                .padding(top = 1.dp)
+                .size(18.dp),
+        )
+        Text(text, style = MaterialTheme.typography.bodyMedium)
+    }
 }
 
 /**
@@ -207,87 +279,89 @@ private fun GuardSetup(ctx: UiCtx, guard: Boolean, alwaysOn: Boolean?) {
             },
         )
     }
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Guard mode — any phone, no reset", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Guard mode closes the screens that would switch Sitr off, so " +
-                    "protection stays on until the guardian PIN opens the lock. " +
-                    "It takes two steps.\n\n" +
-                    "First remove any private space, work profile or other user " +
-                    "on this phone (Settings → Security & privacy → Private " +
-                    "space, Settings → System → Users): Sitr filters only the " +
-                    "main user, and a private space that already exists can " +
-                    "still be opened from the apps list while the lock is on.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
+    SitrCard {
+        CardTitle("Guard mode — any phone, no reset")
+        Text(
+            "Guard mode closes the screens that would switch Sitr off, so " +
+                "protection stays on until the guardian PIN opens the lock. " +
+                "It takes two steps.\n\n" +
+                "First remove any private space, work profile or other user " +
+                "on this phone (Settings → Security & privacy → Private " +
+                "space, Settings → System → Users): Sitr filters only the " +
+                "main user, and a private space that already exists can " +
+                "still be opened from the apps list while the lock is on.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
 
-            LockRow("1. Always-on VPN", alwaysOn)
-            Text(
-                "Set Sitr as the always-on VPN so no other VPN app can take its " +
-                    "place. Leave \"Block connections without VPN\" off.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            OutlinedButton(onClick = {
-                context.startActivity(Intent(Settings.ACTION_VPN_SETTINGS))
-            }) { Text("Open VPN settings") }
+        LockRow("1. Always-on VPN", alwaysOn)
+        Text(
+            "Set Sitr as the always-on VPN so no other VPN app can take its " +
+                "place. Leave \"Block connections without VPN\" off.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedButton(onClick = {
+            context.startActivity(Intent(Settings.ACTION_VPN_SETTINGS))
+        }) { Text("Open VPN settings") }
 
-            LockRow("2. Accessibility guard", guard)
-            Text(
-                "In the list, open \"Sitr guard\" and switch it on. If the " +
-                    "switch is greyed out, open Sitr's App info, tap ⋮ and " +
-                    "\"Allow restricted settings\" first.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            OutlinedButton(onClick = { disclosure = true }) {
-                Text("Turn on accessibility guard")
-            }
-
-            Button(
-                // Unknown is accepted only before Android 10, which can't
-                // report it; later, unknown means the filter isn't running.
-                enabled = guard && (alwaysOn ?: (Build.VERSION.SDK_INT < 29)),
-                onClick = {
-                    // Start from clean Settings tasks when the lock is armed:
-                    // restart both, then come back here.
-                    val fresh = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { back ->
-                        runCatching {
-                            context.startActivities(
-                                arrayOf(
-                                    Intent(Settings.ACTION_SETTINGS).addFlags(fresh),
-                                    Intent(Settings.ACTION_VPN_SETTINGS).addFlags(fresh),
-                                    back,
-                                ),
-                            )
-                        }
-                    }
-                    ctx.app.update { it.copy(childLock = true) }
-                },
-            ) { Text("Lock this phone") }
+        LockRow("2. Accessibility guard", guard)
+        Text(
+            "In the list, open \"Sitr guard\" and switch it on. If the " +
+                "switch is greyed out, open Sitr's App info, tap ⋮ and " +
+                "\"Allow restricted settings\" first.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedButton(onClick = { disclosure = true }) {
+            Text("Turn on accessibility guard")
         }
+
+        Button(
+            // Unknown is accepted only before Android 10, which can't
+            // report it; later, unknown means the filter isn't running.
+            enabled = guard && (alwaysOn ?: (Build.VERSION.SDK_INT < 29)),
+            onClick = {
+                // Start from clean Settings tasks when the lock is armed:
+                // restart both, then come back here.
+                val fresh = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { back ->
+                    runCatching {
+                        context.startActivities(
+                            arrayOf(
+                                Intent(Settings.ACTION_SETTINGS).addFlags(fresh),
+                                Intent(Settings.ACTION_VPN_SETTINGS).addFlags(fresh),
+                                back,
+                            ),
+                        )
+                    }
+                }
+                ctx.app.update { it.copy(childLock = true) }
+            },
+        ) { Text("Lock this phone") }
     }
 }
 
+/**
+ * One part of the guard and whether it is on. In a card the word takes
+ * the status colour; on a hero ([onHero]) everything takes the hero's.
+ */
 @Composable
-private fun LockRow(label: String, ok: Boolean?) {
+private fun LockRow(label: String, ok: Boolean?, onHero: Color? = null) {
     Row(
         Modifier
             .fillMaxWidth()
+            .heightIn(min = 40.dp)
             .padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         // null: Android before 10, or the filter isn't running — can't tell.
-        Text(
-            when (ok) { true -> "on"; false -> "off"; null -> "unknown" },
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            color = when (ok) {
+        StatusWord(
+            when (ok) { true -> "On"; false -> "Off"; null -> "Unknown" },
+            ok = ok == true,
+            color = onHero ?: when (ok) {
                 true -> MaterialTheme.colorScheme.primary
                 false -> ProtectionRed
-                null -> MaterialTheme.colorScheme.secondary
+                null -> MaterialTheme.colorScheme.onSurfaceVariant
             },
         )
     }

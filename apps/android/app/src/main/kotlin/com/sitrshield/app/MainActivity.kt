@@ -17,6 +17,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,7 +37,9 @@ import com.sitrshield.app.ui.ListsScreen
 import com.sitrshield.app.ui.OnboardingScreen
 import com.sitrshield.app.ui.PinDialog
 import com.sitrshield.app.ui.SettingsScreen
+import com.sitrshield.app.ui.SitrBottomBar
 import com.sitrshield.app.ui.SitrTheme
+import com.sitrshield.app.ui.TabScreens
 import com.sitrshield.core.gate.Delay
 import com.sitrshield.core.gate.DelayAction
 import com.sitrshield.core.gate.DelayPhase
@@ -146,23 +149,31 @@ fun SitrRoot(app: SitrApp, resumes: Int) {
         resumes = resumes,
     )
 
-    Scaffold { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp)
-        ) {
-            when (screen) {
-                Screen.ONBOARDING -> OnboardingScreen(ctx)
-                Screen.HOME -> HomeScreen(ctx)
-                Screen.CATEGORIES -> CategoriesScreen(ctx)
-                Screen.LISTS -> ListsScreen(ctx)
-                Screen.FAMILY -> FamilyScreen(ctx)
-                Screen.SETTINGS -> SettingsScreen(ctx)
-                Screen.CHILD_LOCK -> ChildLockScreen(ctx)
-                Screen.LICENCE -> LicenceScreen(ctx)
+    Scaffold(
+        // The five places of the app. Onboarding, About and the licence
+        // have no tab bar: they are left with their own button or Back.
+        bottomBar = { if (screen in TabScreens) SitrBottomBar(screen) { screen = it } },
+    ) { padding ->
+        // Keyed by screen: each screen opens at its top instead of at the
+        // scroll position of the one before it.
+        key(screen) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                when (screen) {
+                    Screen.ONBOARDING -> OnboardingScreen(ctx)
+                    Screen.HOME -> HomeScreen(ctx)
+                    Screen.CATEGORIES -> CategoriesScreen(ctx)
+                    Screen.LISTS -> ListsScreen(ctx)
+                    Screen.FAMILY -> FamilyScreen(ctx)
+                    Screen.SETTINGS -> SettingsScreen(ctx)
+                    Screen.CHILD_LOCK -> ChildLockScreen(ctx)
+                    Screen.LICENCE -> LicenceScreen(ctx)
+                }
             }
         }
     }

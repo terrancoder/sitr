@@ -8,20 +8,24 @@ import android.provider.Settings
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,10 +37,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.sitrshield.app.R
 import com.sitrshield.app.Screen
 import com.sitrshield.app.UiCtx
 import com.sitrshield.app.lock.ChildLock
@@ -53,6 +60,11 @@ import com.sitrshield.engine.R as EngineR
  * only when protection is PROVEN active; every failure state carries its
  * reason and a one-tap fix. Sync state never appears here (it lives on
  * the Family screen): sync cannot touch protection status.
+ *
+ * The status is a block of colour (HeroCard): green for proven-active,
+ * red for not protected, plain paper when filtering was switched off on
+ * purpose. The other screens are on the tab bar; About is the header's
+ * button.
  */
 @Composable
 fun HomeScreen(ctx: UiCtx) {
@@ -96,65 +108,145 @@ fun HomeScreen(ctx: UiCtx) {
             .also { intent?.removeExtra(EngineNotification.EXTRA_OPEN_PAUSE) }
     }
 
-    Text("Sitr", style = MaterialTheme.typography.headlineMedium)
-    Spacer(Modifier.height(12.dp))
+    val paused = facts.pausedUntil != 0L
+    val active = enabled && protection is Protection.Active
 
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            when {
-                // First: always-on can run a pause with the switch off.
-                facts.pausedUntil != 0L -> {
-                    StatusTitle(
-                        "Paused until ${clockTime(context, facts.pausedUntil)}",
-                        locked = false, ProtectionRed,
-                    )
-                    Text(
-                        "Nothing on this phone is filtered until then. Protection " +
-                            "comes back by itself.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    // Tightening: no gate.
-                    Button(onClick = { SitrVpnService.resume(context) }) { Text("Resume now") }
-                }
-                !enabled -> {
-                    StatusTitle("Filtering is off", locked = false, MaterialTheme.colorScheme.onSurface)
-                    Text(
-                        "Turn on protection to block adult, gambling and dating " +
-                            "sites and enforce SafeSearch — entirely on this device.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Button(onClick = ::turnOn) { Text("Turn on protection") }
-                }
-                protection is Protection.Active -> {
-                    StatusTitle("Protection active", locked = true, MaterialTheme.colorScheme.primary)
-                    Text(
-                        "Filtering on this device. Nothing leaves it.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    // Switching everything off is the largest loosening
-                    // there is, so it takes the same gate as switching
-                    // one category off: refused on a child or locked
-                    // device, PIN when one is set. (The gate table has no
-                    // kind of its own for it — the extension it is shared
-                    // with has no global off switch.)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { pauseSheet = true }) { Text("Pause") }
-                        OutlinedButton(onClick = ::turnOff) { Text("Turn off") }
-                    }
-                }
-                protection is Protection.Inactive -> {
-                    StatusTitle("PROTECTION INACTIVE", locked = false, ProtectionRed)
-                    Text(
-                        EngineNotification.describe(protection.reason),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = ::turnOn) { Text("Re-enable") }
-                        // Someone who moved to another VPN on purpose must
-                        // be able to say so — same gate as the green state.
-                        OutlinedButton(onClick = ::turnOff) { Text("Turn off") }
-                    }
-                }
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            painterResource(
+                if (LocalSitrDark.current) R.drawable.ic_sitr_mark_dark else R.drawable.ic_sitr_mark
+            ),
+            contentDescription = null, // the name beside it says it
+            modifier = Modifier.size(30.dp),
+        )
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "Sitr",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .alignByBaseline()
+                    .semantics { heading() },
+            )
+            Text(
+                "سِتْر",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.alignByBaseline(),
+            )
+        }
+        OutlinedIconButton(
+            onClick = { ctx.navigate(Screen.SETTINGS) },
+            colors = IconButtonDefaults.outlinedIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Icon(painterResource(R.drawable.ic_info), contentDescription = "About & privacy")
+        }
+    }
+    Spacer(Modifier.height(16.dp))
+
+    when {
+        // First: always-on can run a pause with the switch off.
+        paused -> HeroCard(container = Hero.Red, content = Hero.OnRed) {
+            IconBadge(EngineR.drawable.ic_stat_unlocked, Hero.OnRed, large = true)
+            HeroText(
+                "Paused until ${clockTime(context, facts.pausedUntil)}",
+                "Nothing on this phone is filtered until then. Protection " +
+                    "comes back by itself.",
+                Hero.OnRedSoft,
+            )
+            // Tightening: no gate.
+            HeroButton(
+                "Resume now",
+                onClick = { SitrVpnService.resume(context) },
+                container = Hero.OnRed,
+                content = Hero.RedInk,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        // Switched off on purpose: neither green nor red, and no rings.
+        !enabled -> HeroCard(
+            container = MaterialTheme.colorScheme.surfaceVariant,
+            content = MaterialTheme.colorScheme.onSurface,
+            rings = false,
+        ) {
+            IconBadge(EngineR.drawable.ic_stat_unlocked, MaterialTheme.colorScheme.onSurface, large = true)
+            HeroText(
+                "Filtering is off",
+                "Turn on protection to block adult, gambling and dating " +
+                    "sites and enforce SafeSearch — entirely on this device.",
+                MaterialTheme.colorScheme.onSurface,
+            )
+            PrimaryButton("Turn on protection", onClick = ::turnOn)
+        }
+        protection is Protection.Active -> HeroCard(
+            container = Hero.Green,
+            content = Hero.OnGreen,
+            goldRing = true,
+        ) {
+            IconBadge(EngineR.drawable.ic_stat_locked, Hero.OnGreen, large = true)
+            HeroText(
+                "Protection active",
+                "Browse clean. Stay private.",
+                Hero.OnGreenSoft,
+            )
+            // Switching everything off is the largest loosening
+            // there is, so it takes the same gate as switching
+            // one category off: refused on a child or locked
+            // device, PIN when one is set. (The gate table has no
+            // kind of its own for it — the extension it is shared
+            // with has no global off switch.)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                HeroButton(
+                    "Pause",
+                    onClick = { pauseSheet = true },
+                    container = Hero.OnGreen,
+                    content = Hero.GreenInk,
+                    modifier = Modifier.weight(1f),
+                    icon = R.drawable.ic_pause,
+                )
+                HeroOutlinedButton(
+                    "Turn off",
+                    onClick = ::turnOff,
+                    content = Hero.OnGreen,
+                    modifier = Modifier.weight(1f),
+                    icon = R.drawable.ic_power,
+                )
+            }
+        }
+        protection is Protection.Inactive -> HeroCard(container = Hero.Red, content = Hero.OnRed) {
+            IconBadge(EngineR.drawable.ic_stat_unlocked, Hero.OnRed, large = true)
+            HeroText(
+                "Protection inactive",
+                EngineNotification.describe(protection.reason),
+                Hero.OnRedSoft,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                HeroButton(
+                    "Re-enable",
+                    onClick = ::turnOn,
+                    container = Hero.OnRed,
+                    content = Hero.RedInk,
+                    modifier = Modifier.weight(1f),
+                    icon = R.drawable.ic_refresh,
+                )
+                // Someone who moved to another VPN on purpose must
+                // be able to say so — same gate as the green state.
+                HeroOutlinedButton(
+                    "Turn off",
+                    onClick = ::turnOff,
+                    content = Hero.OnRed,
+                    modifier = Modifier.weight(1f),
+                    icon = R.drawable.ic_power,
+                )
             }
         }
     }
@@ -165,25 +257,34 @@ fun HomeScreen(ctx: UiCtx) {
     val warningsVisible = remember(ctx.resumes) { EngineNotification.warningsVisible(context) }
     if (!warningsVisible) {
         Spacer(Modifier.height(12.dp))
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SitrCard(borderColor = ProtectionRed.copy(alpha = 0.45f)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painterResource(R.drawable.ic_warning),
+                    contentDescription = null,
+                    tint = ProtectionRed,
+                    modifier = Modifier.size(20.dp),
+                )
                 Text(
                     "Warnings are switched off",
                     style = MaterialTheme.typography.titleMedium,
                     color = ProtectionRed,
                 )
-                Text(
-                    "Notifications for Sitr are off, so it cannot warn you if " +
-                        "protection stops. You would only find out by opening this app.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                OutlinedButton(onClick = {
-                    context.startActivity(
-                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                    )
-                }) { Text("Open notification settings") }
             }
+            Text(
+                "Notifications for Sitr are off, so it cannot warn you if " +
+                    "protection stops. You would only find out by opening this app.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            SecondaryButton("Open notification settings", onClick = {
+                context.startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                )
+            })
         }
     }
 
@@ -191,58 +292,59 @@ fun HomeScreen(ctx: UiCtx) {
         PauseSheet(ctx, lockdown = facts.lockdown == true) { pauseSheet = false }
     }
 
-    Spacer(Modifier.height(16.dp))
-    val active = enabled && protection is Protection.Active
-    ProtectionRow("Adult content blocking", active)
-    ProtectionRow("SafeSearch (Google, Bing, DuckDuckGo)", active)
-    ProtectionRow("YouTube Restricted Mode", active)
-    ProtectionRow("Gambling", active)
-    ProtectionRow("Dating", active)
+    Spacer(Modifier.height(22.dp))
+    SectionLabel(
+        if (active) "Enforced on this device" else "Not enforced right now",
+        // Red only when protection should be on and is not.
+        color = if (active || (!enabled && !paused)) MaterialTheme.colorScheme.onSurfaceVariant
+        else ProtectionRed,
+    )
+    SitrCard(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+        verticalArrangement = Arrangement.Top,
+    ) {
+        ProtectionRow(R.drawable.ic_eye_off, "Adult content blocking", null, active)
+        RowDivider()
+        ProtectionRow(R.drawable.ic_search, "SafeSearch", "Google, Bing, DuckDuckGo", active)
+        RowDivider()
+        ProtectionRow(R.drawable.ic_video, "YouTube Restricted Mode", null, active)
+        RowDivider()
+        ProtectionRow(R.drawable.ic_dice, "Gambling", null, active)
+        RowDivider()
+        ProtectionRow(R.drawable.ic_heart, "Dating", null, active)
+    }
 
     // The child lock's state belongs next to protection: a guard that has
     // been switched off is exactly what a guardian needs to see.
     val guardWhole = remember(ctx.resumes) { ChildLock.isGuardServiceOn(context) }
-    when {
-        ctx.settings.childLock && guardWhole -> ProtectionRow("Child lock (Guard mode)", true)
-        ctx.settings.childLock -> Text(
-            "Child lock is NOT fully on — open Child lock to see what is off.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = ProtectionRed,
-        )
+    if (ctx.settings.childLock) {
+        Spacer(Modifier.height(12.dp))
+        if (guardWhole) {
+            NavCard(
+                R.drawable.ic_shield_check,
+                "Child lock",
+                "Guard mode is on",
+                onClick = { ctx.navigate(Screen.CHILD_LOCK) },
+            )
+        } else {
+            NavCard(
+                R.drawable.ic_warning,
+                "Child lock is NOT fully on",
+                "Open Child lock to see what is off.",
+                onClick = { ctx.navigate(Screen.CHILD_LOCK) },
+                warning = true,
+            )
+        }
     }
 
     val managed = ctx.app.managedPolicy()
     if (managed.isManaged) {
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
         Text(
             "This device is managed by ${managed.organizationName ?: "your organization"}.",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.secondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-
-    Spacer(Modifier.height(20.dp))
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(
-            onClick = { ctx.navigate(Screen.CATEGORIES) },
-            Modifier.fillMaxWidth(),
-        ) { Text("Filter categories") }
-        OutlinedButton(
-            onClick = { ctx.navigate(Screen.LISTS) },
-            Modifier.fillMaxWidth(),
-        ) { Text("Allow & block lists") }
-        OutlinedButton(
-            onClick = { ctx.navigate(Screen.FAMILY) },
-            Modifier.fillMaxWidth(),
-        ) { Text("Sitr Family") }
-        OutlinedButton(
-            onClick = { ctx.navigate(Screen.CHILD_LOCK) },
-            Modifier.fillMaxWidth(),
-        ) { Text("Child lock") }
-        OutlinedButton(
-            onClick = { ctx.navigate(Screen.SETTINGS) },
-            Modifier.fillMaxWidth(),
-        ) { Text("About & privacy") }
     }
 }
 
@@ -307,42 +409,40 @@ private fun PauseSheet(ctx: UiCtx, lockdown: Boolean, close: () -> Unit) {
     )
 }
 
-/** The status title with the same padlock the status bar shows, in colour. */
+/** One always-on protection: what it is, and whether it is enforced right now. */
 @Composable
-private fun StatusTitle(text: String, locked: Boolean, color: Color) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Icon(
-            painterResource(if (locked) EngineR.drawable.ic_stat_locked else EngineR.drawable.ic_stat_unlocked),
-            contentDescription = null, // the title says it
-            tint = color,
-            modifier = Modifier.size(32.dp),
-        )
-        Text(text, style = MaterialTheme.typography.titleLarge, color = color)
-    }
-}
-
-@Composable
-private fun ProtectionRow(label: String, enforced: Boolean) {
+private fun ProtectionRow(@DrawableRes icon: Int, label: String, detail: String?, enforced: Boolean) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .heightIn(min = 48.dp)
+            .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            painterResource(icon),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
         // The label takes the slack and wraps; the status word never
         // does — "enforced" broken across three lines is unreadable.
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            if (enforced) "enforced" else "off",
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            if (detail != null) {
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        StatusWord(
+            if (enforced) "Enforced" else "Off",
+            ok = enforced,
             color = if (enforced) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.secondary,
+            else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

@@ -2,15 +2,25 @@ package com.sitrshield.app.ui
 
 import android.view.WindowManager
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -24,11 +34,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.sitrshield.app.HouseholdActions
-import com.sitrshield.app.Screen
+import com.sitrshield.app.R
 import com.sitrshield.app.UiCtx
 import com.sitrshield.app.sync.SyncWorker
 import com.sitrshield.core.SitrResult
@@ -42,6 +57,9 @@ import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
 
+/** The corner of a text field and of the button beside it. */
+private val FieldShape = RoundedCornerShape(14.dp)
+
 /**
  * Sitr Family — household create/join, shared lists, guardian PIN,
  * pairing code (guardian-only, PIN-gated: possession IS membership),
@@ -50,17 +68,14 @@ import java.util.Date
  */
 @Composable
 fun FamilyScreen(ctx: UiCtx) {
-    Text("Sitr Family", style = MaterialTheme.typography.headlineSmall)
-    Spacer(Modifier.height(8.dp))
+    ScreenTitle("Sitr Family")
+    Spacer(Modifier.height(14.dp))
 
     if (ctx.settings.household == null || ctx.settings.role == null) {
         NoHousehold(ctx)
     } else {
         InHousehold(ctx)
     }
-
-    Spacer(Modifier.height(16.dp))
-    TextButton(onClick = { ctx.navigate(Screen.HOME) }) { Text("Back") }
 }
 
 @Composable
@@ -75,277 +90,361 @@ private fun NoHousehold(ctx: UiCtx) {
             "across every device, end-to-end encrypted — the sync server " +
             "cannot read them.",
         style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Spacer(Modifier.height(12.dp))
+    Spacer(Modifier.height(18.dp))
 
-    Text("Join a household", style = MaterialTheme.typography.titleMedium)
-    OutlinedTextField(
-        value = code,
-        onValueChange = { code = it; error = null },
-        placeholder = { Text("Pairing code (XXXX-XXXX-…)") },
-        modifier = Modifier.fillMaxWidth(),
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { joinAsChild = false }) {
-            Text(if (!joinAsChild) "✓ Guardian" else "Guardian")
+    SitrCard(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CardTitle("Join a household")
+        OutlinedTextField(
+            value = code,
+            onValueChange = { code = it; error = null },
+            placeholder = { Text("Pairing code (XXXX-XXXX-…)") },
+            shape = FieldShape,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RoleChoice("Guardian", chosen = !joinAsChild, Modifier.weight(1f)) { joinAsChild = false }
+            RoleChoice("Child device", chosen = joinAsChild, Modifier.weight(1f)) { joinAsChild = true }
         }
-        OutlinedButton(onClick = { joinAsChild = true }) {
-            Text(if (joinAsChild) "✓ Child device" else "Child device")
+        PrimaryButton(
+            "Join",
+            onClick = {
+                ctx.attemptJoin {
+                    when (val joined = ctx.actions.joinHousehold(
+                        code, if (joinAsChild) "child" else "guardian",
+                    )) {
+                        is SitrResult.Err -> error = joined.message.sentence()
+                        is SitrResult.Ok -> {}
+                    }
+                }
+            },
+        )
+        if (joinAsChild) {
+            Note("Joining as a child device clears this phone's own \"Always allow\" list.")
         }
     }
-    Button(
-        onClick = {
-            ctx.attemptJoin {
-                when (val joined = ctx.actions.joinHousehold(
-                    code, if (joinAsChild) "child" else "guardian",
-                )) {
-                    is SitrResult.Err -> error = joined.message.sentence()
+
+    Spacer(Modifier.height(14.dp))
+    SitrCard(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CardTitle("Create a household")
+        Text(
+            "Creating a household on the official sync server uses a Sitr " +
+                "Family token.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        OutlinedTextField(
+            value = token,
+            onValueChange = { token = it; error = null },
+            placeholder = { Text("sitr-ent-v1.… (paste your token)") },
+            shape = FieldShape,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        PrimaryButton(
+            "Create household",
+            onClick = {
+                when (val created = ctx.actions.createHousehold(token)) {
+                    is SitrResult.Err -> error = created.message.sentence()
                     is SitrResult.Ok -> {}
                 }
-            }
-        },
-        Modifier.fillMaxWidth(),
-    ) { Text("Join") }
-    if (joinAsChild) {
-        Text(
-            "Joining as a child device clears this phone's own \"Always allow\" list.",
-            style = MaterialTheme.typography.bodySmall,
+            },
         )
     }
 
-    Spacer(Modifier.height(16.dp))
-    Text("Create a household", style = MaterialTheme.typography.titleMedium)
-    Text(
-        "Creating a household on the official sync server uses a Sitr " +
-            "Family token.",
-        style = MaterialTheme.typography.bodyMedium,
-    )
-    OutlinedTextField(
-        value = token,
-        onValueChange = { token = it; error = null },
-        placeholder = { Text("sitr-ent-v1.… (paste your token)") },
-        modifier = Modifier.fillMaxWidth(),
-    )
-    Button(
-        onClick = {
-            when (val created = ctx.actions.createHousehold(token)) {
-                is SitrResult.Err -> error = created.message.sentence()
-                is SitrResult.Ok -> {}
-            }
-        },
-        Modifier.fillMaxWidth(),
-    ) { Text("Create household") }
-
     error?.let {
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
         Text(it, color = ProtectionRed, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/** One of the two roles to join as. The chosen one is tinted and ticked. */
+@Composable
+private fun RoleChoice(label: String, chosen: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val primary = MaterialTheme.colorScheme.primary
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .semantics { selected = chosen },
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = if (chosen) primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = if (chosen) primary else MaterialTheme.colorScheme.onSurface,
+        ),
+        border = BorderStroke(1.dp, if (chosen) primary else MaterialTheme.colorScheme.outline),
+    ) {
+        if (chosen) {
+            Icon(painterResource(R.drawable.ic_check), contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+        }
+        Text(label, maxLines = 1)
     }
 }
 
 @Composable
 private fun InHousehold(ctx: UiCtx) {
     val household = ctx.settings.household ?: return
-    val isGuardian = ctx.settings.role == "guardian"
+    val role = ctx.settings.role ?: return
+    val isGuardian = role == "guardian"
     var revealedCode by remember { mutableStateOf<String?>(null) }
     var newPin by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
     var hashing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    Text(
-        "This device is a ${ctx.settings.role} device. " +
-            "${household.devices.size}/${Household.MAX_HOUSEHOLD_DEVICES} devices " +
-            "enrolled (fair use).",
-        style = MaterialTheme.typography.bodyMedium,
-    )
-    Text(
-        ctx.settings.syncStatus.describe { at ->
-            DateFormat.getDateTimeInstance().format(Date(at.toLong()))
-        },
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.secondary,
-    )
-    OutlinedButton(onClick = { SyncWorker.kick(ctx.app) }) { Text("Sync now") }
+    SitrCard(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconBadge(R.drawable.ic_nav_family, MaterialTheme.colorScheme.primary)
+            Column {
+                CardTitle("${role.replaceFirstChar { it.uppercase() }} device")
+                Text(
+                    "${household.devices.size}/${Household.MAX_HOUSEHOLD_DEVICES} devices " +
+                        "enrolled (fair use).",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        // How many of the household's places are taken.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(
+                        (household.devices.size.toFloat() / Household.MAX_HOUSEHOLD_DEVICES).coerceIn(0f, 1f)
+                    )
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(MaterialTheme.colorScheme.primary),
+            )
+        }
+        RowDivider()
+        Text(
+            ctx.settings.syncStatus.describe { at ->
+                DateFormat.getDateTimeInstance().format(Date(at.toLong()))
+            },
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        SecondaryButton("Sync now", onClick = { SyncWorker.kick(ctx.app) })
+    }
 
     // Joined but never synced: this phone doesn't have the household's
     // PIN and lists yet, so there is nothing here it may change.
     val waiting = Household.isJoinPlaceholder(household)
     if (waiting && ctx.settings.syncStatus.state != SyncStatus.State.NOT_FOUND) {
-        Spacer(Modifier.height(12.dp))
-        Text(HouseholdActions.WAITING_FOR_FIRST_SYNC, style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(14.dp))
+        SitrCard {
+            Text(HouseholdActions.WAITING_FOR_FIRST_SYNC, style = MaterialTheme.typography.bodyMedium)
+        }
     }
 
     if (isGuardian && !waiting) {
-        // Beside the count: the list holds only random ids, so the only way
-        // to free a gone device's place is to clear it and let the live
-        // devices add themselves back. Gated like changing the PIN.
-        Text(
-            "Clears the household's device list. Each device that still uses " +
-                "this household adds itself again the next time it syncs: within " +
-                "about 30 minutes, or when Sitr is opened on it. Use it to free " +
-                "the places of devices that are gone.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.secondary,
-        )
-        OutlinedButton(onClick = {
-            ctx.attempt(Gate.REFRESH_DEVICE_LIST_GATED_AS, "Refresh the device list") {
-                message = when (val done = ctx.actions.refreshDeviceList()) {
-                    is SitrResult.Err -> done.message
-                    is SitrResult.Ok -> {
-                        val n = ctx.app.repository.current().household?.devices?.size ?: 0
-                        "The household now lists $n ${if (n == 1) "device" else "devices"}. " +
-                            "The number rises again as its devices sync."
+        Spacer(Modifier.height(14.dp))
+        SitrCard {
+            CardTitle("Pairing")
+            if (revealedCode == null) {
+                PrimaryButton("Show pairing code", onClick = {
+                    ctx.requirePin("Show the pairing code") {
+                        revealedCode = ctx.actions.pairingCode()
                     }
+                })
+            } else {
+                // The code IS household membership: keep it out of screenshots
+                // and the recents preview for as long as it is on screen.
+                val window = LocalActivity.current?.window
+                DisposableEffect(Unit) {
+                    window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
                 }
-            }
-        }) { Text("Refresh device list") }
-
-        Spacer(Modifier.height(12.dp))
-        Text("Pairing", style = MaterialTheme.typography.titleMedium)
-        if (revealedCode == null) {
-            OutlinedButton(onClick = {
-                ctx.requirePin("Show the pairing code") {
-                    revealedCode = ctx.actions.pairingCode()
+                // Selectable, so it can be copied instead of retyped by hand.
+                SelectionContainer {
+                    Text(
+                        revealedCode!!,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontFamily = FontFamily.Monospace,
+                    )
                 }
-            }) { Text("Show pairing code") }
-        } else {
-            // The code IS household membership: keep it out of screenshots
-            // and the recents preview for as long as it is on screen.
-            val window = LocalActivity.current?.window
-            DisposableEffect(Unit) {
-                window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
-            }
-            // Selectable, so it can be copied instead of retyped by hand.
-            SelectionContainer {
                 Text(
-                    revealedCode!!,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontFamily = FontFamily.Monospace,
+                    "Anyone with this code IS a member of your household — " +
+                        "treat it like a house key.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ProtectionRed,
                 )
+                TextButton(onClick = { revealedCode = null }) { Text("Hide") }
             }
-            Text(
-                "Anyone with this code IS a member of your household — " +
-                    "treat it like a house key.",
-                style = MaterialTheme.typography.bodySmall,
-                color = ProtectionRed,
-            )
-            TextButton(onClick = { revealedCode = null }) { Text("Hide") }
         }
 
-        Spacer(Modifier.height(12.dp))
-        Text("Guardian PIN", style = MaterialTheme.typography.titleMedium)
-        Text(
-            if (household.pin != null)
-                "A PIN is set. It gates loosening actions on every household device."
-            else
-                "No PIN set. A PIN adds friction against casual loosening — " +
-                    "on its own it is not a security boundary. With the child " +
-                    "lock on a child's phone, it is the only way to switch " +
-                    "protection off.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Left readable on purpose: there is no "repeat PIN" field,
-            // and a mistyped PIN nobody can see would lock the guardian
-            // out of every loosening action. The password keyboard still
-            // stops the keyboard from learning it.
-            OutlinedTextField(
-                value = newPin,
-                onValueChange = { newPin = it },
-                placeholder = { Text("New PIN (4–32 chars)") },
-                keyboardOptions = PinKeyboard,
-                singleLine = true,
-                enabled = !hashing,
-                modifier = Modifier.weight(1f),
+        Spacer(Modifier.height(14.dp))
+        SitrCard {
+            CardTitle("Guardian PIN")
+            Text(
+                if (household.pin != null)
+                    "A PIN is set. It gates loosening actions on every household device."
+                else
+                    "No PIN set. A PIN adds friction against casual loosening — " +
+                        "on its own it is not a security boundary. With the child " +
+                        "lock on a child's phone, it is the only way to switch " +
+                        "protection off.",
+                style = MaterialTheme.typography.bodyMedium,
             )
-            TextButton(
-                enabled = !hashing,
-                onClick = {
-                    ctx.attempt(MutationKind.CHANGE_PIN, "Change the guardian PIN") {
-                        val entered = newPin
-                        hashing = true
-                        scope.launch {
-                            // PBKDF2 — seconds on a budget phone, so not here
-                            // on the main thread.
-                            val created = withContext(Dispatchers.Default) {
-                                ctx.actions.createPinRecord(entered)
-                            }
-                            hashing = false
-                            when (created) {
-                                is SitrResult.Err -> message = created.message.sentence()
-                                is SitrResult.Ok -> {
-                                    ctx.actions.setPin(created.value)
-                                    newPin = ""
-                                    message = "PIN updated."
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Left readable on purpose: there is no "repeat PIN" field,
+                // and a mistyped PIN nobody can see would lock the guardian
+                // out of every loosening action. The password keyboard still
+                // stops the keyboard from learning it.
+                OutlinedTextField(
+                    value = newPin,
+                    onValueChange = { newPin = it },
+                    placeholder = { Text("New PIN (4–32 chars)") },
+                    keyboardOptions = PinKeyboard,
+                    singleLine = true,
+                    enabled = !hashing,
+                    shape = FieldShape,
+                    modifier = Modifier.weight(1f),
+                )
+                Button(
+                    enabled = !hashing,
+                    shape = FieldShape,
+                    modifier = Modifier.heightIn(min = 56.dp),
+                    onClick = {
+                        ctx.attempt(MutationKind.CHANGE_PIN, "Change the guardian PIN") {
+                            val entered = newPin
+                            hashing = true
+                            scope.launch {
+                                // PBKDF2 — seconds on a budget phone, so not here
+                                // on the main thread.
+                                val created = withContext(Dispatchers.Default) {
+                                    ctx.actions.createPinRecord(entered)
+                                }
+                                hashing = false
+                                when (created) {
+                                    is SitrResult.Err -> message = created.message.sentence()
+                                    is SitrResult.Ok -> {
+                                        ctx.actions.setPin(created.value)
+                                        newPin = ""
+                                        message = "PIN updated."
+                                    }
                                 }
                             }
                         }
-                    }
-                },
-            ) { Text(if (hashing) "Saving…" else "Set") }
-        }
-
-        Spacer(Modifier.height(12.dp))
-        Text("Household lists", style = MaterialTheme.typography.titleMedium)
-        DomainListEditor(
-            title = "Household allow list",
-            domains = household.allowDomains,
-            refuse = ctx.app::alwaysBlocked,
-            onAdd = { domain, done ->
-                // An allow rule beats every list block except adult
-                // (on Android also gambling and dating), so it is loosening:
-                // same kind the extension gates it with (PIN when set).
-                ctx.attempt(
-                    MutationKind.ADD_DEVICE_ALLOW_RULE,
-                    "Allow $domain on every household device",
-                ) {
-                    when (val added = ctx.actions.addHouseholdDomain(allow = true, domain = domain)) {
-                        is SitrResult.Err -> message = added.message.sentence()
-                        is SitrResult.Ok -> done()
-                    }
-                }
-            },
-            onRemove = { domain ->
-                ctx.attempt(MutationKind.REMOVE_HOUSEHOLD_RULE, "Remove $domain") {
-                    ctx.actions.removeHouseholdDomain(allow = true, domain = domain)
-                }
-            },
-        )
-        Spacer(Modifier.height(8.dp))
-        DomainListEditor(
-            title = "Household block list",
-            domains = household.blockDomains,
-            onAdd = { domain, done ->
-                ctx.attempt(MutationKind.ADD_HOUSEHOLD_RULE, "") {
-                    when (val added = ctx.actions.addHouseholdDomain(allow = false, domain = domain)) {
-                        is SitrResult.Err -> message = added.message.sentence()
-                        is SitrResult.Ok -> done()
-                    }
-                }
-            },
-            onRemove = { domain ->
-                ctx.attempt(MutationKind.REMOVE_HOUSEHOLD_RULE, "Remove $domain") {
-                    ctx.actions.removeHouseholdDomain(allow = false, domain = domain)
-                }
-            },
-        )
-    }
-
-    Spacer(Modifier.height(12.dp))
-    var confirmLeave by remember { mutableStateOf(false) }
-    OutlinedButton(onClick = {
-        if (ctx.settings.childLock) {
-            message = "Turn off the child lock before you leave the household."
-        } else {
-            val asPlaceholder = ctx.actions.leavesAsJoinPlaceholder()
-            ctx.attempt(MutationKind.LEAVE_HOUSEHOLD, "Leave the household") {
-                // The PIN dialog is the confirmation when there is a PIN.
-                if (household.pin == null) confirmLeave = true
-                else (ctx.actions.leaveHousehold(asPlaceholder) as? SitrResult.Err)?.let { message = it.message }
+                    },
+                ) { Text(if (hashing) "Saving…" else "Set") }
             }
         }
-    }) { Text("Leave household") }
+
+        Spacer(Modifier.height(24.dp))
+        SectionLabel("Household lists")
+        SitrCard(borderColor = ListTone.ALLOW.edge()) {
+            DomainListEditor(
+                title = "Household allow list",
+                tone = ListTone.ALLOW,
+                domains = household.allowDomains,
+                refuse = ctx.app::alwaysBlocked,
+                onAdd = { domain, done ->
+                    // An allow rule beats every list block except adult
+                    // (on Android also gambling and dating), so it is loosening:
+                    // same kind the extension gates it with (PIN when set).
+                    ctx.attempt(
+                        MutationKind.ADD_DEVICE_ALLOW_RULE,
+                        "Allow $domain on every household device",
+                    ) {
+                        when (val added = ctx.actions.addHouseholdDomain(allow = true, domain = domain)) {
+                            is SitrResult.Err -> message = added.message.sentence()
+                            is SitrResult.Ok -> done()
+                        }
+                    }
+                },
+                onRemove = { domain ->
+                    ctx.attempt(MutationKind.REMOVE_HOUSEHOLD_RULE, "Remove $domain") {
+                        ctx.actions.removeHouseholdDomain(allow = true, domain = domain)
+                    }
+                },
+            )
+        }
+        Spacer(Modifier.height(14.dp))
+        SitrCard(borderColor = ListTone.BLOCK.edge()) {
+            DomainListEditor(
+                title = "Household block list",
+                tone = ListTone.BLOCK,
+                domains = household.blockDomains,
+                onAdd = { domain, done ->
+                    ctx.attempt(MutationKind.ADD_HOUSEHOLD_RULE, "") {
+                        when (val added = ctx.actions.addHouseholdDomain(allow = false, domain = domain)) {
+                            is SitrResult.Err -> message = added.message.sentence()
+                            is SitrResult.Ok -> done()
+                        }
+                    }
+                },
+                onRemove = { domain ->
+                    ctx.attempt(MutationKind.REMOVE_HOUSEHOLD_RULE, "Remove $domain") {
+                        ctx.actions.removeHouseholdDomain(allow = false, domain = domain)
+                    }
+                },
+            )
+        }
+
+        Spacer(Modifier.height(24.dp))
+        SectionLabel("Devices")
+        SitrCard {
+            // Beside the count: the list holds only random ids, so the only way
+            // to free a gone device's place is to clear it and let the live
+            // devices add themselves back. Gated like changing the PIN.
+            Note(
+                "Clears the household's device list. Each device that still uses " +
+                    "this household adds itself again the next time it syncs: within " +
+                    "about 30 minutes, or when Sitr is opened on it. Use it to free " +
+                    "the places of devices that are gone.",
+            )
+            SecondaryButton("Refresh device list", onClick = {
+                ctx.attempt(Gate.REFRESH_DEVICE_LIST_GATED_AS, "Refresh the device list") {
+                    message = when (val done = ctx.actions.refreshDeviceList()) {
+                        is SitrResult.Err -> done.message
+                        is SitrResult.Ok -> {
+                            val n = ctx.app.repository.current().household?.devices?.size ?: 0
+                            "The household now lists $n ${if (n == 1) "device" else "devices"}. " +
+                                "The number rises again as its devices sync."
+                        }
+                    }
+                }
+            })
+        }
+    }
+
+    Spacer(Modifier.height(18.dp))
+    var confirmLeave by remember { mutableStateOf(false) }
+    OutlinedButton(
+        onClick = {
+            if (ctx.settings.childLock) {
+                message = "Turn off the child lock before you leave the household."
+            } else {
+                val asPlaceholder = ctx.actions.leavesAsJoinPlaceholder()
+                ctx.attempt(MutationKind.LEAVE_HOUSEHOLD, "Leave the household") {
+                    // The PIN dialog is the confirmation when there is a PIN.
+                    if (household.pin == null) confirmLeave = true
+                    else (ctx.actions.leaveHousehold(asPlaceholder) as? SitrResult.Err)?.let { message = it.message }
+                }
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = ProtectionRed),
+        border = BorderStroke(1.dp, ProtectionRed.copy(alpha = 0.5f)),
+    ) {
+        Icon(painterResource(R.drawable.ic_exit), contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Leave household")
+    }
     if (confirmLeave) {
         AlertDialog(
             onDismissRequest = { confirmLeave = false },
@@ -371,7 +470,7 @@ private fun InHousehold(ctx: UiCtx) {
     }
 
     message?.let {
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
         Text(it, style = MaterialTheme.typography.bodyMedium)
     }
 }

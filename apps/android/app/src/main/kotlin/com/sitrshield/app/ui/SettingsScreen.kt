@@ -48,8 +48,10 @@ fun SettingsScreen(ctx: UiCtx) {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName
     }
     var attributionError by remember { mutableStateOf<String?>(null) }
-    Text("About & privacy", style = MaterialTheme.typography.headlineSmall)
-    Spacer(Modifier.height(8.dp))
+    // Not on the tab bar: reached from Home's header, left by Back.
+    BackLink(onClick = { ctx.navigate(Screen.HOME) })
+    ScreenTitle("About & privacy")
+    Spacer(Modifier.height(14.dp))
     Column {
         Text("Appearance", style = MaterialTheme.typography.titleMedium)
         AppearanceSelector(ctx)
@@ -97,7 +99,7 @@ fun SettingsScreen(ctx: UiCtx) {
                 "Honestly stated: without the child lock, a determined user " +
                 "can uninstall Sitr or turn the VPN off, and the guardian PIN " +
                 "is friction, not security. On a child's phone in Sitr Family, " +
-                "the child lock (Home → Child lock) keeps protection on until " +
+                "the child lock (the Child lock tab) keeps protection on until " +
                 "the guardian PIN opens it. Keep the pairing code as secret as " +
                 "the PIN: whoever has it is a member of the household and can " +
                 "change it.",
@@ -281,7 +283,7 @@ private fun DelaySection(ctx: UiCtx) {
         Text(
             "Settings are locked by your organization.",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.secondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
     Text(
@@ -314,8 +316,9 @@ fun LicenceScreen(ctx: UiCtx) {
         runCatching { context.assets.open("NOTICE.txt").use { it.readBytes().decodeToString() } }
             .getOrElse { "The licence notice is missing from this build." }
     }
-    Text("Licence and credits", style = MaterialTheme.typography.headlineSmall)
-    Spacer(Modifier.height(8.dp))
+    BackLink(onClick = { ctx.navigate(Screen.SETTINGS) })
+    ScreenTitle("Licence and credits")
+    Spacer(Modifier.height(14.dp))
     Text(notice, style = MaterialTheme.typography.bodySmall)
     Spacer(Modifier.height(16.dp))
     TextButton(onClick = { ctx.navigate(Screen.SETTINGS) }) { Text("Back") }

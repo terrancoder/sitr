@@ -25,7 +25,7 @@ android {
         // (reproducibility, docs/mobile.md §Verifiability).
         // Play accepts an upload only with a code above the published one
         // (1); bump it for every upload. versionName is the label users see.
-        versionCode = 10
+        versionCode = 11
         versionName = "0.3.0"
     }
 

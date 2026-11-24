@@ -102,7 +102,7 @@ object EngineNotification {
         builder(context, CHANNEL_ID, R.drawable.ic_stat_locked)
             .setOnlyAlertOnce(true)
             .setContentTitle("Sitr — protection active")
-            .setContentText("Filtering on this device. Nothing leaves it.")
+            .setContentText("Browse clean. Stay private.")
             .setColor(GREEN)
             .setColorized(true) // honoured: this one belongs to the foreground service
             .setOngoing(true)
