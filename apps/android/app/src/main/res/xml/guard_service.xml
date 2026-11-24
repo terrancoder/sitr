@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Window changes only, every app (OEM settings apps vary); GuardRules
-     ignores everything but the screens that switch Sitr off. -->
+<!-- Window changes only. GuardService narrows packageNames at runtime to
+     the child lock's settings and installer apps (GuardRules), plus the
+     Facebook app while Reels blocking is on (ReelsRules). -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
     android:accessibilityFeedbackType="feedbackGeneric"

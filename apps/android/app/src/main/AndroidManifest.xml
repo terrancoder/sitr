@@ -2,10 +2,12 @@
 <!-- The permissions we declare. Deliberately absent, and to stay that
      way: QUERY_ALL_PACKAGES, camera, location, storage.
 
-     The Accessibility service below exists ONLY for the child lock
-     (lock/ChildLock.kt, threat-model T7): it does nothing until a guardian
-     turns the lock on, and reads screen text on this device only. No
-     Device Admin: Play's Malware policy forbids it for blocking uninstall.
+     The Accessibility service below has two uses: the child lock
+     (lock/ChildLock.kt, threat-model T7), which does nothing until a
+     guardian turns the lock on, and Reels blocking in the Facebook app,
+     which does nothing until the user turns it on. It reads screen text on
+     this device only and keeps none of it. No Device Admin: Play's
+     Malware policy forbids it for blocking uninstall.
 
      Note the MERGED manifest is larger than this list: androidx.work
      adds WAKE_LOCK (it holds a wakelock while a worker runs) and
@@ -66,11 +68,11 @@
             </intent-filter>
         </receiver>
 
-        <!-- Child lock (Guard mode). -->
+        <!-- Child lock (Guard mode) and Reels blocking. -->
         <service
             android:name=".lock.GuardService"
             android:exported="true"
-            android:label="${appLabel} child lock"
+            android:label="${appLabel} guard"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

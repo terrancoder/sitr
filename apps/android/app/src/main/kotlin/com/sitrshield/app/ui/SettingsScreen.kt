@@ -72,11 +72,14 @@ fun SettingsScreen(ctx: UiCtx) {
                 "end-to-end encrypted settings blob to sync.sitrshield.com — " +
                 "unreadable by the server, tied to no account or email. " +
                 "Without a household, the app makes zero network requests.\n\n" +
-                "The optional child lock uses Android's Accessibility service: " +
-                "while a guardian has it on, Sitr reads the text of Settings, " +
+                "Sitr's accessibility service has two optional uses. While a " +
+                "guardian has the child lock on, Sitr reads the text of Settings, " +
                 "installer, Play Store and system windows on this device to " +
-                "close the screens that would switch it off. That text is " +
-                "discarded at once; nothing is stored or sent.",
+                "close the screens that would switch it off. While you have " +
+                "Reels blocking on, Sitr reads the Facebook app's screen each " +
+                "time it changes, only to check whether it is Reels. That text " +
+                "is thrown away at once; nothing is stored, logged or sent. " +
+                "Sitr reads no other apps.",
             style = MaterialTheme.typography.bodyMedium,
         )
         TextButton(onClick = {

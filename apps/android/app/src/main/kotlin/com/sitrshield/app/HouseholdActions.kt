@@ -257,16 +257,6 @@ class HouseholdActions(private val app: SitrApp) {
         return SitrResult.Ok(Unit)
     }
 
-    fun setHouseholdCategoryDisabled(rulesetId: String, disabled: Boolean) {
-        mutateHousehold {
-            it.copy(
-                disabledCategories =
-                    if (disabled) (it.disabledCategories + rulesetId).distinct()
-                    else it.disabledCategories - rulesetId,
-            )
-        }
-    }
-
     /**
      * Refuses at the cap instead of saving a list that Household.sanitize
      * would reject wholesale on every device, this one included.
@@ -293,17 +283,7 @@ class HouseholdActions(private val app: SitrApp) {
         }
     }
 
-    /** Device-level lists and toggles (no household required). */
-    fun setDeviceCategoryDisabled(rulesetId: String, disabled: Boolean) {
-        app.update { s ->
-            s.copy(
-                disabledCategories =
-                    if (disabled) (s.disabledCategories + rulesetId).distinct()
-                    else s.disabledCategories - rulesetId,
-            )
-        }
-    }
-
+    /** Device-level lists (no household required). */
     fun addDeviceDomain(allow: Boolean, domain: String) {
         app.update { s ->
             if (allow) s.copy(userAllow = (s.userAllow + domain).distinct().sorted())

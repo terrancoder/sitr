@@ -147,21 +147,38 @@ fun ChildLockScreen(ctx: UiCtx) {
     TextButton(onClick = { ctx.navigate(Screen.HOME) }) { Text("Back") }
 }
 
-/** Google Play's prominent disclosure for the Accessibility API, word for word in the dialog. */
-private const val GUARD_DISCLOSURE =
-    "Sitr's child lock uses Android's Accessibility service. While a guardian " +
-        "has the lock on, Sitr reads the text and type of the window in front of you when " +
-        "it is Settings, an app installer, the Play Store or a system dialog, to " +
-        "recognise the screens that would switch Sitr off — its app info and " +
+/**
+ * Google Play's prominent disclosure for the Accessibility API, word for
+ * word in the dialog. One text for both uses of the one service, shown
+ * from the child lock and from the Reels switch, so neither skips it.
+ */
+internal const val GUARD_DISCLOSURE =
+    "Sitr's accessibility service does two separate things. Each works only " +
+        "while it is switched on in Sitr.\n\n" +
+        "Reels blocking in Facebook (your choice). While it is on, each time the " +
+        "Facebook app's screen changes, Sitr reads the text and labels on that " +
+        "screen (this can include posts, names and comments) only to check " +
+        "whether it is Reels. If it is, Sitr switches Facebook to its Home tab " +
+        "or presses Back for you. Reel previews in your feed stay visible, and " +
+        "Facebook in a browser is not covered.\n\n" +
+        "Child lock (set by a guardian). While a guardian has the lock on, Sitr " +
+        "reads the text and type of the window in front of you when it is " +
+        "Settings, an app installer, the Play Store or a system dialog, to " +
+        "recognise the screens that would switch Sitr off: its app info and " +
         "other settings pages that show Sitr's name, uninstalling, its VPN and " +
         "accessibility settings, the VPN disconnect dialog, Developer options, " +
         "adding users, setting up or opening a private space, the Private DNS " +
-        "dialog and the mobile network reset — and " +
-        "closes them. The text is checked on this phone and discarded at once: " +
-        "nothing is stored, and nothing is sent anywhere. Sitr doesn't read other " +
-        "apps, and the lock opens only with the guardian PIN. Sitr filters only " +
-        "this phone's main user: a private space, work profile or other user " +
-        "that already exists is not filtered, so remove it before you lock the phone."
+        "dialog and the mobile network reset. It closes them. The lock opens " +
+        "only with the guardian PIN. Sitr filters only this phone's main user: " +
+        "a private space, work profile or other user that already exists is " +
+        "not filtered, so remove it before you lock the phone.\n\n" +
+        "What is kept: nothing. The text stays in this phone's memory only while " +
+        "that one screen change is checked, then it is thrown away. Nothing is " +
+        "stored, logged or sent anywhere. While Reels blocking is off, Sitr " +
+        "receives nothing from Facebook. Sitr reads no other apps."
+
+/** The disclosure dialog's title, shared like the text. */
+internal const val GUARD_DISCLOSURE_TITLE = "Before you turn on Sitr's accessibility service"
 
 /**
  * Guard mode setup. Always-on VPN comes before the guard, because the
@@ -176,7 +193,7 @@ private fun GuardSetup(ctx: UiCtx, guard: Boolean, alwaysOn: Boolean?) {
     if (disclosure) {
         AlertDialog(
             onDismissRequest = { disclosure = false },
-            title = { Text("Before you turn on the accessibility guard") },
+            title = { Text(GUARD_DISCLOSURE_TITLE) },
             // Scrolls: at large font sizes the whole disclosure must stay readable.
             text = { Text(GUARD_DISCLOSURE, Modifier.verticalScroll(rememberScrollState())) },
             confirmButton = {
@@ -217,7 +234,7 @@ private fun GuardSetup(ctx: UiCtx, guard: Boolean, alwaysOn: Boolean?) {
 
             LockRow("2. Accessibility guard", guard)
             Text(
-                "In the list, open \"Sitr child lock\" and switch it on. If the " +
+                "In the list, open \"Sitr guard\" and switch it on. If the " +
                     "switch is greyed out, open Sitr's App info, tap ⋮ and " +
                     "\"Allow restricted settings\" first.",
                 style = MaterialTheme.typography.bodySmall,
@@ -230,7 +247,23 @@ private fun GuardSetup(ctx: UiCtx, guard: Boolean, alwaysOn: Boolean?) {
                 // Unknown is accepted only before Android 10, which can't
                 // report it; later, unknown means the filter isn't running.
                 enabled = guard && (alwaysOn ?: (Build.VERSION.SDK_INT < 29)),
-                onClick = { ctx.app.update { it.copy(childLock = true) } },
+                onClick = {
+                    // Start from clean Settings tasks when the lock is armed:
+                    // restart both, then come back here.
+                    val fresh = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { back ->
+                        runCatching {
+                            context.startActivities(
+                                arrayOf(
+                                    Intent(Settings.ACTION_SETTINGS).addFlags(fresh),
+                                    Intent(Settings.ACTION_VPN_SETTINGS).addFlags(fresh),
+                                    back,
+                                ),
+                            )
+                        }
+                    }
+                    ctx.app.update { it.copy(childLock = true) }
+                },
             ) { Text("Lock this phone") }
         }
     }

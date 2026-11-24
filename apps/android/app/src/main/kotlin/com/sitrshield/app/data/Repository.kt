@@ -39,6 +39,9 @@ data class Settings(
     /** Opt-in lists turned on (OptionalLists ids) — none by default;
      *  device-local, never synced. */
     val optionalLists: Set<String> = emptySet(),
+    /** Reels blocking in the Facebook app (GuardService) — off by default;
+     *  device-local, never synced. */
+    val reelsOff: Boolean = false,
     /** Guard mode armed by a guardian (ChildLock); opened only by the PIN. */
     val childLock: Boolean = false,
     /** UI appearance: "system" | "light" | "dark" (ui.Appearance). */
@@ -91,6 +94,7 @@ class Repository(context: Context) {
             mediaOff = prefs.getStringSet("mediaOff", emptySet())!! +
                 (if (prefs.getBoolean("xMedia", false)) setOf("x") else emptySet()),
             optionalLists = prefs.getStringSet("optionalLists", emptySet())!!.toSet(),
+            reelsOff = prefs.getBoolean("reelsOff", false),
             childLock = prefs.getBoolean("childLock", false),
             appearance = prefs.getString("appearance", null)
                 ?.takeIf { it in setOf("system", "light", "dark") } ?: "system",
@@ -115,6 +119,7 @@ class Repository(context: Context) {
             .putStringSet("mediaOff", next.mediaOff)
             .remove("xMedia")
             .putStringSet("optionalLists", next.optionalLists)
+            .putBoolean("reelsOff", next.reelsOff)
             .putBoolean("childLock", next.childLock)
             .putString("appearance", next.appearance)
             .putStringSet("disabledCategories", next.disabledCategories.toSet())

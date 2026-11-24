@@ -193,13 +193,11 @@ fun HomeScreen(ctx: UiCtx) {
 
     Spacer(Modifier.height(16.dp))
     val active = enabled && protection is Protection.Active
-    val disabled = ctx.settings.household?.disabledCategories
-        ?: ctx.settings.disabledCategories
     ProtectionRow("Adult content blocking", active)
     ProtectionRow("SafeSearch (Google, Bing, DuckDuckGo)", active)
     ProtectionRow("YouTube Restricted Mode", active)
-    ProtectionRow("Gambling", active && "sitr_gambling" !in disabled)
-    ProtectionRow("Dating", active && "sitr_dating" !in disabled)
+    ProtectionRow("Gambling", active)
+    ProtectionRow("Dating", active)
 
     // The child lock's state belongs next to protection: a guard that has
     // been switched off is exactly what a guardian needs to see.

@@ -173,8 +173,42 @@ Guard mode's accessibility service reads the text of the foreground
 window, only when it belongs to Settings, an installer, the Play Store
 or a system dialog, to match it against a fixed list of screens that would switch
 Sitr off (`GuardRules.kt`), and closes a match. The text is checked in
-memory and discarded; nothing is stored, logged or sent. It runs only
-after a guardian opts in. See [child-lock.md](child-lock.md).
+memory and discarded; nothing is stored, logged or sent. The child lock
+acts only after a guardian turns it on. See [child-lock.md](child-lock.md).
+
+### Android Reels blocking (on-device only)
+
+The same accessibility service has a second, separate use: "Block Reels
+in the Facebook app" on the Filter categories screen. It is off by
+default, free, and set by the user after Sitr's disclosure dialog.
+
+- **What Android delivers.** The service asks Android for the window
+  events of the child lock's apps only (`GuardRules.packages`), plus the
+  Facebook app (`com.facebook.katana`, `REELS_APPS` in `ReelsRules.kt`)
+  while the switch is on. While it is off, the service receives nothing
+  from Facebook.
+- **What is read.** On a Facebook window event, at most once every
+  250 ms, the service asks Facebook only for the screen items whose text
+  or label contains the letters "reel" (case-insensitive; in the
+  full-screen reel window also the Bengali label "রিল"). It does not walk
+  the whole screen. For each item returned it reads the class name, the
+  label and whether it is selected (`ReelsRules.decide`). Matching items
+  can include post text or names that contain "reel". The disclosure
+  dialog describes this more broadly ("the text and labels on that
+  screen"), on purpose.
+- **What it does.** If the Reels tab is the selected tab, it clicks
+  Facebook's first tab (Home). If a reel is open full screen, it presses
+  Back. It then shows the toast "Reels are off in Sitr".
+- **What is stored: nothing.** No screen text is kept after the check:
+  no log, no counter, no history, no file, no network call. Between
+  events the service holds in memory only the id and class name of the
+  last window that opened (for example Facebook's full-screen reel
+  window), replaced by the next one and gone when the service stops.
+- **Setting.** `reelsOff` in the app-private preferences, device-local,
+  never in the household blob (table below).
+
+Explainer and limits: [reels-blocking-privacy.md](reels-blocking-privacy.md);
+threat model: [threat-model.md](threat-model.md) T12.
 
 ### "Report a site" links (no request)
 
@@ -284,6 +318,7 @@ Planned local items, with the same retention rules as the table below:
 | Category preferences | `storage.local` | which optional categories are disabled | until changed by the user |
 | Media filtering mode | `storage.local` | `off` / `greylist` / `allowlist` — the T12 image+media layer | until changed by the user |
 | Opt-in lists | `storage.local` (`enabledOptionalLists`) | which off-by-default lists the user turned on (`sitr_violence`; the Android app and the iOS DNS filter also have the encrypted-DNS hosts list). Device-local: never in the household blob | until changed by the user |
+| Reels blocking (Android) | app-private preferences (`reelsOff`) | boolean: whether "Block Reels in the Facebook app" is on. Device-local: never in the household blob | until changed by the user |
 | Wait before loosening | `storage.local` (`loosenDelayMinutes`, `loosenDelayRequest`) | the chosen wait (0, 5, 30, 60, 360 or 1440 minutes) and the time of a pending request — in the apps, a reading of two clocks. Device-local: never in the household blob. All three platforms | until changed or the request ends |
 | Per-site allow/deny | DNR dynamic rules | domains the user chose | until removed by the user |
 | Image allowlist | DNR dynamic rules | sites whose images stay visible in allowlist-only mode | until removed by the user |

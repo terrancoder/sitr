@@ -57,7 +57,10 @@ public blocklist sources, written inclusion policy, named maintainers,
 public appeals process, and an on-device per-site allow that opens a site
 any category blocks, except the adult list: no allow entry opens an
 adult-listed site, and a wrong adult listing is fixed through the appeals
-process.
+process. On Android the same holds for the gambling and dating lists:
+they are always on and no allow entry opens them. A wrong listing there
+has no fix on the phone; it is fixed in the list and comes with an app
+update, because the lists ship in the app.
 
 The imported tier brings risks of its own, stated plainly:
 
@@ -72,7 +75,7 @@ The imported tier brings risks of its own, stated plainly:
   judgement and mistakes, and cannot fix them upstream.
 
 What exists against them: the per-site allow, which wins at once on the
-device for every list except adult; the [appeals process](../blocklist/policy/appeals-process.md), which
+device for every list except adult (on Android also gambling and dating); the [appeals process](../blocklist/policy/appeals-process.md), which
 removes a wrong imported name by adding it to `import-exclusions.txt` so a
 later import cannot bring it back; a public name rule that narrows UT1's
 gambling list to names that look like gambling; and every source, licence
@@ -149,8 +152,10 @@ an Android VPN covers only the user that started it, and Sitr cannot
 detect one; setting up a private space is closed under the lock, but an
 existing one still opens from the apps list) — and
 says so next to the toggle. The guard reads window text and type on the device
-and discards it; it is opt-in by a guardian, behind a disclosure, and
-stores and sends nothing. The exit takes the guardian PIN and are refused outright when no PIN exists,
+and discards it; the lock is turned on by a guardian, behind a disclosure, and
+stores and sends nothing. The same service has a second, separate use,
+Reels blocking in the Facebook app, which the user turns on (T12); the
+child lock never reads Facebook, and Reels blocking reads nothing else. The exit takes the guardian PIN and are refused outright when no PIN exists,
 so a cleared app can never be an unlocked one. One limit is structural:
 **the pairing code is household membership**. Every device derives the
 same keys from it, "child" is a local role, and the merge takes the
@@ -362,11 +367,77 @@ Media X has already cached on the
 device stays visible, and a blocked host's earlier DNS answer can outlive
 the toggle by up to the record's TTL (Sitr caps answer TTLs at 60 s).
 
-Facebook, Instagram and TikTok get no switch, deliberately: they prohibit
+Facebook, Instagram and TikTok get no media switch, deliberately: they prohibit
 nudity and moderate for it (greylist criterion 1), and Instagram and
 TikTok are built around their media, so withholding it breaks them
-rather than degrading them (criterion 3). The apps say this and point to
-those platforms' own teen controls and the OS's app limits instead.
+rather than degrading them (criterion 3). For Instagram and TikTok the
+apps say this and point to those platforms' own teen controls and the
+OS's app limits instead.
+
+**Reels blocking in the Facebook app (Android only; 2026-11-22).** The
+owner reversed decision D1 of the Kahf Guard analysis of 2026-11-17
+(`docs/kahf-guard-analysis-2026-11-17.md`, not committed) for Facebook
+Reels only. This is not a media switch: Facebook's images
+and videos are untouched. DNS cannot do it, because Reels comes from the
+same hostnames as the rest of Facebook; blocking them would block
+Facebook. No narrower Android API tells an app which tab is open inside
+another app, so the only mechanism is the accessibility service that the
+child lock already uses (`GuardService`, rules in `ReelsRules.kt`).
+
+- It is opt-in, off by default, free, device-local and never synced. The
+  switch shows the same disclosure as the child lock, and only "I agree"
+  turns it on. Turning it off is a loosening change and goes through the
+  gate (refused on a child device, then the wait, then the PIN).
+- While it is off, Facebook is not in the service's package list, so
+  Android sends the service nothing from Facebook. While it is on, on each
+  Facebook window event (at most one check every 250 ms) the service asks
+  Facebook only for the items whose text or label contains "reel" (and the
+  Bengali label in the reel player), reads their class, label and selected
+  state, and discards them. It does not walk the screen. If the Reels tab
+  is selected it clicks the first tab (Home); if a reel is open full
+  screen it presses Back. No log, counter, history or network call.
+- Cost, measured on the owner's phone (Facebook 588, Android 16): a
+  median of 6.4 ms per lookup while scrolling the feed (max 22 ms), and
+  frame statistics with the service on matched those with it off on a
+  repeat run. A lookup in the full-screen reel player can take hundreds
+  of milliseconds (`GuardService.kt`); the player is then closed.
+
+Limits, stated in the app next to the switch where they fit: reel
+previews in the feed stay visible; videos playing in the feed are not
+touched (on Facebook 588 the Reels tab is the only video tab); Stories
+are not closed; Facebook in a browser is not covered (that would need
+reading the browser's address bar, which we refuse); Facebook Lite,
+Instagram, TikTok and YouTube Shorts are not covered; the labels are
+known in English and Bengali only; a landscape reel can go full screen
+with no label (the tab is still caught when selected); and without the
+child lock anyone can switch the accessibility service off in Android's
+settings.
+
+Residual risks:
+
+- **Silent breakage.** A Facebook update that renames the labels stops
+  detection without any sign, and Sitr has no telemetry to notice. The
+  fix is a new label in `ReelsRules.kt` and an app update.
+- **The accessibility service now reads a third-party app.** That widens
+  T1: a modified build could read more of Facebook. The mitigations are
+  the same as elsewhere: open source, reproducible builds, a package list
+  that excludes Facebook while the switch is off (visible in
+  `adb shell dumpsys accessibility`), and nothing stored or sent.
+- **Play review.** Google Play may object to an accessibility service
+  reading another app's screen for a non-accessibility purpose. The
+  declaration and its review video must be resubmitted; because Reels
+  blocking ships in the same release as other changes, an objection
+  holds that release.
+
+Not verified on a device (2026-11-22): the child lock and Reels blocking
+on together with Facebook in front (on the emulator, which has no
+Facebook, the child lock still closed its screens with the Reels switch
+on); a story that shares a reel (unit test only); a reel opened from a
+Facebook notification. A reel opened from a link is covered: Facebook
+labels it "Reel by <name>", which the rule accepts since that day.
+
+Instagram and TikTok still get no switch of any kind (owner decision
+2026-11-22: the Facebook app only).
 
 ### T13: Safari Web Extension (macOS) platform limits
 The macOS build runs the extension codebase inside Safari, which

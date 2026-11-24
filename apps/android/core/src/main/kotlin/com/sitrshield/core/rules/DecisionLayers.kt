@@ -32,15 +32,15 @@ class DecisionSnapshot(
      * only assembles a list of references.
      */
     val staticBlock: List<DomainSet> = emptyList(),
-    /** Lists checked BEFORE every allow entry: the adult list. No allow of
-     *  any layer opens a name on them. */
+    /** Lists checked BEFORE every allow entry: on Android the adult,
+     *  gambling and dating lists. No allow of any layer opens a name on them. */
     val alwaysBlock: List<DomainSet> = emptyList(),
 ) {
     enum class Verdict { BLOCK, FORWARD }
 
     companion object {
         const val ADULT_ALLOW_REFUSAL =
-            "This site is on the adult list and cannot be allowed. If it is listed by mistake, report it."
+            "This site is on the adult, gambling or dating list and cannot be allowed. If it is listed by mistake, report it."
 
         /** Whether `set` lists `name` itself or a parent of it: the decision's own walk. */
         fun covers(set: DomainSet, name: String): Boolean {

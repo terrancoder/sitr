@@ -50,7 +50,7 @@ public threat model.
 **What it does**
 
 • Blocks adult content, gambling, and dating sites: about 100,000 domains
-  (gambling and dating can be switched off)
+  (always on; no allow entry opens them)
 • Optional lists, off by default: gore and hate sites (old and
   incomplete); well-known encrypted-DNS services
 • Forces SafeSearch on Google, Bing, and DuckDuckGo, and YouTube Restricted Mode
@@ -62,13 +62,15 @@ public threat model.
   optional wait (5 minutes to 24 hours) before loosening changes
 • Optional Sitr Family household: shares lists across devices, end-to-end
   encrypted, unreadable to us
-• Shows a red "protection inactive" warning if filtering ever stops —
-  another VPN takes over, Private DNS conflicts — instead of pretending
+• Shows a red "protection inactive" warning if filtering ever stops,
+  instead of pretending
+• Optional Reels blocking in the Facebook app: closes the Reels tab and
+  full-screen reels. Feed previews stay; not in browsers
 • Optional child lock (Sitr Family): on a child's phone, protection can't be
-  switched off without the guardian PIN. It uses Android's Accessibility
-  service to close the screens that would turn Sitr off (its app info,
-  uninstalling, VPN and accessibility settings and the like). It reads those
-  screens on the phone only; nothing is recorded or sent
+  switched off without the guardian PIN
+• Both use Android's Accessibility service, only while on. It reads the
+  Facebook app or the screens that would turn Sitr off, on the phone;
+  nothing is recorded or sent
 • Supports managed configuration for organisations and Family Link
 
 **What it doesn't do**
@@ -85,9 +87,9 @@ shows red and tells you to set it to Automatic or Off. A browser's own
 switch blocks well-known providers, so pages fail until Secure DNS is back
 on automatic (tested with Chrome on Android 15). Providers set by IP
 address or not listed still bypass. Most of the list comes from public
-lists checked by name, so some entries will be wrong: allow the site (not
-an adult-listed one) and use "Report a site" (a public form or your
-mail app; Sitr sends nothing).
+lists checked by name, so some entries will be wrong: use "Report a
+site" (a public form or your mail app; Sitr sends nothing). Fixes come
+with app updates.
 
 Source, blocklist, appeals: https://github.com/terrancoder/sitr
 
@@ -153,42 +155,77 @@ the ability for users to disable or uninstall any app or service unless
 authorized by a parent or guardian through a parental control app"
 (answer/16558241).
 
+**The use changed in 0.3.0 (2026-11-22), so this form must be submitted
+again.** The service now has two uses: the child lock, as before, and
+Reels blocking in the Facebook app, which any user can turn on. The
+service's name in Android's settings is now "Sitr guard" (it was "Sitr
+child lock").
+
 | Question | Answer |
 |---|---|
 | Why does your app need the Accessibility Services API? | **App functionality** only |
-| Do you collect and/or share personal or sensitive data using the accessibility capabilities? | **No** — window text is read in memory on the device and discarded; nothing leaves the phone. Must match Data safety and the privacy policy |
-| Video link | Unlisted YouTube link to `assets/video/sitr-accessibility-review.mp4` (gitignored; re-recorded 2026-11-11 on the `sitr-video` emulator with the 0.2.2 release build, whose disclosure names the Private DNS dialog, private space setup and the other settings pages that show Sitr's name; 1:47, captions burned in. Script, step times and captions are in `build/review-video/a11y-0.2.2/`. Older videos are kept as `sitr-accessibility-review-0.2.1.mp4` and `-0.2.0.mp4`) |
+| Do you collect and/or share personal or sensitive data using the accessibility capabilities? | **No**. Window text, and for Reels blocking the Facebook app's screen items, is processed in memory on the device and discarded; nothing is stored and nothing leaves the phone. Must match Data safety and the privacy policy |
+| Video link | **A new video is needed for 0.3.0** (script below), recorded last, on the final build. Superseded record: `assets/video/sitr-accessibility-review.mp4` (gitignored; re-recorded 2026-11-11 on the `sitr-video` emulator with the 0.2.2 release build, whose disclosure names the Private DNS dialog, private space setup and the other settings pages that show Sitr's name; 1:47, captions burned in. Script, step times and captions are in `build/review-video/a11y-0.2.2/`. Older videos are kept as `sitr-accessibility-review-0.2.1.mp4` and `-0.2.0.mp4`). It shows the old disclosure and the old service name, so it no longer matches the app |
 
-Description wording if asked: "Sitr is a parental control. When a guardian
-turns on the optional child lock (protected by the guardian PIN), a fixed,
-rule-based list of checks closes the screens that would switch Sitr off on
-the child's phone: Sitr's App info and other settings pages that show
-Sitr's name, its uninstall prompt, its VPN and accessibility settings, the
-VPN disconnect dialog, Developer options, adding users, setting up or
-opening a private space, the Private DNS dialog and the mobile network reset (which
-would clear always-on VPN). It leaves Android's own recovery tools, safe
-mode and factory reset, alone. It reads text, and which window is open,
-only in Settings, app
-installers, the Play Store and system dialogs, only on the device, stores nothing and sends nothing. It
-does not act autonomously, does not read other apps, and does nothing until
-the lock is on."
+Description wording if asked: "Sitr is a content filter and parental
+control. Its accessibility service has two separate uses, each off until
+the user turns it on in Sitr after a disclosure dialog. (1) Child lock:
+when a guardian turns on the optional child lock (protected by the
+guardian PIN), a fixed, rule-based list of checks closes the screens that
+would switch Sitr off on the child's phone: Sitr's App info and other
+settings pages that show Sitr's name, its uninstall prompt, its VPN and
+accessibility settings, the VPN disconnect dialog, Developer options,
+adding users, setting up or opening a private space, the Private DNS
+dialog and the mobile network reset (which would clear always-on VPN). It
+leaves Android's own recovery tools, safe mode and factory reset, alone.
+For this it reads text, and which window is open, only in Settings, app
+installers, the Play Store and system dialogs. (2) Reels blocking in the
+Facebook app: when the user turns it on, each time the Facebook app's
+screen changes the service looks up the screen items whose text or label
+contains "Reel" and, if the Reels tab or a full-screen reel is in front,
+switches Facebook to its Home tab or presses Back. Reels shares its network addresses with the
+rest of Facebook, so DNS filtering cannot do this, and no narrower Android
+API can see which tab is open inside another app. While Reels blocking is
+off, the service receives nothing from Facebook. Both uses work only on
+the device; the service stores nothing, logs nothing and sends nothing,
+and reads no app other than Facebook and the system screens above."
 
-**Video (required parts, per answer/10964491)** — record on a phone with the
-release build, ≈60–90 s, captions on:
-1. Open Sitr on the device.
-2. Home → Child lock (household with a PIN already set) → step 2 "Turn on
-   accessibility guard" → the disclosure dialog, shown whole.
-3. Decline: tap "No thanks" — back on the Child lock screen, nothing opens;
-   tap "Turn on accessibility guard" again to show the disclosure returns.
-4. Consent: tap "I agree" → Accessibility settings → "Sitr child lock" →
-   switch on → Allow.
-5. Core feature: back in Sitr tap "Lock this phone", then long-press the
-   Sitr icon → App info, and again → Uninstall: each closes at once with
-   "Locked by Sitr — ask your guardian." Then open the lock with the PIN.
-   (Don't go through Settings → Apps: that whole page closes because Sitr
-   is listed under Recent apps, which looks like a crash on video.)
+The app's disclosure dialog, word for word, is `GUARD_DISCLOSURE` in
+`apps/android/app/src/main/kotlin/com/sitrshield/app/ui/ChildLockScreen.kt`
+(also quoted in docs/reels-blocking-privacy.md).
 
-If the use changes later, Play requires submitting this form again.
+Before recording: re-read on screen Play's sentence that the
+accessibility disclosure "cannot be included with other disclosures
+pertaining to personal or sensitive data collection". Sitr shows one
+dialog for the two uses of the same service, read here as allowed. If the
+policy page forbids that, the fallback is a separate Reels-only dialog (a
+code change).
+
+**Video for 0.3.0 (required parts, per answer/10964491)**: record last,
+on the final release build, on a device with the Facebook app installed
+and signed in to a test account (no personal posts or names on screen),
+captions on, about 2 minutes:
+1. Open Sitr on the device. The accessibility service is off.
+2. Filter categories → switch "Block Reels in the Facebook app" → the
+   disclosure dialog, shown whole (scroll it slowly).
+3. Decline: tap "No thanks". The switch stays off and nothing opens.
+4. Consent: switch it again → "I agree" → Accessibility settings → "Sitr
+   guard" with its description → switch on → Allow.
+5. Reels: open the Facebook app → tap the Reels tab: Facebook returns to
+   Home with the toast "Reels are off in Sitr". Open a reel from the feed:
+   Sitr presses Back, same toast. Show that the feed, Friends and
+   Marketplace stay open.
+6. Child lock: back in Sitr, Home → Child lock (household with a PIN
+   already set; step 1, always-on VPN, set off camera; step 2 is already
+   on, because the service is the same) → "Lock this phone", then long-press the Sitr icon → App info, and again
+   → Uninstall: each closes at once with "Locked by Sitr — ask your
+   guardian." Then open the lock with the PIN. (Don't go through
+   Settings → Apps: that whole page closes because Sitr is listed under
+   Recent apps, which looks like a crash on video.)
+
+The child lock and Reels blocking on together, with Facebook in front,
+is not yet verified on a device; check it before recording. If the use changes later, Play
+requires submitting this form again; it has changed in 0.3.0 (above).
 
 ## Data safety form
 
@@ -225,9 +262,13 @@ Same claims as docs/privacy-policy.md and the Chrome data-safety form.
 - Every other category, including Web browsing history and App activity:
   **not collected**. Sitr reads DNS names in memory and discards them; that
   is on-device processing and is not "collection" under Play's definition
-  (never leaves the device). The same holds for the optional child lock's
-  accessibility service, which reads foreground window text in memory to
-  recognise screens that would disable Sitr, and discards it.
+  (never leaves the device). The same holds for the accessibility
+  service: the child lock reads foreground window text in memory to
+  recognise screens that would disable Sitr, and Reels blocking reads the
+  Facebook app's "Reel" items in memory; both discard it at once and send
+  nothing. 0.3.0 (Reels blocking) changes no answer, because that
+  processing never leaves the device. *Re-read Play's definition of
+  "collection" on the policy page on screen before submitting.*
 - Independent security review: No.
 - Re-checked 2026-11-18 against the opt-in lists (violence, encrypted-DNS
   hosts), the larger blocklist, "Wait before loosening" and the "Report a
@@ -238,10 +279,12 @@ Same claims as docs/privacy-policy.md and the Chrome data-safety form.
 ## Review notes (App content → App access / notes)
 
 > Sitr is a DNS-based content filter, not a monitoring app. It does not use
-> QUERY_ALL_PACKAGES or Device Admin. The Accessibility API is used only by
-> the optional child lock, which a guardian turns on after a prominent
-> disclosure dialog; the accessibility service closes the screens that would
-> disable the parental control, and nothing it reads leaves the device. To test: open
+> QUERY_ALL_PACKAGES or Device Admin. The Accessibility API has two optional
+> uses, each turned on after a prominent disclosure dialog: the child lock,
+> which a guardian turns on and which closes the screens that would disable
+> the parental control, and Reels blocking in the Facebook app, which leaves
+> Facebook's Reels tab or a full-screen reel. Nothing the service reads
+> leaves the device. To test: open
 > the app, complete the three onboarding screens (the second explains the
 > local DNS-only VPN before any system dialog), tap Turn on, accept the VPN
 > prompt, then open Chrome and load https://1xbet.com — it fails to load
@@ -252,9 +295,14 @@ Same claims as docs/privacy-policy.md and the Chrome data-safety form.
 > ON SUBMISSION DAY]. Test pairing code: [PASTE ON SUBMISSION DAY].
 > Child lock: Sitr Family → Create household with the test token → set a
 > guardian PIN → Back → Child lock → step 1 (set Sitr as always-on VPN) →
-> step 2 (disclosure → I agree → switch on "Sitr child lock") → Lock this
+> step 2 (disclosure → I agree → switch on "Sitr guard") → Lock this
 > phone. Long-press the Sitr icon → App info or Uninstall: the screen is
 > closed. Child lock → Turn off child lock → the PIN unlocks it.
+> Reels blocking: Filter categories → "Block Reels in the Facebook app" →
+> disclosure → I agree → switch on "Sitr guard" if it is off. In the
+> Facebook app (installed and signed in), tap the Reels tab: Facebook goes
+> back to Home with the toast "Reels are off in Sitr". This needs a
+> Facebook account, so the accessibility review video shows it too.
 
 ## Assets checklist
 
@@ -268,6 +316,9 @@ cached Chrome for Testing in headless mode at the exact pixel size):
   emulator captures are in `raw/`; they are 9:20, outside Play's 16:9–9:16
   limit, hence the framing): Home active, blocked site in Chrome,
   Filter categories, VPN disclosure onboarding, Sitr Family.
+  **Retake the Filter categories screenshot for 0.3.0**: the gambling and
+  dating switches are gone and the "Block Reels in the Facebook app"
+  switch is new.
 - The promo video's claims still hold (checked frame by frame 2026-10-18;
   it never mentions accessibility). The separate 16:9 demo
   (`video/demo/`) said "No accessibility service"; that line was removed

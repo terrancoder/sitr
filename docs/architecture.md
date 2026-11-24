@@ -36,8 +36,9 @@ Three dynamic layers sit above the static rulesets. Within a layer an
 explicit allow wins; a higher layer's block beats a lower layer's allow
 (managed > household > device user > static). The adult list and
 SafeSearch sit above every layer: no allow entry, managed included, opens
-an adult-listed site or switches SafeSearch off. Implementation:
-`extension/src/lib/ruleLayers.ts`.
+an adult-listed site or switches SafeSearch off. On Android the gambling
+and dating lists sit there too (see the portable contract below).
+Implementation: `extension/src/lib/ruleLayers.ts`.
 
 | Layer | Kind | Dynamic-rule id base | Cap | Priority |
 |---|---|---|---|---|
@@ -57,7 +58,8 @@ band, so an image-allowlist entry (or the session-scoped escape hatch,
 also priority 2) re-enables images on that site without ever overriding
 a category block — a hotlinked image from a blocklisted domain stays
 blocked. A device-user allow (20) still beats a gambling, dating or
-opt-in-list block, which is the T5 contract. No allow of any layer beats
+opt-in-list block, which is the T5 contract (on Android it no longer
+opens gambling or dating). No allow of any layer beats
 the adult list or SafeSearch (priority 100); a wrongly listed adult site
 is fixed through the public appeals process.
 
@@ -121,7 +123,11 @@ cross-platform semantics, not a Chrome detail: managed > household >
 device user > static; within a layer an explicit allow wins; a higher
 layer's block beats a lower layer's allow; the adult list and SafeSearch
 sit above every layer, and no allow entry opens them
-(`apps/shared/fixtures/decision.json`). Every engine must reproduce it
+(`apps/shared/fixtures/decision.json`). Android has one exception: it
+treats the gambling and dating lists like the adult list. They are always
+on, no allow entry opens them, and it ignores a gambling or dating switch
+in the household settings (it keeps the ids in the blob for the other
+platforms). Every engine must reproduce the rest
 — Chrome as DNR dynamic-rule priorities, Safari as rule ordering, Android
 and the iOS DNS filter as an in-memory decision function evaluated per
 DNS query. Conformance

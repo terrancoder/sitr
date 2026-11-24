@@ -1,98 +1,49 @@
 package com.sitrshield.app.ui
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sitrshield.app.Screen
 import com.sitrshield.app.SitrApp
 import com.sitrshield.app.UiCtx
-import com.sitrshield.core.categories.Categories
+import com.sitrshield.app.lock.ChildLock
 import com.sitrshield.core.categories.OptionalLists
 import com.sitrshield.core.gate.MutationKind
 
 /**
- * Category toggles. Adult + SafeSearch are always on — the product's
- * single purpose, rendered as fact, not as toggles. Disabling an
- * optional category is a loosening action (PIN-gated); enabling never
- * is. With a household, the household's list is the effective one.
+ * Filter switches. Adult, gambling, dating and SafeSearch are always on
+ * on Android, rendered as fact, not as toggles. Turning a switch off is
+ * a loosening action (PIN-gated); turning one on never is.
  */
 @Composable
 fun CategoriesScreen(ctx: UiCtx) {
-    val managed = ctx.app.managedPolicy()
-    val inHousehold = ctx.settings.household != null
-    val disabled = ctx.settings.household?.disabledCategories
-        ?: ctx.settings.disabledCategories
-
     Text("Filter categories", style = MaterialTheme.typography.headlineSmall)
     Spacer(Modifier.height(8.dp))
     Text(
-        "Adult content blocking and SafeSearch are always on — they are " +
-            "what Sitr is for.",
+        "Adult, gambling and dating blocking and SafeSearch are always on. " +
+            "No allow entry opens them.",
         style = MaterialTheme.typography.bodyMedium,
     )
-    Spacer(Modifier.height(12.dp))
-
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        for (category in Categories.TOGGLEABLE_CATEGORIES) {
-            val forced = category.rulesetId in managed.forcedCategories
-            val isOn = forced || category.rulesetId !in disabled
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column {
-                    Text(category.label, style = MaterialTheme.typography.bodyLarge)
-                    if (forced) {
-                        Text(
-                            "required by your organization",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
-                    }
-                }
-                Switch(
-                    checked = isOn,
-                    enabled = !forced,
-                    onCheckedChange = { checked ->
-                        val set: (Boolean) -> Unit = { off ->
-                            if (inHousehold) {
-                                ctx.actions.setHouseholdCategoryDisabled(
-                                    category.rulesetId, off,
-                                )
-                            } else {
-                                ctx.actions.setDeviceCategoryDisabled(
-                                    category.rulesetId, off,
-                                )
-                            }
-                        }
-                        if (checked) {
-                            // Tightening — never gated.
-                            ctx.attempt(MutationKind.ENABLE_CATEGORY, "") { set(false) }
-                        } else {
-                            ctx.attempt(
-                                MutationKind.DISABLE_CATEGORY,
-                                "Turn off ${category.label} blocking",
-                            ) { set(true) }
-                        }
-                    },
-                )
-            }
-        }
-    }
-
     Spacer(Modifier.height(20.dp))
     Text("Search results", style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(4.dp))
@@ -200,13 +151,15 @@ fun CategoriesScreen(ctx: UiCtx) {
         color = MaterialTheme.colorScheme.secondary,
     )
     Spacer(Modifier.height(6.dp))
-    // Facebook, Instagram and TikTok ban nudity and are built around their
-    // media, so they get no switch (threat-model T12) — say where to go.
+    ReelsSwitch(ctx)
+    Spacer(Modifier.height(6.dp))
+    // Instagram and TikTok ban nudity and are built around their media,
+    // so they get no switch (threat-model T12) — say where to go.
     Text(
-        "Facebook, Instagram and TikTok aren't filtered inside their apps: Sitr " +
-            "only sees site names. Use Instagram Teen Accounts, TikTok Family " +
-            "Pairing, or app limits in Google Family Link. Their websites can be " +
-            "blocked in Allow & block lists.",
+        "Instagram and TikTok aren't filtered inside their apps: Sitr only sees " +
+            "site names. Use Instagram Teen Accounts, TikTok Family Pairing, or " +
+            "app limits in Google Family Link. Their websites can be blocked in " +
+            "Allow & block lists.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.secondary,
     )
@@ -256,6 +209,76 @@ fun CategoriesScreen(ctx: UiCtx) {
 
     Spacer(Modifier.height(16.dp))
     TextButton(onClick = { ctx.navigate(Screen.HOME) }) { Text("Back") }
+}
+
+/**
+ * Reels blocking in the Facebook app, through Sitr's accessibility
+ * service. Turning it on shows the same disclosure as the child lock;
+ * only "I agree" turns it on. Turning it off is a loosening action.
+ */
+@Composable
+private fun ReelsSwitch(ctx: UiCtx) {
+    val context = LocalContext.current
+    val guard = remember(ctx.resumes) { ChildLock.isGuardServiceOn(context) }
+    var disclosure by remember { mutableStateOf(false) }
+    if (disclosure) {
+        AlertDialog(
+            onDismissRequest = { disclosure = false },
+            title = { Text(GUARD_DISCLOSURE_TITLE) },
+            // Scrolls: at large font sizes the whole disclosure must stay readable.
+            text = { Text(GUARD_DISCLOSURE, Modifier.verticalScroll(rememberScrollState())) },
+            confirmButton = {
+                TextButton(onClick = {
+                    disclosure = false
+                    // Through the gate like every other switch: a managed
+                    // lockOptions device must not change it.
+                    ctx.attempt(MutationKind.ENABLE_CATEGORY, "") {
+                        ctx.app.update { it.copy(reelsOff = true) }
+                        if (!ChildLock.isGuardServiceOn(context)) {
+                            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        }
+                    }
+                }) { Text("I agree") }
+            },
+            dismissButton = {
+                TextButton(onClick = { disclosure = false }) { Text("No thanks") }
+            },
+        )
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            "Block Reels in the Facebook app",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(
+            checked = ctx.settings.reelsOff,
+            onCheckedChange = { on ->
+                if (on) disclosure = true
+                else ctx.attempt(MutationKind.DISABLE_CATEGORY, "Turn off Reels blocking") {
+                    ctx.app.update { it.copy(reelsOff = false) }
+                }
+            },
+        )
+    }
+    if (ctx.settings.reelsOff && !guard) {
+        Text(
+            "Reels blocking is NOT on: Sitr's accessibility service is switched off.",
+            style = MaterialTheme.typography.bodySmall,
+            color = ProtectionRed,
+        )
+    }
+    Text(
+        "Closes the Reels tab and reels opened full screen. Reel previews in the " +
+            "feed stay visible. Facebook in a browser is not covered.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.secondary,
+    )
 }
 
 /** Under a switch whose list failed its checksum or is missing from the app. */

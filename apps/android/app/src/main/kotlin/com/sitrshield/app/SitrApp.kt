@@ -12,6 +12,7 @@ import com.sitrshield.app.data.Settings
 import com.sitrshield.app.managed.ManagedConfig
 import com.sitrshield.app.sync.SyncWorker
 import android.os.SystemClock
+import com.sitrshield.core.categories.Categories
 import com.sitrshield.core.categories.OptionalLists
 import com.sitrshield.core.gate.DelayClockReading
 import com.sitrshield.core.gate.Pause
@@ -176,33 +177,24 @@ class SitrApp : Application() {
 
     /**
      * Whether an allow entry for `domain` must be refused: the name or a
-     * parent of it is on the adult list. Fails closed — with the list
-     * unverified every name counts as listed (the filter does not run then
-     * either).
+     * parent of it is on the adult, gambling or dating list. Fails closed —
+     * with a list unverified every name counts as listed (the filter does
+     * not run then either).
      */
-    fun adultListed(domain: String): Boolean =
-        categorySets["adult"]?.let { DecisionSnapshot.covers(it, domain) } ?: true
+    fun alwaysBlocked(domain: String): Boolean =
+        Categories.ANDROID_ALWAYS_BLOCKED.any { id ->
+            categorySets[id]?.let { DecisionSnapshot.covers(it, domain) } ?: true
+        }
 
     private fun rebuildEngine(settings: Settings) {
         val managed = ManagedConfig.read(this)
-        // Household config wins over device-level toggles when joined;
-        // managed forcedCategories override both. Adult + SafeSearch are
-        // always on and not representable as "disabled".
-        val disabled = (settings.household?.disabledCategories
-            ?: settings.disabledCategories)
-            .filter { it !in managed.forcedCategories }
-        // Adult is its own layer, checked before every allow entry (no allow
-        // of any layer opens it); gambling and dating stay with the lists
-        // an allow entry still opens.
-        val enabledCategoryFiles = buildList {
-            if ("sitr_gambling" !in disabled) add("gambling")
-            if ("sitr_dating" !in disabled) add("dating")
-        }
-        // References only — no copy, however long the lists grow.
+        // Adult, gambling and dating are their own layer, checked before
+        // every allow entry (no allow of any layer opens them). Any
+        // disabledCategories in the household blob or settings are ignored
+        // here. References only — no copy, however long the lists grow.
         val staticBlock = buildList {
-            for (file in enabledCategoryFiles) categorySets[file]?.let { add(it) }
-            // Strict Search folds into the same static layer, so an allow
-            // entry can still override it like gambling or dating.
+            // Strict Search folds into the static layer, so an allow entry
+            // can still override it.
             if (settings.strictSearch) strictSearchSet?.let { add(it) }
             for (site in settings.mediaOff) mediaHosts[site]?.let { add(it) }
             addAll(OptionalLists.enabledSets(settings.optionalLists, optionalSets))
@@ -216,7 +208,7 @@ class SitrApp : Application() {
                 userAllow = settings.userAllow.toSet(),
                 userBlock = settings.userBlock.toSet(),
                 staticBlock = staticBlock,
-                alwaysBlock = listOfNotNull(categorySets["adult"]),
+                alwaysBlock = Categories.ANDROID_ALWAYS_BLOCKED.mapNotNull { categorySets[it] },
             ),
             safeSearchMap,
         )

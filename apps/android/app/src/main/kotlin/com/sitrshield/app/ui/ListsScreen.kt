@@ -45,8 +45,9 @@ fun ListsScreen(ctx: UiCtx) {
         "These lists apply on this device only and never leave it. " +
             "If a site is in both lists, the allow entry wins. " +
             "Household lists are managed on the Sitr Family screen. " +
-            "An allowed site opens even when a category blocks it, except " +
-            "sites on the adult list: those stay blocked.",
+            "An allowed site opens past Strict Search, a media switch or an " +
+            "optional list. It never opens a site on the adult, gambling " +
+            "or dating list.",
         style = MaterialTheme.typography.bodyMedium,
     )
     Spacer(Modifier.height(12.dp))
@@ -54,7 +55,7 @@ fun ListsScreen(ctx: UiCtx) {
     DomainListEditor(
         title = "Always allow these sites",
         domains = ctx.settings.userAllow,
-        refuse = ctx.app::adultListed,
+        refuse = ctx.app::alwaysBlocked,
         onAdd = { domain, done ->
             ctx.attempt(MutationKind.ADD_DEVICE_ALLOW_RULE, "Allow $domain") {
                 ctx.actions.addDeviceDomain(allow = true, domain = domain)

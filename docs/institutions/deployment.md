@@ -24,6 +24,12 @@ Managed policy can force filtering ON; it cannot observe browsing.
 | `managedAllowDomains` | string[] | Domains allowed org-wide (outranks household/device rules, not managed blocks; never opens an adult-listed site or switches SafeSearch off) |
 | `lockOptions` | boolean | Make the options page read-only |
 
+The Android app reads the same keys through Android's managed
+configuration, with one difference: gambling and dating are always on
+there. `forcedCategories` does not change filtering on Android, and
+`managedAllowDomains` does not open a site on the adult, gambling or
+dating list.
+
 There is no policy key for the opt-in lists (the violence list, and in
 the Android app and the iOS DNS filter the encrypted-DNS hosts list) or for "Wait before loosening":
 `forcedCategories` accepts only `sitr_gambling` and `sitr_dating`, so they

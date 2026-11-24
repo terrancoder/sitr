@@ -1,5 +1,6 @@
 package com.sitrshield.core
 
+import com.sitrshield.core.categories.Categories
 import com.sitrshield.core.dns.SafeSearchMap
 import com.sitrshield.core.domainset.DomainSet
 import com.sitrshield.core.rules.DecisionSnapshot
@@ -14,9 +15,10 @@ import kotlin.test.assertTrue
 
 /**
  * The owner's rule: no allow entry of any layer opens a name on the adult
- * list (R1); no allow entry switches SafeSearch off (R2); every other list
- * and the layer order stay as before (R3); the add screens refuse an
- * adult-listed allow entry (R4, the `covers` check).
+ * list (R1), and on Android not on the gambling or dating list either; no
+ * allow entry switches SafeSearch off (R2); every other list and the layer
+ * order stay as before (R3); the add screens refuse such an allow entry
+ * (R4, the `covers` check).
  */
 class AdultAllowTest {
     private fun set(vararg d: String) = DomainSet.of(d.toList()).getOrNull() ?: error("test set must be valid")
@@ -97,7 +99,7 @@ class AdultAllowTest {
         assertFalse(DecisionSnapshot.covers(adult, "notadult.example"))
         assertFalse(DecisionSnapshot.covers(adult, ""))
         assertEquals(
-            "This site is on the adult list and cannot be allowed. If it is listed by mistake, report it.",
+            "This site is on the adult, gambling or dating list and cannot be allowed. If it is listed by mistake, report it.",
             DecisionSnapshot.ADULT_ALLOW_REFUSAL,
         )
     }
@@ -108,18 +110,38 @@ class AdultAllowTest {
         val sums = JSONObject(File(dir, "checksums.json").readText())
         fun load(n: String) = DomainSet.load(File(dir, n).readBytes(), sums.getString(n)).getOrNull()!!
         val realAdult = load("adult.domains")
-        val realGambling = load("gambling.domains")
+        // Built the way SitrApp.rebuildEngine builds it on Android.
+        val always = Categories.ANDROID_ALWAYS_BLOCKED.map { load("$it.domains") }
         val s = DecisionSnapshot(
             userAllow = setOf("pornhub.com", "yoo7.com", "1xbet.com"),
-            staticBlock = listOf(realGambling),
-            alwaysBlock = listOf(realAdult),
+            alwaysBlock = always,
         )
         assertEquals(Verdict.BLOCK, s.decide("pornhub.com"))
         assertEquals(Verdict.BLOCK, s.decide("x9.pornhub.com"))
         assertEquals(Verdict.BLOCK, s.decide("2mateckn.yoo7.com")) // listed subdomain under an allowed parent
         assertEquals(Verdict.FORWARD, s.decide("yoo7.com"))
-        assertEquals(Verdict.FORWARD, s.decide("1xbet.com"))
+        assertEquals(Verdict.BLOCK, s.decide("1xbet.com"))
         assertTrue(DecisionSnapshot.covers(realAdult, "www.pornhub.com"))
         assertFalse(DecisionSnapshot.covers(realAdult, "yoo7.com"))
+    }
+
+    @Test
+    fun onAndroidNoAllowOpensGamblingOrDating() {
+        val dir = File(FixtureTest.fixturesDir.parentFile, "blocklists/android")
+        val sums = JSONObject(File(dir, "checksums.json").readText())
+        fun load(n: String) = DomainSet.load(File(dir, n).readBytes(), sums.getString(n)).getOrNull()!!
+        val always = Categories.ANDROID_ALWAYS_BLOCKED.map { load("$it.domains") }
+        val names = setOf("1xbet.com", "tinder.com")
+        for (s in listOf(
+            DecisionSnapshot(userAllow = names, alwaysBlock = always),
+            DecisionSnapshot(householdAllow = names, alwaysBlock = always),
+            DecisionSnapshot(managedAllow = names, alwaysBlock = always),
+        )) {
+            assertEquals(Verdict.BLOCK, s.decide("1xbet.com"))
+            assertEquals(Verdict.BLOCK, s.decide("www.1xbet.com"))
+            assertEquals(Verdict.BLOCK, s.decide("tinder.com"))
+        }
+        // The add screens refuse both (SitrApp.alwaysBlocked).
+        for (name in names) assertTrue(always.any { DecisionSnapshot.covers(it, name) })
     }
 }

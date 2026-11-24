@@ -22,7 +22,8 @@ The apps are new clients of the existing system, not a new system.
   the wire changes.
 - Gate semantics: the layer ladder (the adult list first, which no allow
   entry opens; then managed > household > device user > the other static
-  lists)
+  lists; Android also puts the gambling and dating lists first, with no
+  switch to turn them off)
   and the guardian PIN as **friction, not security** — except on an
   Android phone under the child lock, where it is the boundary
   ([threat-model.md](threat-model.md) T7, [child-lock.md](child-lock.md)). On Android, managed
@@ -226,7 +227,10 @@ T14.
 - A block rule (device, household, managed or category) is checked
   before the SafeSearch rewrite, so blocking a search engine's own domain
   works; an allow rule never switches SafeSearch off, and no allow rule
-  of any layer opens a name on the adult list.
+  of any layer opens a name on the adult, gambling or dating list. On
+  Android those three lists are always on and have no switch. In a mixed
+  household, a gambling or dating switch set on the extension or an
+  iPhone does not apply to Android.
 - Honest limitations: a fixed Private DNS hostname (a user-set DoT host)
   conflicts with Sitr. On the Android 15 and 16 devices tested, the phone
   could not look up any name while both were on; Sitr detects the setting
@@ -262,6 +266,15 @@ T14.
   managed lock, then the wait, then the PIN) and is not offered while
   "block connections without VPN" is on. iOS has no pause (what other
   apps see of the iOS DNS filter: T14).
+- "Block Reels in the Facebook app" (optional, off by default,
+  device-local) uses the accessibility service to leave Facebook's Reels
+  tab and reels opened full screen. DNS cannot do this, because Reels
+  shares Facebook's hostnames. Reel previews in the feed, Stories,
+  Facebook in a browser, Facebook Lite, Instagram and TikTok are not
+  covered, and the labels are known in English and Bengali only. Turning
+  it off is gated like other loosening changes. Privacy:
+  [reels-blocking-privacy.md](reels-blocking-privacy.md); threat model:
+  T12.
 - Android filters per user: Sitr in the main user does not cover a
   private space, work profile or second user, and cannot detect one.
 - Android's "block connections without VPN" lockdown is
@@ -289,9 +302,12 @@ adb shell dumpsys package com.sitrshield.sitr \
 ```
 
 Absent by design, and to stay that way: QUERY_ALL_PACKAGES, camera,
-location, storage, Device Admin. An Accessibility service exists only
-for the child lock and does nothing until a guardian turns it on
-([child-lock.md](child-lock.md)).
+location, storage, Device Admin. An Accessibility service ("Sitr
+guard") has two uses, each off until switched on in Sitr: the child lock,
+which a guardian turns on ([child-lock.md](child-lock.md)), and Reels
+blocking in the Facebook app, which the user turns on
+([reels-blocking-privacy.md](reels-blocking-privacy.md)). It reads no
+app other than Facebook and the system screens the child lock uses.
 
 ## Testing on a device
 

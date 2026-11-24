@@ -1,6 +1,6 @@
 # Sitr privacy policy
 
-*Effective: 2026-07-21; updated 2026-11-18. This policy covers the Sitr browser extension
+*Effective: 2026-07-21; updated 2026-11-22. This policy covers the Sitr browser extension
 (Chrome and Safari) and the Sitr apps for iOS, Android, and macOS. This file is the source of the published
 policy; the store listings, the Chrome data-safety form, the Google Play
 Data safety form, the Apple App Privacy labels, in-app text, website, and
@@ -63,6 +63,21 @@ and the mobile network reset — and closes them. That text is checked in memory
 never stored, logged or transmitted. The guardian can switch it off at
 any time with the PIN.
 
+**Android Reels blocking (optional, off by default).** If you turn on
+"Block Reels in the Facebook app" and agree to Sitr's disclosure, the
+same accessibility service reads the Facebook app's screen each time it
+changes, on the device, only to check whether it is Reels. This text can
+include posts, names and comments. If the Reels tab or a reel opened full
+screen is in front, Sitr switches Facebook to its Home tab or presses
+Back. The text stays in the phone's memory only while that one screen
+change is checked, then it is thrown away. Nothing is stored, logged or
+transmitted, and nothing is reported to anyone: there is no history and
+no counter. While the switch is off, Android sends Sitr nothing from
+Facebook. The accessibility service reads no app other than Facebook and
+the system screens the child lock uses. Reel previews in the feed stay
+visible, and Facebook in a browser is not covered. Explainer:
+[reels-blocking-privacy.md](reels-blocking-privacy.md).
+
 **iOS.** Filtering uses Safari content-blocker rules and, when you turn
 them on, Apple's Screen Time framework and Sitr's DNS filter. The content
 blocker and Screen Time apply rules on the device without reporting
@@ -98,7 +113,7 @@ labels mirror this policy exactly.
 
 Your settings: which optional categories you disabled, which opt-in lists
 you turned on (such as the violence list), whether you turned on the iOS
-DNS filter, which sites you personally
+DNS filter or Reels blocking (Android), which sites you personally
 allowed or blocked, and — if you use Sitr Family — your household's shared
 lists, its key material, and the guardian PIN (as a salted hash). If you
 turn on "Wait before loosening", Sitr also stores
@@ -106,8 +121,8 @@ the wait you chose and the time of any pending request. These stay in
 your browser's local extension storage — or, in the apps, in the app's
 private local storage — are never uploaded except as the encrypted
 household blob described above, and are deleted when you uninstall the
-extension or app. The opt-in lists, the DNS filter setting and the wait
-setting are not part of that blob: they are never sent to us. On iPhone and
+extension or app. The opt-in lists, the DNS filter setting, the Reels blocking
+setting and the wait setting are not part of that blob: they are never sent to us. On iPhone and
 iPad, iOS includes the app's settings (not the household's encryption key)
 in your own device backup, if you make one; the Android app opts out of
 device backups.

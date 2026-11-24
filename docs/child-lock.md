@@ -16,8 +16,11 @@ private space's settings (a new user, a guest or a private space has no
 Sitr, and a VPN filters only the user that started it). Deleting a
 private space stays possible. The
 phrase rules apply to the Settings app only; in an installer or the Play
-Store only Sitr's own name counts, and Android delivers the guard no
-window events from any other app. Wi-Fi stays usable. The "Network &
+Store only Sitr's own name counts. The child lock gets no window events
+from any other app; the one other app Android delivers to the same
+service is the Facebook app, only while Reels blocking is on, and the
+child lock never acts on it
+([reels-blocking-privacy.md](reels-blocking-privacy.md)). Wi-Fi stays usable. The "Network &
 internet" page stays open in the five languages, including the regional
 English wordings (for example UK English); in another language it closes
 when it shows Sitr's VPN row, and Wi-Fi is then reached from Quick
@@ -60,7 +63,7 @@ space), work profile and other users (Settings → System → Users).
 1. Set Sitr as the always-on VPN (leave "Block connections without VPN"
    off — Sitr's tunnel carries only DNS).
 2. Tap "Turn on accessibility guard", read the disclosure, tap "I agree"
-   (or "No thanks" to stop there), and switch on "Sitr child lock" in
+   (or "No thanks" to stop there), and switch on "Sitr guard" in
    Accessibility settings. On a phone where Sitr was not installed from
    the Play Store the switch may be greyed out: open Sitr's App info, tap
    ⋮ → "Allow restricted settings" first.
@@ -74,7 +77,9 @@ off, a child's phone leaves only with the guardian PIN.
 What the guard reads: the text and type of the window in front when it belongs to
 Settings, an installer, the Play Store or a system dialog, checked on the
 phone against a short list of screens (`GuardRules.kt`) and discarded at
-once. Nothing is stored or sent anywhere.
+once. Nothing is stored or sent anywhere. The same service also does
+Reels blocking in the Facebook app when the user turns that on; it is
+separate from the lock, and the lock does not need it.
 
 There is no Device Admin step. Play's Malware policy forbids using Device
 Admin to block uninstalling, so uninstalling is stopped only by the guard

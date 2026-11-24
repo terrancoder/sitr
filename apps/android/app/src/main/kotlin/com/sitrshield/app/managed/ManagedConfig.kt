@@ -38,6 +38,8 @@ object ManagedConfig {
                 .distinct()
                 .sorted()
 
+        // Still parsed (it marks the device as managed), but a no-op for
+        // filtering on Android: gambling and dating are always on here.
         val knownCategories = setOf("sitr_gambling", "sitr_dating")
         return ManagedPolicy(
             organizationName = restrictions.getString("organizationName")?.ifBlank { null },

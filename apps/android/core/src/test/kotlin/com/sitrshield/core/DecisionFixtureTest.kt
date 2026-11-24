@@ -16,8 +16,9 @@ import kotlin.test.assertTrue
  * order every platform must give. R1: no allow entry opens an adult-listed
  * name. R2: an allow entry never switches SafeSearch off. R3: the other
  * lists and the layer order as before. Replayed on NameAction.of with the
- * builder's split (SitrApp.rebuildEngine): the adult list in alwaysBlock,
- * the others in staticBlock.
+ * shared contract's split: the adult list in alwaysBlock, the others in
+ * staticBlock. Android's own builder (SitrApp.rebuildEngine) also puts
+ * gambling and dating in alwaysBlock; AdultAllowTest covers that.
  */
 class DecisionFixtureTest {
     private val fx = JSONObject(File(FixtureTest.fixturesDir, "decision.json").readText())

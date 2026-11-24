@@ -9,17 +9,32 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
 import com.sitrshield.app.SitrApp
 import com.sitrshield.core.lock.GuardRules
+import com.sitrshield.core.lock.REELS_APPS
+import com.sitrshield.core.lock.ReelsRules
 import com.sitrshield.core.lock.WindowClasses
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /**
- * Guard mode's enforcer. Reads the text of the window in front when it
- * belongs to Settings, an installer or a system dialog — on this device
- * only, never stored or sent anywhere — and closes it when
- * GuardRules says it is a way to switch Sitr off. Does nothing at all
- * unless a guardian armed the child lock.
+ * Sitr's accessibility service, with two separate uses. Screen text is
+ * read on this device only, never stored, logged or sent anywhere.
+ *  - Child lock: reads the window in front when it belongs to Settings,
+ *    an installer or a system dialog, and closes it when GuardRules says
+ *    it is a way to switch Sitr off. Does nothing unless a guardian armed
+ *    the lock.
+ *  - Reels blocking: while the user has it on, looks up the "Reel" labels
+ *    in the Facebook app and leaves Reels (ReelsRules). While it is off,
+ *    Android sends this service nothing from Facebook.
  */
 class GuardService : AccessibilityService() {
     private var lastActionAt = 0L
+    private var lastReelsLookupAt = 0L
+    private val reelsRecheck = Runnable { checkReels() }
+    private val scope = CoroutineScope(Dispatchers.Main.immediate)
 
     private val windowClasses = WindowClasses()
     private val handler = Handler(Looper.getMainLooper())
@@ -28,12 +43,27 @@ class GuardService : AccessibilityService() {
         rootInActiveWindow?.let { root -> root.packageName?.toString()?.let { check(it, null, root.windowId) } }
     }
 
-    /** From here on Android delivers only the watched apps' window events. */
+    /**
+     * From here on Android delivers only the watched apps' window events,
+     * plus Facebook's while Reels blocking is on. Immediate dispatch sets
+     * the list before this returns; the base set is never empty (empty
+     * would mean every app).
+     */
     override fun onServiceConnected() {
-        serviceInfo?.let {
-            it.packageNames = GuardRules.packages.toTypedArray()
-            serviceInfo = it
+        scope.launch {
+            (application as SitrApp).repository.settings.map { it.reelsOff }.distinctUntilChanged().collect { reels ->
+                serviceInfo?.let {
+                    it.packageNames = (GuardRules.packages + if (reels) REELS_APPS else emptySet()).toTypedArray()
+                    serviceInfo = it
+                }
+            }
         }
+    }
+
+    override fun onDestroy() {
+        handler.removeCallbacks(reelsRecheck)
+        scope.cancel()
+        super.onDestroy()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
@@ -43,7 +73,51 @@ class GuardService : AccessibilityService() {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             windowClasses.opened(event.windowId, event.className?.toString())
         }
-        check(pkg, event.text, event.windowId)
+        if (pkg in REELS_APPS) checkReels() else check(pkg, event.text, event.windowId)
+    }
+
+    /**
+     * Leave Facebook's Reels tab or reel player. Gated on Reels blocking,
+     * not on the child lock. One targeted lookup instead of a tree walk
+     * (a walk of Facebook took ~240 ms), at most every 250 ms.
+     */
+    private fun checkReels() {
+        if (!(application as SitrApp).repository.current().reelsOff) return
+        val now = SystemClock.uptimeMillis()
+        handler.removeCallbacks(reelsRecheck)
+        if (now - lastActionAt < 500 || now - lastReelsLookupAt < 250) {
+            // Look once more after the quiet period: the skipped event may
+            // have been the last one before the screen settled on a reel.
+            handler.postDelayed(reelsRecheck, 500)
+            return
+        }
+        lastReelsLookupAt = now
+        val root = rootInActiveWindow ?: return
+        if (root.packageName?.toString() !in REELS_APPS) return
+        val windowClass = windowClasses.of(root.windowId)
+        val found = ReelsRules.lookups(windowClass).flatMap { root.findAccessibilityNodeInfosByText(it) }
+        val nodes = found.map {
+            ReelsRules.Node(it.className?.toString(), it.contentDescription?.toString(), it.isSelected)
+        }
+        when (ReelsRules.decide(windowClass, nodes)) {
+            ReelsRules.Action.NONE -> return
+            ReelsRules.Action.BACK -> performGlobalAction(GLOBAL_ACTION_BACK)
+            ReelsRules.Action.FIRST_TAB -> {
+                // The first tab is Home. Facebook's tab bar shares its parent
+                // with the pager, so take the first sibling that is a tab.
+                val tab = found.first { it.isSelected && it.className?.toString() == ReelsRules.TAB_CLASS }
+                val first = tab.parent?.let { p ->
+                    (0 until p.childCount).firstNotNullOfOrNull { i ->
+                        p.getChild(i)?.takeIf { it.className?.toString() == ReelsRules.TAB_CLASS }
+                    }
+                }
+                if (first?.performAction(AccessibilityNodeInfo.ACTION_CLICK) != true) return
+            }
+        }
+        // From after the action: a lookup in the reel player can take
+        // hundreds of ms, and a second Back would leave the feed too.
+        lastActionAt = SystemClock.uptimeMillis()
+        Toast.makeText(this, "Reels are off in Sitr", Toast.LENGTH_SHORT).show()
     }
 
     /** Close the window in front if it is a way to switch Sitr off. */

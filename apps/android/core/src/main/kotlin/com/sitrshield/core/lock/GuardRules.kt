@@ -209,7 +209,11 @@ object GuardRules {
         "com.android.settings.privatespace.PrivateSpaceAuthenticationActivity",
     )
 
-    /** Every app whose windows the guard may read — the service asks Android for these alone. */
+    /**
+     * Every app whose windows the child lock may read. The service asks
+     * Android for these alone, plus REELS_APPS while Reels blocking is on
+     * (ReelsRules); the child lock never reads those.
+     */
     val packages: Set<String> get() = WATCHED + VPN_DIALOGS
 
     /** Whether any window of [packageName] can be closed; nothing else is read. */
