@@ -165,7 +165,7 @@ child lock").
 |---|---|
 | Why does your app need the Accessibility Services API? | **App functionality** only |
 | Do you collect and/or share personal or sensitive data using the accessibility capabilities? | **No**. Window text, and for Reels blocking the Facebook app's screen items, is processed in memory on the device and discarded; nothing is stored and nothing leaves the phone. Must match Data safety and the privacy policy |
-| Video link | **A new video is needed for 0.3.0** (script below), recorded last, on the final build. Superseded record: `assets/video/sitr-accessibility-review.mp4` (gitignored; re-recorded 2026-11-11 on the `sitr-video` emulator with the 0.2.2 release build, whose disclosure names the Private DNS dialog, private space setup and the other settings pages that show Sitr's name; 1:47, captions burned in. Script, step times and captions are in `build/review-video/a11y-0.2.2/`. Older videos are kept as `sitr-accessibility-review-0.2.1.mp4` and `-0.2.0.mp4`). It shows the old disclosure and the old service name, so it no longer matches the app |
+| Video link | **Recorded 2026-11-24 for 0.3.0 (versionCode 10)**: `assets/video/sitr-accessibility-review.mp4` (gitignored; 2:24, 720 × 1770, no sound, captions burned in; what it shows is listed under "Video for 0.3.0" below; script, step times and captions in `build/review-video/a11y-0.3.0-vc10/`). Upload it unlisted and paste the link. The versionCode 8 video is kept as `sitr-accessibility-review-0.3.0-vc8.mp4`. Older record: `assets/video/sitr-accessibility-review.mp4` (gitignored; re-recorded 2026-11-11 on the `sitr-video` emulator with the 0.2.2 release build, whose disclosure names the Private DNS dialog, private space setup and the other settings pages that show Sitr's name; 1:47, captions burned in. Script, step times and captions are in `build/review-video/a11y-0.2.2/`. Older videos are kept as `sitr-accessibility-review-0.2.1.mp4` and `-0.2.0.mp4`). |
 
 Description wording if asked: "Sitr is a content filter and parental
 control. Its accessibility service has two separate uses, each off until
@@ -194,38 +194,45 @@ The app's disclosure dialog, word for word, is `GUARD_DISCLOSURE` in
 `apps/android/app/src/main/kotlin/com/sitrshield/app/ui/ChildLockScreen.kt`
 (also quoted in docs/reels-blocking-privacy.md).
 
-Before recording: re-read on screen Play's sentence that the
-accessibility disclosure "cannot be included with other disclosures
-pertaining to personal or sensitive data collection". Sitr shows one
-dialog for the two uses of the same service, read here as allowed. If the
-policy page forbids that, the fallback is a separate Reels-only dialog (a
-code change).
+Play's disclosure rule, re-read on 2026-11-24 (answer/10964491): the
+disclosure "Cannot be included with other disclosures pertaining to
+personal or sensitive data collection", and "should be a separate
+disclosure indicating why the app requires the AccessibilityService API
+and any potential use cases". The page does not say that each use needs
+its own dialog. Sitr shows one dialog, about the accessibility service
+only, covering its two uses; this is read as allowed. If a reviewer
+objects, the fallback is a separate Reels-only dialog (a code change).
 
-**Video for 0.3.0 (required parts, per answer/10964491)**: record last,
-on the final release build, on a device with the Facebook app installed
-and signed in to a test account (no personal posts or names on screen),
-captions on, about 2 minutes:
-1. Open Sitr on the device. The accessibility service is off.
-2. Filter categories → switch "Block Reels in the Facebook app" → the
-   disclosure dialog, shown whole (scroll it slowly).
-3. Decline: tap "No thanks". The switch stays off and nothing opens.
-4. Consent: switch it again → "I agree" → Accessibility settings → "Sitr
-   guard" with its description → switch on → Allow.
-5. Reels: open the Facebook app → tap the Reels tab: Facebook returns to
-   Home with the toast "Reels are off in Sitr". Open a reel from the feed:
-   Sitr presses Back, same toast. Show that the feed, Friends and
-   Marketplace stay open.
-6. Child lock: back in Sitr, Home → Child lock (household with a PIN
-   already set; step 1, always-on VPN, set off camera; step 2 is already
-   on, because the service is the same) → "Lock this phone", then long-press the Sitr icon → App info, and again
-   → Uninstall: each closes at once with "Locked by Sitr — ask your
-   guardian." Then open the lock with the PIN. (Don't go through
-   Settings → Apps: that whole page closes because Sitr is listed under
-   Recent apps, which looks like a crash on video.)
+**Video for 0.3.0 (recorded 2026-11-24)**: the five parts Play's page
+asks for, with captions, 2 minutes 24 seconds. Recorded on the
+`sitr-video` emulator with the versionCode 10 release build, in a test
+household set up off camera; the Reels part was recorded on a phone that
+has the Facebook app, with a test install of the same Sitr version (the
+same commit under another app id), because the emulator has no Facebook.
+1. Open Sitr from the home screen. The accessibility service is off.
+2. Filter categories → the switch "Block Reels in the Facebook app" → the
+   disclosure dialog, shown whole and scrolled slowly (35 seconds).
+3. Decline: "No thanks". The switch stays off and nothing opens.
+4. The switch again: the same disclosure appears again → "I agree" →
+   Android's Accessibility settings → "Sitr guard" with its description →
+   switched on → Android's own dialog → Allow. Back in Sitr the switch is
+   on.
+5. Reels blocking in use, on the phone: Sitr's switch on; then the
+   Facebook app, where the Reels tab is tapped twice and each time
+   Facebook returns to Home with "Reels are off in Sitr"; Marketplace,
+   Friends and Home stay open. The owner's feed is blacked out: only
+   Facebook's tab bar and Sitr's message are visible, and a card on screen
+   says so.
+6. Child lock in use, on the emulator: both steps on → "Lock this phone" →
+   Sitr's App info opens and is closed with "Locked by Sitr — ask your
+   guardian."; the uninstall prompt is closed the same way; then the lock
+   is opened with the guardian PIN (the app masks the digits).
 
-The child lock and Reels blocking on together, with Facebook in front,
-is not yet verified on a device; check it before recording. If the use changes later, Play
-requires submitting this form again; it has changed in 0.3.0 (above).
+Not in the video: a reel opened from the feed (it would show a real
+person's reel from the owner's account). The child lock and Reels
+blocking on together, with Facebook in front, were checked on a phone on
+2026-11-24. If the use changes later, Play requires submitting this form
+again; it has changed in 0.3.0 (above).
 
 ## Data safety form
 
@@ -316,9 +323,12 @@ cached Chrome for Testing in headless mode at the exact pixel size):
   emulator captures are in `raw/`; they are 9:20, outside Play's 16:9–9:16
   limit, hence the framing): Home active, blocked site in Chrome,
   Filter categories, VPN disclosure onboarding, Sitr Family.
-  **Retake the Filter categories screenshot for 0.3.0**: the gambling and
-  dating switches are gone and the "Block Reels in the Facebook app"
-  switch is new.
+  **Filter categories was retaken on 2026-11-24** from the 0.3.0
+  (versionCode 10) release build: the gambling and dating switches are
+  gone and the "Block Reels in the Facebook app" switch is in the picture.
+  The Home screenshot (`screenshot-1.png`) is from an older build: the
+  app now also shows a padlock, a "Pause" button and a "Child lock"
+  button there. It has not been retaken.
 - The promo video's claims still hold (checked frame by frame 2026-10-18;
   it never mentions accessibility). The separate 16:9 demo
   (`video/demo/`) said "No accessibility service"; that line was removed
