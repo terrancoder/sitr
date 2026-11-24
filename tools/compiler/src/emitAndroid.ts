@@ -74,10 +74,17 @@ export function safesearchHostsMap(): SafeSearchHostsMap {
         fallback: { a: [], aaaa: [] },
       },
       // YouTube: Restricted Mode via the documented restrict.youtube.com VIP.
+      // music.youtube.com is not on Google's documented list; the VIP
+      // serves it restricted (checked 2026-11-24), and the extension's
+      // header rule already covers it. Being undocumented, Google could stop
+      // serving it there (the site then fails to load) or stop restricting
+      // it there (silently unrestricted); nothing would tell us. Re-check
+      // with a search on music.youtube.com through the VIP.
       {
         match: [
           "www.youtube.com",
           "m.youtube.com",
+          "music.youtube.com",
           "youtubei.googleapis.com",
           "youtube.googleapis.com",
           "www.youtube-nocookie.com",

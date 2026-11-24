@@ -40,6 +40,7 @@ safe.duckduckgo.com
 youtube.com
 www.youtube.com
 m.youtube.com
+music.youtube.com
 restrict.youtube.com
 restrictmoderate.youtube.com
 youtube-nocookie.com

@@ -81,6 +81,12 @@ class ArtifactsTest {
             "restrict.youtube.com",
             assertNotNull(map.ruleFor("m.youtube.com")).target,
         )
+        // Parity with the extension's header rule, which covers every
+        // youtube.com subdomain: YouTube Music must be restricted too.
+        assertEquals(
+            "restrict.youtube.com",
+            assertNotNull(map.ruleFor("music.youtube.com")).target,
+        )
 
         // Google ccTLD wildcard: 1–2 trailing labels.
         assertEquals(
