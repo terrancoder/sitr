@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.sitrshield.app.HouseholdActions
 import com.sitrshield.app.R
 import com.sitrshield.app.Screen
 import com.sitrshield.app.UiCtx
@@ -335,6 +336,26 @@ fun HomeScreen(ctx: UiCtx) {
                 warning = true,
             )
         }
+    } else if (ctx.actions.lockPending(ctx.settings)) {
+        Spacer(Modifier.height(12.dp))
+        NavCard(
+            R.drawable.ic_warning,
+            "Lock requested",
+            HouseholdActions.LOCK_PENDING,
+            onClick = { ctx.navigate(Screen.CHILD_LOCK) },
+            warning = true,
+        )
+    } else if (ctx.settings.role == "child") {
+        // A child's phone with the accessibility guard on but never locked
+        // looked protected (tester feedback 2026-11-26): say it isn't.
+        Spacer(Modifier.height(12.dp))
+        NavCard(
+            R.drawable.ic_warning,
+            "Child lock is off",
+            "Sitr can be switched off or uninstalled on this phone. Open Child lock to lock it.",
+            onClick = { ctx.navigate(Screen.CHILD_LOCK) },
+            warning = true,
+        )
     }
 
     val managed = ctx.app.managedPolicy()

@@ -29,6 +29,8 @@ data class HouseholdState(
     val disabledCategories: List<String> = emptyList(),
     val pin: PinRecord? = null,
     val childLockOptions: Boolean = true,
+    /** `policy.child`: guardian-set settings for child phones (ChildPolicy). */
+    val child: ChildPolicy? = null,
 )
 
 object Household {
@@ -158,6 +160,7 @@ object Household {
                 disabledCategories = Categories.sanitizeDisabled(asList(o.opt("disabledCategories"))),
                 pin = sanitizePinRecord(o.opt("pin")),
                 childLockOptions = childLockOptions,
+                child = ChildPolicy.sanitize(policy?.opt("child")),
             )
         )
     }
@@ -219,7 +222,7 @@ object Household {
         if (s.devices.size >= MAX_HOUSEHOLD_DEVICES) {
             return SitrResult.Err(
                 "household already has $MAX_HOUSEHOLD_DEVICES devices (fair-use limit) — " +
-                    "refresh the device list from a guardian device"
+                    "reset the device list from a guardian device"
             )
         }
         return SitrResult.Ok(bumpRev(s.copy(devices = (s.devices + deviceId).sorted()), deviceId, now))
@@ -251,7 +254,13 @@ object Household {
                     .put("hashB64", pin.hashB64)
             )
         }
-        o.put("policy", JSONObject().put("childLockOptions", s.childLockOptions))
+        o.put(
+            "policy",
+            JSONObject().put("childLockOptions", s.childLockOptions).apply {
+                // Only when set: an unused feature serializes as before (fixtures).
+                s.child?.let { put("child", ChildPolicy.toJSONObject(it)) }
+            },
+        )
         return o
     }
 

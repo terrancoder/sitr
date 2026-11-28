@@ -77,7 +77,8 @@ fun ListsScreen(ctx: UiCtx) {
             "Household lists are managed on the Sitr Family screen. " +
             "An allowed site opens past Strict Search, a media switch or an " +
             "optional list. It never opens a site on the adult, gambling " +
-            "or dating list.",
+            "or dating list. A site that is already open may keep working " +
+            "until its tab is closed or has been idle for a minute or two.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

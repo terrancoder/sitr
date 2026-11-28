@@ -75,6 +75,14 @@ object PinAttemptsStore {
  */
 val PinKeyboard = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false)
 
+/**
+ * The title of the PIN change. Its dialog names the PIN it wants: "Enter
+ * the guardian PIN" right after typing a new one read as "type it again".
+ * Keyed by title, not kind: refreshing the device list is gated as a PIN
+ * change too (Gate.REFRESH_DEVICE_LIST_GATED_AS) and keeps the plain line.
+ */
+const val CHANGE_PIN_TITLE = "Change the guardian PIN"
+
 @Composable
 fun PinDialog(
     context: Context,
@@ -94,7 +102,12 @@ fun PinDialog(
         title = { Text(title) },
         text = {
             Column {
-                Text("Enter the guardian PIN.")
+                Text(
+                    if (title == CHANGE_PIN_TITLE)
+                        "Enter your current (old) guardian PIN to confirm the change."
+                    else
+                        "Enter the guardian PIN.",
+                )
                 OutlinedTextField(
                     value = pin,
                     onValueChange = { pin = it },

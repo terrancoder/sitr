@@ -51,6 +51,10 @@ fun CategoriesScreen(ctx: UiCtx) {
 
     ScreenTitle("Filter categories")
     Spacer(Modifier.height(14.dp))
+    if (ctx.settings.role == "child") {
+        Note("Your guardian can set these from their phone. A change there replaces the switches below.")
+        Spacer(Modifier.height(14.dp))
+    }
     // Fact, not a toggle: drawn as a locked, green-edged card.
     SitrCard(borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

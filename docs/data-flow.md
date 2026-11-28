@@ -49,7 +49,8 @@ Android: `SyncHttp.kt`. All three send only GET and PUT, and none
 deletes the server blob; iOS is join-only. When a device leaves a
 household it sends one more PUT of the household's state without its
 own entry, so the other devices stop listing it (if the server cannot be
-reached, its place stays taken). A device that joined but never received
+reached, its place stays taken; Android tries up to four times over
+about 15 seconds). A device that joined but never received
 the household sends nothing, neither on leaving nor when the server has
 no household for its code. A guardian's "Refresh device list" is
 an ordinary PUT that sets the list to that device alone; every device
@@ -170,8 +171,9 @@ T14).
 ### Android child lock (on-device only)
 
 Guard mode's accessibility service reads the text of the foreground
-window, only when it belongs to Settings, an installer, the Play Store
-or a system dialog, to match it against a fixed list of screens that would switch
+window, only when it belongs to Settings, an installer, the Play Store,
+a system dialog or, on Xiaomi phones, the Second space and Dual apps
+screens, to match it against a fixed list of screens that would switch
 Sitr off (`GuardRules.kt`), and closes a match. The text is checked in
 memory and discarded; nothing is stored, logged or sent. The child lock
 acts only after a guardian turns it on. See [child-lock.md](child-lock.md).
@@ -204,8 +206,9 @@ default, free, and set by the user after Sitr's disclosure dialog.
   events the service holds in memory only the id and class name of the
   last window that opened (for example Facebook's full-screen reel
   window), replaced by the next one and gone when the service stops.
-- **Setting.** `reelsOff` in the app-private preferences, device-local,
-  never in the household blob (table below).
+- **Setting.** `reelsOff` in the app-private preferences, device-local
+  (table below). On a child phone in a household, a guardian's setting from
+  the household blob (`policy.child`) replaces it when the guardian changes it.
 
 Explainer and limits: [reels-blocking-privacy.md](reels-blocking-privacy.md);
 threat model: [threat-model.md](threat-model.md) T12.
@@ -317,12 +320,12 @@ Planned local items, with the same retention rules as the table below:
 | Protection status | `storage.local` | `active` / `inactive` + missing ruleset ids | overwritten on every check |
 | Category preferences | `storage.local` | which optional categories are disabled | until changed by the user |
 | Media filtering mode | `storage.local` | `off` / `greylist` / `allowlist` — the T12 image+media layer | until changed by the user |
-| Opt-in lists | `storage.local` (`enabledOptionalLists`) | which off-by-default lists the user turned on (`sitr_violence`; the Android app and the iOS DNS filter also have the encrypted-DNS hosts list). Device-local: never in the household blob | until changed by the user |
-| Reels blocking (Android) | app-private preferences (`reelsOff`) | boolean: whether "Block Reels in the Facebook app" is on. Device-local: never in the household blob | until changed by the user |
+| Opt-in lists | `storage.local` (`enabledOptionalLists`) | which off-by-default lists the user turned on (`sitr_violence`; the Android app and the iOS DNS filter also have the encrypted-DNS hosts list). Device-local; on an Android child phone, replaced by the guardian's choice from the household blob (`policy.child`) when the guardian changes it | until changed by the user |
+| Reels blocking (Android) | app-private preferences (`reelsOff`) | boolean: whether "Block Reels in the Facebook app" is on. Device-local; on a child phone, replaced by the guardian's choice from the household blob (`policy.child`) when the guardian changes it | until changed by the user |
 | Wait before loosening | `storage.local` (`loosenDelayMinutes`, `loosenDelayRequest`) | the chosen wait (0, 5, 30, 60, 360 or 1440 minutes) and the time of a pending request — in the apps, a reading of two clocks. Device-local: never in the household blob. All three platforms | until changed or the request ends |
 | Per-site allow/deny | DNR dynamic rules | domains the user chose | until removed by the user |
 | Image allowlist | DNR dynamic rules | sites whose images stay visible in allowlist-only mode | until removed by the user |
-| Household state | `storage.local` + DNR dynamic rules | shared allow/block lists, category config, guardian PIN hash | until the device leaves the household |
+| Household state | `storage.local` + DNR dynamic rules | shared allow/block lists, category config, guardian PIN hash; on Android also the guardian's settings for child phones and lock requests with the device ids that confirmed them (`policy.child`), and each phone's last copy of them | until the device leaves the household |
 | Household root secret | `storage.local` | the key material syncing is derived from — never sent anywhere | until the device leaves the household |
 | Guardian PIN | `storage.local` | salted PBKDF2 hash + failed-attempt counter | until changed/removed |
 | Sync status | `storage.local` | last sync result, shown on the options page | overwritten each sync |
@@ -358,5 +361,8 @@ The iOS DNS filter logs nothing in Release builds (iOS itself logs its
 own VPN connect and disconnect lines). Debug builds write the tunnel's
 state changes and the resolver addresses it learned to the device's
 system log (subsystem `com.sitrshield.sitr.tunnel`), never a query name.
+The Android app logs nothing in release builds. Debug builds write one
+line per attempt to take the device off a household's list on leaving
+(tag `Sitr`): the outcome and the error text, no identifier.
 The sync server logs nothing per-request (see
 [`server/sync/README.md`](../server/sync/README.md)).

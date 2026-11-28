@@ -15,6 +15,8 @@ dependencies {
     // of the APK; tests run on the JVM and supply it themselves.
     compileOnly(libs.orgjson)
     testImplementation(libs.orgjson)
+    // Decodes the QR encoder's output in QrCodeTest; never in the APK.
+    testImplementation(libs.zxing.core)
     testImplementation(kotlin("test"))
 }
 

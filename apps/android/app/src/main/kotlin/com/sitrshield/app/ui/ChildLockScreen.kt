@@ -3,8 +3,10 @@ package com.sitrshield.app.ui
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -37,6 +40,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.sitrshield.app.HouseholdActions
 import com.sitrshield.app.R
 import com.sitrshield.app.Screen
 import com.sitrshield.app.UiCtx
@@ -62,6 +66,8 @@ fun ChildLockScreen(ctx: UiCtx) {
     // the parent comes back from Settings. A start to the running service
     // re-reads it.
     LaunchedEffect(ctx.resumes) { if (facts.tunActive) SitrVpnService.start(context) }
+    // A pending guardian lock request, checked again once that re-read lands.
+    LaunchedEffect(facts.alwaysOn, facts.tunActive, guard) { ctx.actions.refreshChildPolicy() }
     // The fact outlives a stopped VPN; stopped means not protected.
     val alwaysOn = facts.alwaysOn.takeIf { facts.tunActive }
     val hasPin = ctx.settings.household?.pin != null
@@ -78,6 +84,14 @@ fun ChildLockScreen(ctx: UiCtx) {
 
     ScreenTitle("Child lock")
     Spacer(Modifier.height(14.dp))
+    // A guardian's lock request from their phone, waiting for steps 1 and 2.
+    if (!ctx.settings.childLock && ctx.actions.lockPending(ctx.settings)) {
+        SitrCard(borderColor = ProtectionRed.copy(alpha = 0.45f)) {
+            CardTitle("Lock requested")
+            Text(HouseholdActions.LOCK_PENDING, style = MaterialTheme.typography.bodyMedium)
+        }
+        Spacer(Modifier.height(14.dp))
+    }
 
     when {
         ctx.settings.childLock -> {
@@ -106,6 +120,16 @@ fun ChildLockScreen(ctx: UiCtx) {
                 Column {
                     LockRow("Accessibility guard", guard, onHero = content)
                     LockRow("Always-on VPN", alwaysOn, onHero = content)
+                }
+                // A lock armed on the guardian's own phone by mistake must
+                // be noticed (tester feedback 2026-11-26).
+                if (ctx.settings.role == "guardian") {
+                    Text(
+                        "This guardian phone is locked. To lock your child's phone, " +
+                            "turn this off and set the lock up in Sitr on the child's phone.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                    )
                 }
             }
 
@@ -183,6 +207,7 @@ private val CLOSED_SCREENS = listOf(
     "Developer options",
     "Adding users",
     "Setting up or opening a private space",
+    "Second space and Dual apps (Xiaomi)",
     "The Private DNS dialog",
     "The mobile network reset",
 )
@@ -205,7 +230,7 @@ private val NOT_COVERED = listOf(
 
 /** One line of a list inside a card: a small mark, then the text. */
 @Composable
-private fun BulletLine(icon: Int, text: String, tint: Color) {
+private fun BulletLine(icon: Int, text: String, tint: Color, bold: Boolean = false) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Icon(
             painterResource(icon),
@@ -215,7 +240,11 @@ private fun BulletLine(icon: Int, text: String, tint: Color) {
                 .padding(top = 1.dp)
                 .size(18.dp),
         )
-        Text(text, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (bold) FontWeight.Medium else null,
+        )
     }
 }
 
@@ -235,12 +264,14 @@ internal const val GUARD_DISCLOSURE =
         "Facebook in a browser is not covered.\n\n" +
         "Child lock (set by a guardian). While a guardian has the lock on, Sitr " +
         "reads the text and type of the window in front of you when it is " +
-        "Settings, an app installer, the Play Store or a system dialog, to " +
+        "Settings, an app installer, the Play Store, a system dialog or, on " +
+        "Xiaomi phones, the Second space and Dual apps screens, to " +
         "recognise the screens that would switch Sitr off: its app info and " +
         "other settings pages that show Sitr's name, uninstalling, its VPN and " +
         "accessibility settings, the VPN disconnect dialog, Developer options, " +
-        "adding users, setting up or opening a private space, the Private DNS " +
-        "dialog and the mobile network reset. It closes them. The lock opens " +
+        "adding users, setting up or opening a private space, Second space and " +
+        "Dual apps (Xiaomi), the Private DNS dialog and the mobile network " +
+        "reset. It closes them. The lock opens " +
         "only with the guardian PIN. Sitr filters only this phone's main user: " +
         "a private space, work profile or other user that already exists is " +
         "not filtered, so remove it before you lock the phone.\n\n" +
@@ -279,62 +310,187 @@ private fun GuardSetup(ctx: UiCtx, guard: Boolean, alwaysOn: Boolean?) {
             },
         )
     }
+    // Unknown is accepted only before Android 10, which can't report it;
+    // later, unknown means the filter isn't running.
+    val ready = ChildLock.isReady(guard, alwaysOn, hasPin = true)
+    val guardianPhone = ctx.settings.role == "guardian"
+    var confirmLock by remember { mutableStateOf(false) }
+
+    fun lock() {
+        // Start from clean Settings tasks when the lock is armed:
+        // restart both, then come back here.
+        val fresh = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { back ->
+            runCatching {
+                context.startActivities(
+                    arrayOf(
+                        Intent(Settings.ACTION_SETTINGS).addFlags(fresh),
+                        Intent(Settings.ACTION_VPN_SETTINGS).addFlags(fresh),
+                        back,
+                    ),
+                )
+            }
+        }
+        ctx.app.update { it.copy(childLock = true) }
+    }
+
+    // A guardian who arms the lock on their own phone locks the wrong
+    // phone (tester feedback 2026-11-26): ask first. A child's phone
+    // locks straight away.
+    if (confirmLock) {
+        AlertDialog(
+            onDismissRequest = { confirmLock = false },
+            title = { Text("Lock this phone?") },
+            text = {
+                Text(
+                    "This is a guardian device. The child lock locks the phone it is " +
+                        "turned on on, so Sitr can't be switched off or uninstalled on " +
+                        "this phone until the guardian PIN opens it.\n\nTo lock your " +
+                        "child's phone, open Sitr on the child's phone and do these steps there.",
+                    Modifier.verticalScroll(rememberScrollState()),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmLock = false
+                    lock()
+                }) { Text("Lock") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmLock = false }) { Text("Cancel") }
+            },
+        )
+    }
+
     SitrCard {
         CardTitle("Guard mode — any phone, no reset")
+        if (guardianPhone) {
+            BulletLine(
+                R.drawable.ic_info,
+                "This is a guardian phone. The child lock locks the phone it is set " +
+                    "up on: this one. To lock your child's phone, open Sitr on the " +
+                    "child's phone and do these steps there.",
+                MaterialTheme.colorScheme.primary,
+                bold = true,
+            )
+        }
         Text(
-            "Guard mode closes the screens that would switch Sitr off, so " +
-                "protection stays on until the guardian PIN opens the lock. " +
-                "It takes two steps.\n\n" +
-                "First remove any private space, work profile or other user " +
-                "on this phone (Settings → Security & privacy → Private " +
-                "space, Settings → System → Users): Sitr filters only the " +
-                "main user, and a private space that already exists can " +
-                "still be opened from the apps list while the lock is on.",
+            "Guard mode closes the screens that would switch Sitr off, until the " +
+                "guardian PIN opens the lock. Three steps, in this order.",
             style = MaterialTheme.typography.bodyMedium,
         )
+        Note(
+            "Before you start, remove any private space, work profile or other " +
+                "user (Settings → Security & privacy → Private space, Settings → " +
+                "System → Users). Sitr doesn't filter them, and they stay open while " +
+                "the lock is on.",
+        )
 
+        RowDivider()
         LockRow("1. Always-on VPN", alwaysOn)
-        Text(
-            "Set Sitr as the always-on VPN so no other VPN app can take its " +
-                "place. Leave \"Block connections without VPN\" off.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        OutlinedButton(onClick = {
-            context.startActivity(Intent(Settings.ACTION_VPN_SETTINGS))
-        }) { Text("Open VPN settings") }
-
-        LockRow("2. Accessibility guard", guard)
-        Text(
-            "In the list, open \"Sitr guard\" and switch it on. If the " +
-                "switch is greyed out, open Sitr's App info, tap ⋮ and " +
-                "\"Allow restricted settings\" first.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        OutlinedButton(onClick = { disclosure = true }) {
-            Text("Turn on accessibility guard")
+        if (alwaysOn != true) {
+            Note("So no other VPN app can take Sitr's place. After you tap the button:")
+            GuideStep('a', "In the VPN list, tap the gear next to Sitr.", "Sitr", MockEnd.GEAR)
+            GuideStep('b', "Switch on \"Always-on VPN\".", "Always-on VPN", MockEnd.SWITCH_ON)
+            GuideStep(
+                'c',
+                "Leave \"Block connections without VPN\" off.",
+                "Block connections without VPN",
+                MockEnd.SWITCH_OFF,
+                tap = false,
+            )
+            OutlinedButton(onClick = {
+                context.startActivity(Intent(Settings.ACTION_VPN_SETTINGS))
+            }) { Text("Open VPN settings") }
         }
 
-        Button(
-            // Unknown is accepted only before Android 10, which can't
-            // report it; later, unknown means the filter isn't running.
-            enabled = guard && (alwaysOn ?: (Build.VERSION.SDK_INT < 29)),
-            onClick = {
-                // Start from clean Settings tasks when the lock is armed:
-                // restart both, then come back here.
-                val fresh = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { back ->
-                    runCatching {
-                        context.startActivities(
-                            arrayOf(
-                                Intent(Settings.ACTION_SETTINGS).addFlags(fresh),
-                                Intent(Settings.ACTION_VPN_SETTINGS).addFlags(fresh),
-                                back,
-                            ),
-                        )
-                    }
+        RowDivider()
+        LockRow("2. Accessibility guard", guard)
+        if (!guard) {
+            Note(
+                "Tap the button, read the notice and tap \"I agree\". Then, in " +
+                    "Accessibility settings:",
+            )
+            GuideStep(
+                'a',
+                "Open \"Downloaded apps\" (on some phones \"Installed apps\").",
+                "Downloaded apps",
+                MockEnd.CHEVRON,
+            )
+            GuideStep('b', "Tap \"Sitr guard\".", "Sitr guard", MockEnd.CHEVRON)
+            GuideStep('c', "Switch on \"Use Sitr guard\".", "Use Sitr guard", MockEnd.SWITCH_ON)
+            GuideStep(
+                'd',
+                "Tap \"Allow\" when Android asks to confirm.",
+                "Allow Sitr guard to have full control of your device?",
+                MockEnd.ALLOW,
+            )
+            Note(
+                "On Samsung the list is called \"Installed apps\". On Xiaomi it is " +
+                    "\"Downloaded apps\" under Settings → Additional settings → Accessibility.",
+            )
+            OutlinedButton(onClick = { disclosure = true }) {
+                Text("Turn on accessibility guard")
+            }
+
+            Spacer(Modifier.height(4.dp))
+            SitrCard(contentPadding = PaddingValues(12.dp)) {
+                Text(
+                    "If the switch is greyed out",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.semantics { heading() },
+                )
+                Note("Android does this for apps not installed from the Play Store.")
+                GuideStep('a', "Open Sitr's App info (Settings → Apps → Sitr).", "App info", MockEnd.MENU)
+                GuideStep(
+                    'b',
+                    "Tap ⋮ at the top right, then \"Allow restricted settings\".",
+                    "Allow restricted settings",
+                    MockEnd.CHEVRON,
+                )
+                GuideStep('c', "Come back here and switch \"Use Sitr guard\" on.")
+            }
+        }
+
+        RowDivider()
+        LockRow("3. Lock this phone", false)
+        if (ready) {
+            // Steps 1 and 2 done is not locked: the accessibility service
+            // alone arms nothing (GuardService checks childLock first).
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, ProtectionRed.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(
+                    painterResource(R.drawable.ic_warning),
+                    contentDescription = null,
+                    tint = ProtectionRed,
+                    modifier = Modifier.size(20.dp),
+                )
+                Column {
+                    Text(
+                        "Not locked yet",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = ProtectionRed,
+                    )
+                    Text(
+                        "Sitr can still be switched off or uninstalled on this phone " +
+                            "until you tap \"Lock this phone\".",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
-                ctx.app.update { it.copy(childLock = true) }
-            },
+            }
+        } else if (alwaysOn == null && Build.VERSION.SDK_INT >= 29) {
+            Note("Turn on protection on Home first: while Sitr's filter is stopped, step 1 can't be checked.")
+        } else {
+            Note("Finish steps 1 and 2 first.")
+        }
+        Button(
+            enabled = ready,
+            onClick = { if (guardianPhone) confirmLock = true else lock() },
         ) { Text("Lock this phone") }
     }
 }

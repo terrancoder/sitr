@@ -155,7 +155,10 @@ says so next to the toggle. The guard reads window text and type on the device
 and discards it; the lock is turned on by a guardian, behind a disclosure, and
 stores and sends nothing. The same service has a second, separate use,
 Reels blocking in the Facebook app, which the user turns on (T12); the
-child lock never reads Facebook, and Reels blocking reads nothing else. The exit takes the guardian PIN and are refused outright when no PIN exists,
+child lock never reads Facebook, and Reels blocking reads nothing else. A guardian can also
+request the lock or its opening from a guardian phone (`policy.child`, applied only where the
+guard and always-on VPN are already on); like the PIN record, that request is trusted from any
+household member (the pairing-code limit below). The exit takes the guardian PIN and are refused outright when no PIN exists,
 so a cleared app can never be an unlocked one. One limit is structural:
 **the pairing code is household membership**. Every device derives the
 same keys from it, "child" is a local role, and the merge takes the
@@ -384,9 +387,12 @@ Facebook. No narrower Android API tells an app which tab is open inside
 another app, so the only mechanism is the accessibility service that the
 child lock already uses (`GuardService`, rules in `ReelsRules.kt`).
 
-- It is opt-in, off by default, free, device-local and never synced. The
-  switch shows the same disclosure as the child lock, and only "I agree"
-  turns it on. Turning it off is a loosening change and goes through the
+- It is opt-in, off by default and free. It is device-local, except that
+  a guardian can set it for the household's child phones from the Family
+  tab (`policy.child`, end-to-end encrypted in the household blob); there it
+  works only where the accessibility service is on, and switching that on in
+  the app shows the same disclosure. The switch shows the same disclosure as
+  the child lock, and only "I agree" turns it on. Turning it off is a loosening change and goes through the
   gate (refused on a child device, then the wait, then the PIN).
 - While it is off, Facebook is not in the service's package list, so
   Android sends the service nothing from Facebook. While it is on, on each

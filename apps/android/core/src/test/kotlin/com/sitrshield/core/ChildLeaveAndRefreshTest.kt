@@ -123,6 +123,6 @@ class ChildLeaveAndRefreshTest {
         assertNull(Household.enrolDevice(back, "a", 4000.0).getOrNull()) // already listed
         val full = refreshed.copy(devices = (1..Household.MAX_HOUSEHOLD_DEVICES).map { "d$it" })
         val err = Household.enrolDevice(full, "new", 5000.0).errorOrNull()!!
-        assertTrue(err.contains("refresh the device list from a guardian device"), err)
+        assertTrue(err.contains("reset the device list from a guardian device"), err)
     }
 }

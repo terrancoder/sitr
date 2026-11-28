@@ -1,8 +1,15 @@
 package com.sitrshield.app.ui
 
+import android.content.ClipData
+import android.content.ClipDescription
+import android.content.ClipboardManager
+import android.content.Context
+import android.os.Build
+import android.os.PersistableBundle
 import android.view.WindowManager
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,25 +44,36 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.sitrshield.app.HouseholdActions
 import com.sitrshield.app.R
+import com.sitrshield.app.SitrApp
 import com.sitrshield.app.UiCtx
 import com.sitrshield.app.sync.SyncWorker
 import com.sitrshield.core.SitrResult
 import com.sitrshield.core.gate.Gate
 import com.sitrshield.core.gate.MutationKind
+import com.sitrshield.core.categories.OptionalLists
+import com.sitrshield.core.household.ChildPolicy
 import com.sitrshield.core.household.Household
+import com.sitrshield.core.household.HouseholdState
+import com.sitrshield.core.sync.QrCode
 import com.sitrshield.core.sync.SyncStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
+import kotlin.math.floor
 
 /** The corner of a text field and of the button beside it. */
 private val FieldShape = RoundedCornerShape(14.dp)
@@ -84,10 +102,12 @@ private fun NoHousehold(ctx: UiCtx) {
     var joinAsChild by rememberSaveable { mutableStateOf(false) }
     var token by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     Text(
-        "A household shares its allow/block lists and category settings " +
-            "across every device, end-to-end encrypted — the sync server " +
+        "A household shares its allow/block lists, its guardian PIN and the " +
+            "guardian's settings for child phones across every device, " +
+            "end-to-end encrypted — the sync server " +
             "cannot read them.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -100,6 +120,15 @@ private fun NoHousehold(ctx: UiCtx) {
             value = code,
             onValueChange = { code = it; error = null },
             placeholder = { Text("Pairing code (XXXX-XXXX-…)") },
+            trailingIcon = {
+                // Read only on tap: Android 12+ shows a toast on every clipboard read.
+                TextButton(onClick = {
+                    context.getSystemService(ClipboardManager::class.java).primaryClip
+                        ?.takeIf { it.itemCount > 0 }
+                        ?.getItemAt(0)?.coerceToText(context)?.toString()?.trim()
+                        ?.let { code = it; error = null }
+                }) { Text("Paste") }
+            },
             shape = FieldShape,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -151,6 +180,90 @@ private fun NoHousehold(ctx: UiCtx) {
         )
     }
 
+    error?.let {
+        Spacer(Modifier.height(12.dp))
+        Text(it, color = ProtectionRed, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/**
+ * The guardian's settings for every child phone (policy.child). Turning
+ * something on, or asking for the lock, is gated like adding a household
+ * rule; turning something off, or asking to unlock, like removing one.
+ */
+@Composable
+private fun ChildPhones(ctx: UiCtx, household: HouseholdState) {
+    val policy = household.child ?: ctx.settings.childPolicy ?: ChildPolicy()
+    var error by remember { mutableStateOf<String?>(null) }
+    fun done(r: SitrResult<Unit>) { error = (r as? SitrResult.Err)?.message }
+    fun set(on: Boolean, offTitle: String, change: (ChildPolicy) -> ChildPolicy) {
+        if (on) ctx.attempt(MutationKind.ADD_HOUSEHOLD_RULE, "") { done(ctx.actions.setChildFilters(change)) }
+        else ctx.attempt(MutationKind.REMOVE_HOUSEHOLD_RULE, offTitle) { done(ctx.actions.setChildFilters(change)) }
+    }
+    fun List<String>.with(key: String, on: Boolean) = if (on) this + key else this - key
+
+    SitrCard(verticalArrangement = Arrangement.Top) {
+        Note(
+            "These settings replace the filter settings on every child phone in this " +
+                "household. Anything you leave off here is turned off on the child phones " +
+                "too, even if it was switched on there. A change reaches a child phone at " +
+                "its next sync, within about 30 minutes, or at once with \"Sync now\" on " +
+                "that phone.",
+        )
+        SwitchRow("Strict Search", policy.strictSearch, strong = true, onCheckedChange = { on ->
+            set(on, "Turn off Strict Search on child phones") { it.copy(strictSearch = on) }
+        })
+        RowDivider()
+        for ((key, label) in SitrApp.MEDIA_SITES) {
+            SwitchRow("Images and video off on $label", key in policy.mediaOff, onCheckedChange = { on ->
+                set(on, "Turn on images and video on $label on child phones") {
+                    it.copy(mediaOff = it.mediaOff.with(key, on))
+                }
+            })
+        }
+        SwitchRow("Block Reels in the Facebook app", policy.reelsOff, onCheckedChange = { on ->
+            set(on, "Turn off Reels blocking on child phones") { it.copy(reelsOff = on) }
+        })
+        Note("Reels blocking works on a child phone where Sitr guard (Child lock, step 2) is on.")
+        RowDivider()
+        for (list in OptionalLists.ALL) {
+            SwitchRow(list.title, list.id in policy.optionalLists, onCheckedChange = { on ->
+                set(on, "Turn off ${list.title} on child phones") {
+                    it.copy(optionalLists = it.optionalLists.with(list.id, on))
+                }
+            })
+        }
+    }
+
+    Spacer(Modifier.height(14.dp))
+    val hasPin = household.pin != null
+    SitrCard {
+        CardTitle("Lock child phones")
+        // Never "locked": this phone knows only what was asked and who confirmed it.
+        val lock = policy.lock
+        Text(
+            if (lock == null) "Not requested"
+            else "${if (lock.on) "Lock" else "Unlock"} requested at " +
+                "${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(lock.at))}, " +
+                "confirmed by ${ChildPolicy.confirmed(policy)} phone(s)",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Note(
+            "The lock needs steps 1 and 2 of Child lock (always-on VPN and Sitr guard) " +
+                "done once on the child's phone; until then that phone waits and then locks " +
+                "by itself. This phone sees only what was asked and how many phones " +
+                "confirmed it, not whether a phone is locked now.",
+        )
+        if (!hasPin) Note(HouseholdActions.NEEDS_PIN_FOR_LOCK, color = ProtectionRed)
+        PrimaryButton("Lock child phones", enabled = hasPin, onClick = {
+            ctx.attempt(MutationKind.ADD_HOUSEHOLD_RULE, "") { done(ctx.actions.requestChildLock(true)) }
+        })
+        SecondaryButton("Unlock child phones", enabled = hasPin, onClick = {
+            ctx.attempt(MutationKind.REMOVE_HOUSEHOLD_RULE, "Unlock child phones") {
+                done(ctx.actions.requestChildLock(false))
+            }
+        })
+    }
     error?.let {
         Spacer(Modifier.height(12.dp))
         Text(it, color = ProtectionRed, style = MaterialTheme.typography.bodyMedium)
@@ -263,14 +376,33 @@ private fun InHousehold(ctx: UiCtx) {
                     window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                     onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
                 }
+                val code = revealedCode!!
+                val context = LocalContext.current
+                var copied by remember { mutableStateOf(false) }
                 // Selectable, so it can be copied instead of retyped by hand.
                 SelectionContainer {
                     Text(
-                        revealedCode!!,
+                        code,
                         style = MaterialTheme.typography.titleMedium,
                         fontFamily = FontFamily.Monospace,
                     )
                 }
+                PairingQr(code, Modifier.align(Alignment.CenterHorizontally))
+                // Sitr for Android has no camera permission and does not scan.
+                Note(
+                    "The other phone can also scan this QR code: with its camera " +
+                        "app (then copy the text), or with the Sitr app on an iPhone.",
+                )
+                SecondaryButton("Copy code", onClick = {
+                    copySensitive(context, "Sitr pairing code", code)
+                    // Android 13+ confirms a copy itself; say it only below that.
+                    copied = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+                })
+                if (copied) Note("Copied.")
+                Note(
+                    "Paste it on the other phone under Sitr Family → Join a household. " +
+                        "The clipboard keeps the code until something else is copied.",
+                )
                 Text(
                     "Anyone with this code IS a member of your household — " +
                         "treat it like a house key.",
@@ -282,10 +414,11 @@ private fun InHousehold(ctx: UiCtx) {
         }
 
         Spacer(Modifier.height(14.dp))
+        val hasPin = household.pin != null
         SitrCard {
-            CardTitle("Guardian PIN")
+            CardTitle(if (hasPin) "Change the guardian PIN" else "Set a guardian PIN")
             Text(
-                if (household.pin != null)
+                if (hasPin)
                     "A PIN is set. It gates loosening actions on every household device."
                 else
                     "No PIN set. A PIN adds friction against casual loosening — " +
@@ -293,6 +426,17 @@ private fun InHousehold(ctx: UiCtx) {
                         "lock on a child's phone, it is the only way to switch " +
                         "protection off.",
                 style = MaterialTheme.typography.bodyMedium,
+            )
+            // The order, spelled out: people could not tell whether the PIN
+            // dialog wanted the old PIN or the new one again.
+            Note(
+                if (hasPin)
+                    "1. Type the new PIN below and tap Change PIN.\n" +
+                        "2. Sitr asks for your current (old) PIN to confirm.\n" +
+                        "3. The new PIN then works on every household device once they sync."
+                else
+                    "Type a PIN below and tap Set PIN. It then works on every " +
+                        "household device once they sync.",
             )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -305,7 +449,7 @@ private fun InHousehold(ctx: UiCtx) {
                 OutlinedTextField(
                     value = newPin,
                     onValueChange = { newPin = it },
-                    placeholder = { Text("New PIN (4–32 chars)") },
+                    placeholder = { Text(if (hasPin) "New PIN (4–32 characters)" else "PIN (4–32 characters)") },
                     keyboardOptions = PinKeyboard,
                     singleLine = true,
                     enabled = !hashing,
@@ -313,11 +457,12 @@ private fun InHousehold(ctx: UiCtx) {
                     modifier = Modifier.weight(1f),
                 )
                 Button(
-                    enabled = !hashing,
+                    // New PIN first, then the current one in the dialog.
+                    enabled = !hashing && newPin.isNotEmpty(),
                     shape = FieldShape,
                     modifier = Modifier.heightIn(min = 56.dp),
                     onClick = {
-                        ctx.attempt(MutationKind.CHANGE_PIN, "Change the guardian PIN") {
+                        ctx.attempt(MutationKind.CHANGE_PIN, CHANGE_PIN_TITLE) {
                             val entered = newPin
                             hashing = true
                             scope.launch {
@@ -338,7 +483,7 @@ private fun InHousehold(ctx: UiCtx) {
                             }
                         }
                     },
-                ) { Text(if (hashing) "Saving…" else "Set") }
+                ) { Text(if (hashing) "Saving…" else if (hasPin) "Change PIN" else "Set PIN") }
             }
         }
 
@@ -394,19 +539,23 @@ private fun InHousehold(ctx: UiCtx) {
         }
 
         Spacer(Modifier.height(24.dp))
+        SectionLabel("Child phones")
+        ChildPhones(ctx, household)
+
+        Spacer(Modifier.height(24.dp))
         SectionLabel("Devices")
         SitrCard {
             // Beside the count: the list holds only random ids, so the only way
             // to free a gone device's place is to clear it and let the live
             // devices add themselves back. Gated like changing the PIN.
             Note(
-                "Clears the household's device list. Each device that still uses " +
-                    "this household adds itself again the next time it syncs: within " +
-                    "about 30 minutes, or when Sitr is opened on it. Use it to free " +
-                    "the places of devices that are gone.",
+                "Use this when a phone is gone (lost, sold, Sitr removed) but still " +
+                    "takes a place. The list empties; every phone still in the household " +
+                    "adds itself back at its next sync, within about 30 minutes. " +
+                    "Nothing is removed from any phone.",
             )
-            SecondaryButton("Refresh device list", onClick = {
-                ctx.attempt(Gate.REFRESH_DEVICE_LIST_GATED_AS, "Refresh the device list") {
+            SecondaryButton("Reset device list", onClick = {
+                ctx.attempt(Gate.REFRESH_DEVICE_LIST_GATED_AS, "Reset the device list") {
                     message = when (val done = ctx.actions.refreshDeviceList()) {
                         is SitrResult.Err -> done.message
                         is SitrResult.Ok -> {
@@ -473,6 +622,41 @@ private fun InHousehold(ctx: UiCtx) {
         Spacer(Modifier.height(12.dp))
         Text(it, style = MaterialTheme.typography.bodyMedium)
     }
+}
+
+/**
+ * The pairing code as a QR code: exactly the canonical string
+ * (sync-protocol.md §Pairing code). Black on white with a 4-module quiet
+ * zone in both themes; scanners expect dark modules on a light ground.
+ */
+@Composable
+private fun PairingQr(code: String, modifier: Modifier = Modifier) {
+    val modules = remember(code) { QrCode.encode(code) }
+    Canvas(modifier.size(220.dp).semantics { contentDescription = "Pairing code as a QR code" }) {
+        val cells = modules.size + 8
+        // Whole pixels per module: fractional ones leave hairline seams.
+        val cell = floor(size.minDimension / cells)
+        val origin = floor((size.minDimension - cell * cells) / 2) + 4 * cell
+        drawRect(Color.White)
+        for (row in modules.indices) for (col in modules.indices) {
+            if (modules[row][col]) {
+                drawRect(Color.Black, Offset(origin + col * cell, origin + row * cell), Size(cell, cell))
+            }
+        }
+    }
+}
+
+/** Marked sensitive, so the clipboard preview hides it (honoured from Android 13). */
+private fun copySensitive(context: Context, label: String, text: String) {
+    val clip = ClipData.newPlainText(label, text)
+    clip.description.extras = PersistableBundle().apply {
+        putBoolean(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) ClipDescription.EXTRA_IS_SENSITIVE
+            else "android.content.extra.IS_SENSITIVE",
+            true,
+        )
+    }
+    context.getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
 }
 
 /** Core messages are lower-case fragments (shared with the other ports); show them as sentences. */

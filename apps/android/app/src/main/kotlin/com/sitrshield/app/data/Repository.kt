@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.sitrshield.core.gate.Delay
 import com.sitrshield.core.gate.DelayStamp
 import com.sitrshield.core.gate.PauseRecord
+import com.sitrshield.core.household.ChildPolicy
 import com.sitrshield.core.household.Household
 import com.sitrshield.core.household.HouseholdState
 import com.sitrshield.core.sync.SyncStatus
@@ -42,7 +43,8 @@ data class Settings(
     /** Reels blocking in the Facebook app (GuardService) — off by default;
      *  device-local, never synced. */
     val reelsOff: Boolean = false,
-    /** Guard mode armed by a guardian (ChildLock); opened only by the PIN. */
+    /** Guard mode armed by a guardian (ChildLock); opened only by the PIN,
+     *  here or by a PIN-gated unlock request from a guardian phone. */
     val childLock: Boolean = false,
     /** UI appearance: "system" | "light" | "dark" (ui.Appearance). */
     val appearance: String = "system",
@@ -50,6 +52,11 @@ data class Settings(
     val userBlock: List<String> = emptyList(),
     val role: String? = null,
     val household: HouseholdState? = null,
+    /** The last `policy.child` this phone has seen (ChildSync): survives an
+     *  older client's write that dropped it; cleared on leaving. */
+    val childPolicy: ChildPolicy? = null,
+    /** The `lock.at` of the last guardian lock request this phone applied. */
+    val lockAppliedAt: Long = 0,
     val maxSeenRev: Int = 0,
     val entitlementToken: String? = null,
     val syncStatus: SyncStatus = SyncStatus.NEVER_SYNCED,
@@ -104,6 +111,10 @@ class Repository(context: Context) {
             userBlock = prefs.getStringSet("userBlock", emptySet())!!.sorted(),
             role = prefs.getString("householdRole", null),
             household = household,
+            childPolicy = prefs.getString("childPolicy", null)?.let {
+                runCatching { ChildPolicy.sanitize(JSONObject(it)) }.getOrNull()
+            },
+            lockAppliedAt = prefs.getLong("lockAppliedAt", 0),
             maxSeenRev = prefs.getInt("syncMaxSeenRev", 0),
             entitlementToken = prefs.getString("entitlementToken", null),
             syncStatus = syncStatus,
@@ -130,6 +141,8 @@ class Repository(context: Context) {
                 "householdState",
                 next.household?.let { Household.toJSONObject(it).toString() },
             )
+            .putString("childPolicy", next.childPolicy?.let { ChildPolicy.toJSONObject(it).toString() })
+            .putLong("lockAppliedAt", next.lockAppliedAt)
             .putInt("syncMaxSeenRev", next.maxSeenRev)
             .putString("entitlementToken", next.entitlementToken)
             .putString(

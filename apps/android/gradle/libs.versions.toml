@@ -16,6 +16,9 @@ work = "2.10.1"
 composeBom = "2025.05.00"
 activityCompose = "1.10.1"
 coreKtx = "1.16.0"
+# zxing (Apache-2.0): TEST ONLY, ships zero bytes. QrCodeTest reads the
+# hand-written pairing-code QR encoder back with its decoder.
+zxing = "3.5.4"
 
 [libraries]
 orgjson = { module = "org.json:json", version.ref = "orgjson" }
@@ -27,6 +30,7 @@ compose-ui = { module = "androidx.compose.ui:ui" }
 compose-foundation = { module = "androidx.compose.foundation:foundation" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

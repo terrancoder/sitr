@@ -1,7 +1,10 @@
 package com.sitrshield.app
 
+import android.content.pm.ApplicationInfo
 import android.os.SystemClock
+import android.util.Log
 import com.sitrshield.app.data.Settings
+import com.sitrshield.app.lock.ChildLock
 import com.sitrshield.app.sync.SyncHttp
 import com.sitrshield.app.sync.SyncWorker
 import com.sitrshield.core.SitrResult
@@ -17,6 +20,8 @@ import com.sitrshield.core.gate.MutationKind
 import com.sitrshield.core.gate.MutationStep
 import com.sitrshield.core.gate.Pause
 import com.sitrshield.core.gate.PauseRecord
+import com.sitrshield.core.household.ChildPolicy
+import com.sitrshield.core.household.ChildSync
 import com.sitrshield.core.household.Household
 import com.sitrshield.core.household.HouseholdState
 import com.sitrshield.core.pin.Pin
@@ -44,6 +49,12 @@ class HouseholdActions(private val app: SitrApp) {
             "Waiting for the first sync with your household. Connect to the " +
                 "internet and tap Sync now. The household's PIN and lists " +
                 "appear here after that."
+        private const val UNENROLL_ATTEMPTS = 4
+        private const val UNENROLL_PAUSE_MS = 5_000L
+        const val NEEDS_PIN_FOR_LOCK =
+            "Set a guardian PIN first: it is the only way to open the lock on a child's phone."
+        const val LOCK_PENDING =
+            "Your guardian asked to lock this phone. Finish steps 1 and 2; it then locks by itself."
     }
 
     private fun now() = System.currentTimeMillis().toDouble()
@@ -208,6 +219,8 @@ class HouseholdActions(private val app: SitrApp) {
             s.copy(
                 household = null,
                 role = null,
+                childPolicy = null,
+                lockAppliedAt = 0,
                 maxSeenRev = 0,
                 entitlementToken = null,
                 syncStatus = SyncStatus.NEVER_SYNCED,
@@ -223,9 +236,30 @@ class HouseholdActions(private val app: SitrApp) {
         val household = before.household
         if (key != null && household != null) {
             thread(name = "sitr-unenroll") {
-                SyncClient(SyncHttp(), ::now).unenroll(
-                    SyncInput(key, household, before.maxSeenRev, before.deviceId, before.entitlementToken)
-                )
+                val client = SyncClient(SyncHttp(), ::now)
+                // ponytail: in memory only; if the process dies before an
+                // attempt succeeds the place stays taken ("Reset device list"
+                // on a guardian phone frees it).
+                for (attempt in 1..UNENROLL_ATTEMPTS) {
+                    val outcome = client.unenroll(
+                        SyncInput(key, household, before.maxSeenRev, before.deviceId, before.entitlementToken)
+                    )
+                    val listed = before.deviceId in outcome.state.devices
+                    // Debug builds only (release logs nothing, docs/data-flow.md §Logs).
+                    // Outcome only: no secret, household id or device id.
+                    if (app.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) Log.i(
+                        "Sitr",
+                        "unenroll attempt $attempt: ${outcome.status.state} listed=$listed" +
+                            (outcome.status.error?.let { " error=$it" } ?: ""),
+                    )
+                    // Again only on a failure, or a round that left this device listed
+                    // (a placeholder or a missing household has nothing to free).
+                    val state = outcome.status.state
+                    val again = state == SyncStatus.State.ERROR || state == SyncStatus.State.OFFLINE ||
+                        (state == SyncStatus.State.OK && listed)
+                    if (!again) break
+                    if (attempt < UNENROLL_ATTEMPTS) Thread.sleep(UNENROLL_PAUSE_MS)
+                }
             }
         }
         return SitrResult.Ok(Unit)
@@ -296,6 +330,76 @@ class HouseholdActions(private val app: SitrApp) {
             if (allow) s.copy(userAllow = s.userAllow - domain)
             else s.copy(userBlock = s.userBlock - domain)
         }
+    }
+
+    // --- Guardian-set settings for child phones (policy.child) ---
+
+    /**
+     * After a sync, and when the app comes to the front: the guardian's
+     * settings applied to this phone (ChildSync.step). A managed-locked
+     * phone applies nothing. Runs inside SitrApp.update.
+     */
+    fun childStep(s: Settings): Settings {
+        val household = s.household ?: return s
+        if (s.role == null || app.managedPolicy().lockOptions) return s
+        val isChild = s.role == "child"
+        val step = ChildSync.step(
+            isChild, household, s.childPolicy, s.lockAppliedAt,
+            ready = isChild && ChildLock.isReady(app, household.pin != null),
+            deviceId = s.deviceId, now = now(),
+        )
+        val next = s.copy(
+            household = step.household,
+            childPolicy = step.stored,
+            lockAppliedAt = step.lockAppliedAt,
+            childLock = step.setLock ?: s.childLock,
+        )
+        val f = step.copyFilters ?: return next
+        return next.copy(
+            strictSearch = f.strictSearch,
+            mediaOff = f.mediaOff.toSet(),
+            optionalLists = f.optionalLists.toSet(),
+            // ponytail: takes effect only where Sitr guard is on, and a guard
+            // switched on straight from Android's settings never saw the
+            // in-app notice (GUARD_DISCLOSURE); the red "NOT on" line covers
+            // a guard that is off.
+            reelsOff = f.reelsOff,
+        )
+    }
+
+    /** childStep when the app comes to the front; syncs when it wrote. */
+    fun refreshChildPolicy() {
+        if (childStep(settings()) == settings()) return
+        var wrote = false
+        app.update { s -> childStep(s).also { wrote = it.household != s.household } }
+        if (wrote && app.secretStore.load() != null) SyncWorker.kick(app)
+    }
+
+    /** A pending guardian lock request this phone can't apply yet. */
+    fun lockPending(s: Settings): Boolean =
+        s.role == "child" && ChildPolicy.newLockRequest(s.childPolicy, s.lockAppliedAt)?.on == true
+
+    /** Guardian: change the child phones' filters (gated by the caller). */
+    fun setChildFilters(change: (ChildPolicy) -> ChildPolicy): SitrResult<Unit> =
+        writeChildPolicy { base, at -> ChildPolicy.edited(base, at, change) }
+
+    /** Guardian: ask every child phone to lock or unlock. Needs the PIN to exist. */
+    fun requestChildLock(on: Boolean): SitrResult<Unit> {
+        if (settings().household?.pin == null) return SitrResult.Err(NEEDS_PIN_FOR_LOCK)
+        return writeChildPolicy { base, at -> ChildPolicy.lockRequested(base, on, at) }
+    }
+
+    /** Built from the state, else the stored copy, else defaults; never before the first sync. */
+    private fun writeChildPolicy(make: (ChildPolicy, Long) -> ChildPolicy): SitrResult<Unit> {
+        val household = settings().household ?: return SitrResult.Ok(Unit)
+        if (Household.isJoinPlaceholder(household)) return SitrResult.Err(WAITING_FOR_FIRST_SYNC)
+        app.update(kickSync = true) { s ->
+            val h = s.household ?: return@update s
+            if (Household.isJoinPlaceholder(h) || s.role != "guardian") return@update s
+            val p = make(h.child ?: s.childPolicy ?: ChildPolicy(), now().toLong())
+            s.copy(household = Household.bumpRev(h.copy(child = p), s.deviceId, now()), childPolicy = p)
+        }
+        return SitrResult.Ok(Unit)
     }
 
     private fun mutateHousehold(transform: (HouseholdState) -> HouseholdState) {

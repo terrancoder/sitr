@@ -23,7 +23,8 @@ import kotlinx.coroutines.launch
  * Sitr's accessibility service, with two separate uses. Screen text is
  * read on this device only, never stored, logged or sent anywhere.
  *  - Child lock: reads the window in front when it belongs to Settings,
- *    an installer or a system dialog, and closes it when GuardRules says
+ *    an installer, a system dialog or MIUI's Second space and Dual apps
+ *    pages (class only, no text), and closes it when GuardRules says
  *    it is a way to switch Sitr off. Does nothing unless a guardian armed
  *    the lock.
  *  - Reels blocking: while the user has it on, looks up the "Reel" labels
@@ -32,6 +33,8 @@ import kotlinx.coroutines.launch
  */
 class GuardService : AccessibilityService() {
     private var lastActionAt = 0L
+    /** No close before this (uptime ms): see LOCK_ARM_SETTLE_MS. */
+    private var settleUntil = 0L
     private var lastReelsLookupAt = 0L
     private val reelsRecheck = Runnable { checkReels() }
     private val scope = CoroutineScope(Dispatchers.Main.immediate)
@@ -55,6 +58,21 @@ class GuardService : AccessibilityService() {
                 serviceInfo?.let {
                     it.packageNames = (GuardRules.packages + if (reels) REELS_APPS else emptySet()).toTypedArray()
                     serviceInfo = it
+                }
+            }
+        }
+        // Look at the window already in front when the lock turns on (a
+        // guardian's request arrives by sync, without lock()'s Settings
+        // restart) and when the service connects (a Settings page opened
+        // before a restart stayed open). The first value covers the latter.
+        // ponytail: such a window has no class yet (WindowClasses), so a
+        // class-only page (private space setup, MIUI Second space) closes
+        // only when it is opened again.
+        scope.launch {
+            (application as SitrApp).repository.settings.map { it.childLock }.distinctUntilChanged().collect { on ->
+                if (on) {
+                    settleUntil = SystemClock.uptimeMillis() + LOCK_ARM_SETTLE_MS
+                    handler.postDelayed(recheck, LOCK_ARM_SETTLE_MS + 100)
                 }
             }
         }
@@ -126,12 +144,14 @@ class GuardService : AccessibilityService() {
         if (!app.repository.current().childLock) return false
         if (pkg == packageName || !GuardRules.watches(pkg)) return false
         // One close per half second: closing a window fires more events.
-        if (SystemClock.uptimeMillis() - lastActionAt < 500) return false
+        val now = SystemClock.uptimeMillis()
+        if (now - lastActionAt < 500 || now < settleUntil) return false
 
         val label = applicationInfo.loadLabel(packageManager).toString()
-        val root = rootInActiveWindow
+        // A class-only package (MIUI's security core) is decided without its text.
+        val root = rootInActiveWindow.takeIf { GuardRules.readsTexts(pkg) }
         val texts = if (root?.packageName?.toString() == pkg) collectTexts(root) else emptyList()
-        val allTexts = texts + listOfNotNull(eventText?.joinToString(" "))
+        val allTexts = texts + listOfNotNull(eventText?.takeIf { GuardRules.readsTexts(pkg) }?.joinToString(" "))
         if (!GuardRules.shouldClose(pkg, allTexts, label, windowClasses.of(windowId))) return false
 
         lastActionAt = SystemClock.uptimeMillis()
@@ -166,5 +186,8 @@ class GuardService : AccessibilityService() {
 
     private companion object {
         val AFTER_CLOSE_MS = longArrayOf(800, 2000)
+        /** Arming as Sitr comes to the front: the outgoing Settings page is
+         *  still in front for ~250 ms (POCO, QA 2026-11-28), so wait it out. */
+        const val LOCK_ARM_SETTLE_MS = 1000L
     }
 }

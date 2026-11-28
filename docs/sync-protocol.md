@@ -57,6 +57,189 @@ AAD is the UTF-8 string `sitr-sync v1`. Plaintext is the JSON-serialized
 household state (`extension/src/lib/household.ts`), which includes a
 monotonic `rev` counter. Maximum blob size: 65 536 bytes.
 
+## Household state
+
+The plaintext is one JSON object. `household.ts` is the reference; every
+port parses it into a typed model through a total sanitizer and writes it
+back from that model, so **a field a client does not know is dropped
+whenever that client writes**. Merging is whole-state last-writer-wins on
+`rev` (ties: `updatedAt`, then `updatedBy`); there is no per-field merge.
+
+| Field | Meaning |
+|---|---|
+| `v` | schema version, always `1`; any other value is an error |
+| `rev` | integer 1..2 000 000 000, raised by one on every write |
+| `updatedAt`, `updatedBy` | time (ms) and device id of the write |
+| `allowDomains`, `blockDomains` | the household lists |
+| `devices` | random device ids (fair-use count only; no names, no roles) |
+| `disabledCategories` | category ids switched off |
+| `pin` | the guardian PIN record (PBKDF2-SHA256), optional |
+| `policy.childLockOptions` | boolean, default `true` |
+| `policy.child` | guardian-set settings for child phones, optional (below; Android only so far) |
+
+A device's role (guardian or child) is chosen on the device when it joins
+and never written to the state. The conformance fixtures
+(`apps/shared/fixtures/{sanitize,merge,blob,gate}.json`) pin every field
+above except `policy.child`; they do not change for it, and `v` stays 1.
+
+### Guardian-set child settings (`policy.child`)
+
+A guardian sets Strict Search, the "images and video off" sites, the
+optional lists, Reels blocking and the child lock for **all** child phones
+of the household from the guardian's own phone. Today only the Android app
+reads and writes it.
+
+```
+"policy": {
+  "childLockOptions": true,
+  "child": {
+    "at": 1764320000000,
+    "strictSearch": true,
+    "mediaOff": ["reddit", "x"],
+    "optionalLists": ["violence"],
+    "reelsOff": true,
+    "lock": { "on": true, "at": 1764320100000 },
+    "lockAcks": { "3f1c…": 1764320100000 }
+  }
+}
+```
+
+| Member | Type and rule | Default |
+|---|---|---|
+| `at` | time (ms) a guardian last changed any member except `lockAcks` | `0` |
+| `strictSearch` | boolean | `false` |
+| `mediaOff` | site keys | `[]` |
+| `optionalLists` | optional-list ids (`OptionalLists`) | `[]` |
+| `reelsOff` | boolean: Reels blocking in the Facebook app (Android) | `false` |
+| `lock` | `{ "on": boolean, "at": time }`: the latest lock request | absent = never requested |
+| `lockAcks` | object: device id → the `lock.at` that phone has applied | `{}` |
+
+**Absent means no instruction, never "off".** A state without `child`
+leaves every child phone as it is. Serializers emit `child` only when it is
+set, so a household that never used the feature serializes byte-for-byte
+as before (the fixtures stay as they are). Inside `child`, `lock` is
+emitted only when set; `lockAcks` is always emitted, possibly `{}`.
+
+**Sanitizing is total**: nothing in `child` makes the whole state invalid.
+
+- `policy` or `child` not an object: `child` is absent.
+- A time (`at`, `lock.at`, an ack value) is valid when it is a number, a
+  whole number, and within 0..2^53−1 (JavaScript's `MAX_SAFE_INTEGER`).
+- `at` invalid: `0`. A boolean member that is not a boolean: `false`.
+- `mediaOff`, `optionalLists`: not an array → `[]`. Keep the strings
+  matching `^[a-z0-9-]{1,32}$` exactly (no case folding), dedupe, sort by
+  code unit, keep the first 32. Keys the reader does not know are KEPT, so
+  a newer client's sites survive an older client's write; only known keys
+  are applied.
+- `lock`: not an object, `on` not a boolean, or `at` invalid → absent.
+- `lockAcks`: not an object → `{}`. Keep entries whose key is 1..64
+  characters and whose value is a valid time; above 20, keep the 20
+  smallest keys in code-unit order (an honest household never gets there:
+  20 devices at most).
+
+**Who writes what** (honest clients; the same trust model as the household
+lists, which any member holding the root secret can also rewrite — the
+server cannot tell a guardian's write from a child's):
+
+- A guardian-role phone writes `at`, `strictSearch`, `mediaOff`,
+  `optionalLists`, `reelsOff` and `lock`. Each change sets
+  `at = max(now, previous at + 1)`, a new lock request also sets
+  `lock.at = max(now, previous lock.at + 1)` and empties `lockAcks`; any
+  other change carries `lockAcks` over unchanged. An edit is built from the
+  state's `child`, else from the phone's stored copy (below), else the
+  defaults; never from a view that lost the field. Turning something on, or
+  requesting a lock, is gated as `addHouseholdRule`; turning something off,
+  or requesting an unlock, as `removeHouseholdRule` (PIN when set, and the
+  guardian phone's own "wait before loosening"). No new gate kinds. A lock
+  request needs a household PIN, because the PIN is the only way to open
+  the lock on the phone.
+- A child-role phone never edits those members. It writes only its own
+  `lockAcks` entry.
+- Neither writes before its first sync (the join placeholder is never
+  edited).
+
+**Every phone** keeps a local copy of the last `child` it has seen. It
+replaces the copy with a synced state's `child` only when that `child` is
+present and its `at` is not older than the copy's (a stale state brought
+back by an older client's write does not roll the copy back). Leaving the
+household clears the copy, and a child phone also forgets the `lock.at` it
+applied: a phone that leaves and joins again applies the household's last
+lock request once more, so a ready phone joining a household whose last
+request is a lock locks at its first sync (both leaving and joining are
+guardian-gated, and this fails towards locked).
+
+**Guardian write-back.** After each sync, a guardian-role phone whose
+stored copy is newer than the merged state's `child` — `child` absent, or
+its `at` older — writes its copy back as a new revision. Its `lockAcks`
+is the union of the copy's and the state's (`{}` when `child` is absent),
+keeping only entries equal to the copy's `lock.at`; on the same key the
+state's value wins. This
+restores the field after an older client dropped it and after a lost
+whole-state race. It never re-fires an old lock request: a child compares
+`lock.at` with what it applied (below), and write-back never invents a
+newer `at`.
+
+**On a child-role phone**:
+
+- Filters: **copied when they change**. When the stored copy is replaced
+  and its `strictSearch`, `mediaOff`, `optionalLists` or `reelsOff` differ
+  from the previous copy's (the defaults when there was none), the phone
+  copies those four into its own switches. A lock request alone moves `at`
+  but changes no filter, so it never resets the phone's switches. The guardian's latest setting replaces what was there, so it
+  also turns off a filter switched on by hand on the child's phone that the
+  guardian leaves off (a child-role phone cannot switch filters off itself:
+  the gate refuses `disableCategory` there). A child can still tighten on
+  the phone until the guardian's next change. The guardian phone says that
+  these settings replace the child phones' own.
+- Reels: the copied `reelsOff` takes effect where Sitr's accessibility
+  service is on. Switching that service on in the app shows the same notice
+  (`GUARD_DISCLOSURE`) as the Reels switch, so no separate consent is
+  stored; where the service is off, the phone's existing "NOT on" warning
+  says so. (A service switched on straight from Android's settings never saw
+  the in-app notice; the Android code marks this limit.)
+- Lock request: applied **once per `lock.at`**. The phone stores the
+  `lock.at` it last applied (initially 0) and acts only when its stored
+  copy's `lock.at` is greater. It decides from the copy, as for the
+  filters, so a pending request survives a write that dropped `child`; it
+  writes an ack only into a state whose `child.lock.at` equals the applied
+  one.
+  - `on: true`: if the phone is ready — Sitr's accessibility guard is on,
+    Sitr is the always-on VPN, and the household has a PIN — it arms the
+    child lock, stores `lock.at` and writes its ack. If not, the request
+    stays pending and the phone says so; it is checked again at every sync
+    and whenever the app comes to the front.
+  - `on: false`: it opens the lock, stores `lock.at` and writes its ack.
+  - A lock armed or opened by hand on the phone is not undone by later
+    syncs; only a new request (a greater `lock.at`) changes it.
+  - Acks heal themselves: whenever the state's `lock.at` equals the
+    phone's stored one and its `lockAcks` entry is missing or different, it
+    writes the entry again (a whole-state race or an older client may have
+    dropped it). It never writes an entry that sanitizing would drop (the
+    map already holds 20 other entries), so healing cannot loop.
+- A phone under managed `lockOptions` applies nothing from `child`
+  (nothing may change on that device).
+
+**What the guardian phone can know.** Only what was requested and how
+many phones acknowledged it: "confirmed by N" counts the `lockAcks` values
+equal to the current `lock.at`. It never learns whether a phone is locked
+now (a lock opened by hand on the phone is not reported), and it gets no
+confirmation for filter changes. A change reaches a child phone at that
+phone's next sync: within about 30 minutes, or at once with "Sync now" on
+that phone.
+
+**No write loop.** The Android `SyncClient` and the extension's
+`sync/client.ts` push only when the merge result differs from the server
+copy; so does the iOS client on the `ios-release` branch
+(`SitrCore/SyncClient.swift`: no push when the server's state equals the
+merge result, unless it forces a write to hand the server a new
+entitlement token, which is occasional). Such an older client therefore drops `child` only when it writes for its own
+reasons (a local edit, enrolment), and each restore or ack is written once.
+
+**Other ports.** The extension and the iOS app do not know `child` yet, so
+every write from them clears it, and a guardian Android phone restores it
+at its next sync. When a port learns the field, it must at least carry
+`policy.child` through unchanged (sanitized as above) when it writes.
+
 ## Pairing code
 
 `Crockford-Base32( 0x01 ‖ rootSecret(32) ‖ CRC-16/CCITT-FALSE(prefix) )`,
@@ -1437,3 +1620,54 @@ Exact-value vectors (derived ids, keys, encoded pairing codes) are pinned
 in the conformance fixtures at `apps/shared/fixtures/`, generated from the
 reference TypeScript implementation. Native clients must match them
 byte-for-byte.
+
+### `policy.child` (Android unit tests; not in the shared fixtures)
+
+Sanitizing this `policy`:
+
+```json
+{ "childLockOptions": true,
+  "child": {
+    "at": 1764320000000,
+    "strictSearch": true,
+    "mediaOff": ["x", "Imgur", "x", "reddit", "bad key!", 7, "newsite"],
+    "optionalLists": "violence",
+    "reelsOff": "yes",
+    "lock": { "on": true, "at": 1764320100000 },
+    "lockAcks": { "dev-a": 1764320100000, "dev-b": 1764310000000, "": 5, "dev-c": "x" } } }
+```
+
+gives (`"Imgur"` is not lower-case, `"bad key!"` and `7` are not keys, a
+non-array is `[]`, a non-boolean is `false`, an empty key and a non-number
+ack are dropped, a stale ack is kept):
+
+```json
+{ "childLockOptions": true,
+  "child": {
+    "at": 1764320000000,
+    "strictSearch": true,
+    "mediaOff": ["newsite", "reddit", "x"],
+    "optionalLists": [],
+    "reelsOff": false,
+    "lock": { "on": true, "at": 1764320100000 },
+    "lockAcks": { "dev-a": 1764320100000, "dev-b": 1764310000000 } } }
+```
+
+The guardian phone shows "Lock requested at HH:MM, confirmed by 1
+phone(s)" (only `dev-a` equals `lock.at`). On child phone `dev-b`, which
+last applied `1764310000000`, the request is new: it arms if ready and
+writes `"dev-b": 1764320100000`. On `dev-a` nothing happens.
+
+More cases:
+
+- `"child": 5`, `"child": null`, `"child": []`, or `policy` not an
+  object: no `child`; the serialized state has no `child` member.
+- `"lock": { "on": "true", "at": 1 }`, `{ "on": true }`, or
+  `{ "on": true, "at": 1.5 }`: no `lock`.
+- `"at": -1`, `"at": 1e300` or `"at": "1"`: `"at": 0`.
+- A guardian phone with stored `at` 200 syncs and gets `child.at` 100:
+  it writes its copy back as a new revision. With `child.at` 200 or 300 it
+  adopts the state's copy and writes nothing.
+- A guardian phone's copy has `lock.at` 500 and `lockAcks`
+  `{"a": 500, "b": 400}`; the merged state has no `child` (an older
+  client wrote). Write-back sends the copy with `lockAcks` `{"a": 500}`.

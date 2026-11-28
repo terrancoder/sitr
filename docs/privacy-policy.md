@@ -54,11 +54,13 @@ without Sitr. Sitr sends those lookups without encryption, so Android's automati
 
 **Android child lock (optional).** If a guardian turns on the child lock,
 Sitr's accessibility service reads the text and type of the window in front of you
-when it is Settings, an installer, the Play Store or a system dialog, on
+when it is Settings, an installer, the Play Store, a system dialog or, on
+Xiaomi phones, the Second space and Dual apps screens, on
 the device, to recognise the screens that would switch Sitr off — its
 app info and other settings pages that show Sitr's name, uninstalling, its
 VPN and accessibility settings, the VPN disconnect dialog, Developer
-options, adding users, setting up or opening a private space, the Private DNS dialog
+options, adding users, setting up or opening a private space, Second space
+and Dual apps (Xiaomi), the Private DNS dialog
 and the mobile network reset — and closes them. That text is checked in memory and discarded at once; it is
 never stored, logged or transmitted. The guardian can switch it off at
 any time with the PIN.

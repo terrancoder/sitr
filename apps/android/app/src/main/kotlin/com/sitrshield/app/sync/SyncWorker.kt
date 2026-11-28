@@ -10,6 +10,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import com.sitrshield.app.HouseholdActions
 import com.sitrshield.app.SitrApp
 import com.sitrshield.core.SitrResult
 import com.sitrshield.core.household.Household
@@ -77,6 +78,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
         // this run started: the network round-trip takes seconds, and a
         // result written wholesale would undo anything changed meanwhile.
         var changedMeanwhile = false
+        val actions = HouseholdActions(app)
         app.update { current ->
             when {
                 // Left the household while we were on the network — this
@@ -87,11 +89,15 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
                     changedMeanwhile = true
                     current.copy(maxSeenRev = maxOf(current.maxSeenRev, outcome.maxSeenRev))
                 }
-                else -> current.copy(
-                    household = outcome.state,
-                    maxSeenRev = outcome.maxSeenRev,
-                    syncStatus = outcome.status,
-                )
+                // The guardian's child settings: adopted, applied on a
+                // child phone, restored or acked — a write syncs again.
+                else -> actions.childStep(
+                    current.copy(
+                        household = outcome.state,
+                        maxSeenRev = outcome.maxSeenRev,
+                        syncStatus = outcome.status,
+                    )
+                ).also { changedMeanwhile = it.household != outcome.state }
             }
         }
         if (changedMeanwhile) kick(applicationContext)

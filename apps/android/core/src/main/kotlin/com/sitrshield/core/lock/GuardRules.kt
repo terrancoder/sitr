@@ -21,7 +21,11 @@ package com.sitrshield.core.lock
  *  - the Users page, private space setup (by window class, see
  *    PRIVATE_SPACE_WINDOWS) and an existing private space's settings: a
  *    new user, a guest or a private space has no Sitr, and a VPN only
- *    filters the user that started it.
+ *    filters the user that started it;
+ *  - on Xiaomi (MIUI): Developer options (its top switch is titled
+ *    differently), "Multiple users", Second space and Dual apps, the
+ *    last two in com.miui.securitycore and matched by window class only
+ *    (SETTINGS_WINDOWS, MIUI_SPACE_WINDOWS).
  *
  * The phrase rules apply to the Settings app alone. In an installer or the
  * Play Store only Sitr's own name counts: an unrelated store page that
@@ -37,10 +41,11 @@ package com.sitrshield.core.lock
  * Turkish and Malay. All five are checked whatever the phone's language;
  * the resource name is next to each phrase so a reviewer can compare.
  *
- * ponytail: five languages as AOSP words them, and the common OEM package
- * names. Another language, an OEM that rewords Settings (Xiaomi, Samsung)
- * or an unlisted OEM settings app gets only the label and vpndialogs
- * checks. Upgrade path: add a locale block from that build's strings.
+ * ponytail: five languages as AOSP words them, the common OEM package
+ * names, and the MIUI 14 screens above (English, POCO X3 NFC). Another
+ * language, another OEM that rewords Settings (Samsung) or an unlisted
+ * OEM settings app gets only the label and vpndialogs checks, plus any
+ * class rule. Upgrade path: add a locale block from that build's strings.
  */
 object GuardRules {
     private const val VPN_DIALOGS = "com.android.vpndialogs"
@@ -133,6 +138,13 @@ object GuardRules {
         // en
         "usb debugging", // SettingsLib enable_adb, adb_warning_title
         "use developer options", // developer_options_main_switch_title
+        // MIUI titles that switch "Developer options", the same words as the
+        // row that links the page, so match the rows just below it (MIUI 14).
+        // ponytail: MIUI English only; in another language a hand-opened
+        // MIUI Developer options closes once "USB debugging" scrolls in.
+        "apps from unverified developers", // MIUI
+        "bug report handler", // bug_report_handler_title
+        "oem unlocking", // oem_unlock_enable
         "add user", // SettingsLib user_add_user, user_add_user_or_profile_menu
         "add guest", // SettingsLib guest_new_guest
         // ponytail: Android 15+ private space is a profile the VPN doesn't
@@ -210,15 +222,44 @@ object GuardRules {
     )
 
     /**
+     * Settings pages that are their own activity when opened by intent
+     * (POCO X3 NFC, MIUI 14, Android 12): the Users page, which MIUI's
+     * menus don't link at all ("Multiple users", whose first page has a
+     * "Use multiple users" switch and no "Add user"), and Developer options.
+     * By hand MIUI hosts Developer options in SubSettings, like the
+     * "Additional settings" page that links it: the MIUI phrases in
+     * PROTECTED_PHRASES cover that route.
+     */
+    private val SETTINGS_WINDOWS = PRIVATE_SPACE_WINDOWS + setOf(
+        "com.android.settings.Settings\$UserSettingsActivity",
+        "com.android.settings.Settings\$DevelopmentSettingsDashboardActivity",
+    )
+
+    /**
+     * MIUI's Second space and Dual apps entry pages. Both make a user the
+     * VPN doesn't filter (Second space a full user, Dual apps the XSpace
+     * user 999). Matched by class alone: the package also hosts the dual
+     * app chooser and Second space removal, which stay open.
+     */
+    private const val MIUI_SECURITY_CORE = "com.miui.securitycore"
+    private val MIUI_SPACE_WINDOWS = setOf(
+        "com.miui.securityspace.ui.activity.PrivateSpaceMainActivity",
+        "com.miui.xspace.ui.activity.XSpaceSettingActivity",
+    )
+
+    /**
      * Every app whose windows the child lock may read. The service asks
      * Android for these alone, plus REELS_APPS while Reels blocking is on
      * (ReelsRules); the child lock never reads those.
      */
-    val packages: Set<String> get() = WATCHED + VPN_DIALOGS
+    val packages: Set<String> get() = WATCHED + VPN_DIALOGS + MIUI_SECURITY_CORE
 
     /** Whether any window of [packageName] can be closed; nothing else is read. */
     fun watches(packageName: String): Boolean =
-        packageName == VPN_DIALOGS || packageName in WATCHED
+        packageName == VPN_DIALOGS || packageName == MIUI_SECURITY_CORE || packageName in WATCHED
+
+    /** False for a package matched by window class alone: its text is never read. */
+    fun readsTexts(packageName: String): Boolean = packageName != MIUI_SECURITY_CORE
 
     fun shouldClose(
         packageName: String,
@@ -227,7 +268,8 @@ object GuardRules {
         /** The activity class from the window event, when Android gives one. */
         windowClass: String? = null,
     ): Boolean {
-        if (packageName == SETTINGS && windowClass in PRIVATE_SPACE_WINDOWS) return true
+        if (packageName == SETTINGS && windowClass in SETTINGS_WINDOWS) return true
+        if (packageName == MIUI_SECURITY_CORE) return windowClass in MIUI_SPACE_WINDOWS
         val norm = texts.map(::normalise)
         if (packageName == VPN_DIALOGS) {
             // Only the connected VPN's manage dialog has "Disconnect", and

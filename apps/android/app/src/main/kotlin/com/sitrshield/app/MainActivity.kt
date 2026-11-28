@@ -86,6 +86,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // A pending guardian lock request is checked again here: steps 1
+        // and 2 may just have been finished in Settings.
+        // ponytail: reads the always-on fact as it stands; where it stays
+        // stale until the VPN restarts (HyperOS), only the Child lock tab
+        // re-reads it, so the request applies when that tab is opened.
+        HouseholdActions(application as SitrApp).refreshChildPolicy()
         resumes.intValue++
     }
 }

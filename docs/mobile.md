@@ -267,7 +267,8 @@ T14.
   "block connections without VPN" is on. iOS has no pause (what other
   apps see of the iOS DNS filter: T14).
 - "Block Reels in the Facebook app" (optional, off by default,
-  device-local) uses the accessibility service to leave Facebook's Reels
+  device-local; on a child phone a guardian can set it from the Family tab)
+  uses the accessibility service to leave Facebook's Reels
   tab and reels opened full screen. DNS cannot do this, because Reels
   shares Facebook's hostnames. Reel previews in the feed, Stories,
   Facebook in a browser, Facebook Lite, Instagram and TikTok are not
