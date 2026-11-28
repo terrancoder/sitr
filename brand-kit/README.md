@@ -8,7 +8,7 @@ not edit generated files by hand.
 
 ## Name and voice
 - **Sitr** — سِتْر, "covering · shielding · protection". Domain: sitrshield.com.
-- Store name: "Sitr — Halal & Family Content Filter".
+- Store name: "Sitr — Family Content Filter".
 - The product name is "Sitr". Where a graphic shows the name next to the logo,
   it is the "Sitr سِتْر" name lockup set in the graphic's own fonts, as before.
 - Tagline: "A content filter you can audit." Header line: "a content filter that is *private by construction*".

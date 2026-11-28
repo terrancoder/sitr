@@ -33,7 +33,7 @@ character count, in every variant, against the limit in its heading.*
 
 ## App name (30 chars max)
 
-Sitr — Halal & Family Filter
+Sitr — Family Content Filter
 
 ## Subtitle (30 chars max)
 
@@ -96,7 +96,8 @@ Source code, blocklist and appeals: https://github.com/terrancoder/sitr
 
 content blocker,parental controls,muslim,islamic,adult blocker,porn blocker,gambling,dating,privacy
 
-*No word from the name (Sitr, Halal, Family, Filter). No Apple trademarks
+*No word from the name (Sitr, Family, Content, Filter) apart from
+"content", which stays in the phrase "content blocker". No Apple trademarks
 (Safari, Screen Time) and no other apps' names (guideline 2.3.7). With
 the DNS filter shipped, the owner may paste this alternate instead, with
 "safesearch" in place of "porn blocker" (optional; the line above stays

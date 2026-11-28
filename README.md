@@ -1,6 +1,6 @@
 # Sitr — سِتْر
 
-**A halal/family content filter whose privacy you can verify, not just trust.**
+**A family content filter whose privacy you can verify, not just trust.**
 
 Sitr is a Manifest V3 browser extension that blocks adult, gambling and dating
 sites (about 100,000 domains from a public list) and enforces SafeSearch (Google, Bing, DuckDuckGo) and YouTube

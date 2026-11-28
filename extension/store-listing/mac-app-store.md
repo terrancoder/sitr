@@ -16,7 +16,7 @@ Sitr — Family Content Filter
 
 ## Subtitle (30 chars max)
 
-Halal filtering, on-device
+Family filtering, on-device
 
 ## Description
 
@@ -71,7 +71,7 @@ app, and Sitr itself sends nothing.
 
 ## Keywords (100 chars max)
 
-halal,family,content filter,safesearch,parental,muslim,adult blocker,privacy,blocker
+family,content filter,safesearch,parental,muslim,adult blocker,privacy,blocker
 
 ## App Privacy label
 

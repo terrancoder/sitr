@@ -7,7 +7,7 @@ specific, substantiated ones.*
 
 ## Name
 
-Sitr — Halal & Family Content Filter
+Sitr — Family Content Filter
 
 ## Summary (132 chars max)
 

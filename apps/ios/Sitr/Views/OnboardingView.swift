@@ -16,7 +16,7 @@ struct OnboardingView: View {
                 Rectangle().fill(Theme.gold).frame(width: 48, height: 3)
                 Text(
                     """
-                    A halal/family content filter whose privacy you can \
+                    A family content filter whose privacy you can \
                     verify, not just trust.
 
                     Sitr blocks adult, gambling and dating sites in Safari — \

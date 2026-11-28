@@ -2,7 +2,7 @@
   "name": "sitr",
   "private": true,
   "version": "0.1.0",
-  "description": "Sitr — privacy-clean halal/family content filter (MV3, on-device)",
+  "description": "Sitr — privacy-clean family content filter (MV3, on-device)",
   "type": "module",
   "workspaces": [
     "extension",
